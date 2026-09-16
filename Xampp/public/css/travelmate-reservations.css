@@ -1,0 +1,5 @@
+
+.reservation-notice{margin:20px 0;padding:14px 16px;background:#e8f4ff;border-radius:8px;color:#15527f;font-size:14px;line-height:1.65}
+.profile-field select{max-width:100%}
+.browse-facts dd{white-space:normal}
+@media(max-width:640px){.management-actions button{width:100%}}

@@ -1,0 +1,10 @@
+@extends('travelmate.layout')
+@section('title', 'Account access')
+@section('content')
+<main class="browse-shell tm-operations">
+<header class="browse-heading"><a href="{{ route('admin.index') }}">← Admin dashboard</a><h1>Account access</h1><p>Suspend or reactivate non-admin accounts. Suspension blocks sign-in and authenticated actions on their next request.</p><p>Business listings and reservations keep their existing status. Manage those separately when needed.</p></header>@include('travelmate.errors')
+<form method="GET" action="{{ route('operations.accounts') }}" class="planner-panel profile-form"><label>Search name or email<input name="q" maxlength="150" value="{{ $filters['q']??'' }}"></label><label>Status<select name="status"><option value="">All accounts</option>@foreach(['active','suspended','closed'] as $s)<option @selected(($filters['status']??'')===$s)>{{ $s }}</option>@endforeach</select></label><button class="profile-save-btn">Search</button></form>
+<section class="planner-panel">@forelse($users as $u)<article class="tm-operation-row"><h2>{{ $u->full_name }}</h2><p>{{ $u->email }} · {{ ucfirst($u->account_status) }}</p>@php($accountRoles=($roles[$u->id]??collect())->pluck('name'))<p>{{ $accountRoles->implode(', ') }}</p>
+@if($accountRoles->contains('admin'))<p>Admin account — protected from changes here.</p>@elseif(in_array($u->account_status,['active','suspended']))<form method="POST" action="{{ route('operations.account',$u->id) }}">@csrf @method('PATCH')<input type="hidden" name="expected_status" value="{{ $u->account_status }}"><button class="{{ $u->account_status==='active'?'wishlist-remove':'profile-save-btn' }}" name="account_status" value="{{ $u->account_status==='active'?'suspended':'active' }}">{{ $u->account_status==='active'?'Suspend account':'Reactivate account' }}</button></form>@else<p>Closed accounts cannot be changed here.</p>@endif</article>@empty<p>No accounts match.</p>@endforelse</section>@include('travelmate.browse-pagination',['paginator'=>$users])
+</main>
+@endsection

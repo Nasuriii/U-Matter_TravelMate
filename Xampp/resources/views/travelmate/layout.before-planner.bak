@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@yield('title', 'TravelMate') — TravelMate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/travelmate-prototype.css') }}">
+<link rel="stylesheet" href="{{ asset('css/travelmate-browse.css') }}">
+<link rel="stylesheet" href="{{ asset('css/travelmate-wishlist.css') }}">
+</head>
+<body>
+@hasSection('publicScreen')
+@else
+<header class="tm-header">
+<a class="wordmark" href="{{ route('home') }}">TRAVEL<span>MATE</span></a>
+<nav aria-label="Account navigation">
+<a href="{{ route('destinations.index') }}">Destinations</a>
+@auth
+<a href="{{ route('wishlist.index') }}">Wishlist</a>
+<a href="{{ route('dashboard') }}">My account</a>
+<form method="POST" action="{{ route('logout') }}">@csrf<button class="link-btn" type="submit">Sign out</button></form>
+@else
+<a href="{{ route('login') }}">Log in</a>
+@endauth
+</nav>
+</header>
+@endif
+@if(session('status'))
+<div class="tm-message" role="status">{{ session('status') }}</div>
+@endif
+@yield('content')
+</body>
+</html>

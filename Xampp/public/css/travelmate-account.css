@@ -1,0 +1,13 @@
+
+.inbox-badge{display:inline-flex;align-items:center;justify-content:center;min-width:23px;min-height:23px;padding:2px 6px;border-radius:20px;background:var(--vermilion);color:white;font-size:12px;font-weight:700}
+.preference-group{border:var(--rule);border-radius:10px;padding:16px}
+.preference-group legend{font-size:15px;font-weight:600;padding:0 6px}
+.preference-options{display:flex;flex-wrap:wrap;gap:10px 20px}
+.preference-options label{display:flex;gap:10px;align-items:center;min-height:44px;font-size:15px}
+.planner-panel .preference-options input{min-height:auto;width:18px;height:18px;accent-color:var(--vermilion)}
+.profile-private{font-size:14px;color:var(--olive)}
+.notification-entry{padding:20px 0;border-top:var(--rule);display:flex;flex-direction:column;align-items:start;gap:12px}
+.notification-entry.unread{border-left:3px solid var(--vermilion);padding-left:16px}
+.notification-entry p{font-size:16px;overflow-wrap:anywhere}
+.notification-entry time{font-size:13px;color:var(--olive)}
+.profile-readonly{padding:12px;background:var(--paper-dim);border-radius:8px;overflow-wrap:anywhere}

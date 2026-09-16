@@ -1,0 +1,5 @@
+
+.browse-grid .rating-line{font-size:14px;flex-wrap:wrap}
+.browse-filter{align-items:flex-end}
+.browse-filter label{min-width:0}
+@media(max-width:640px){.browse-filter label{flex-basis:100%}.browse-grid .card-body{min-height:220px}}

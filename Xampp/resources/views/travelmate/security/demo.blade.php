@@ -1,0 +1,13 @@
+@extends('travelmate.layout')
+@section('title', 'Demo payment practice')
+@section('content')
+<main class="browse-shell tm-security">
+<header class="browse-heading"><a href="{{ route('bookings.show',$booking->id) }}">← Booking #{{ $booking->id }}</a><p class="eyebrow">Classroom simulation</p><h1>Demo payment practice</h1><p>No money is collected or refunded. Do not enter card or wallet details.</p></header>@include('travelmate.errors')
+<section class="planner-panel"><h2>Booking total: ₱{{ number_format((float)$booking->total_amount,2) }}</h2><p>Status: {{ ucfirst($booking->status) }}</p>
+@if($booking->status==='confirmed' && (float)$booking->total_amount>0 && !$payments->contains('status','succeeded') && !$payments->contains('status','pending'))<form class="tm-action-row" method="POST" action="{{ route('demo.pay',$booking->id) }}">@csrf<input type="hidden" name="request_key" value="{{ \Illuminate\Support\Str::uuid() }}"><button class="profile-save-btn" name="result" value="succeeded">Simulate successful payment</button><button class="chip" name="result" value="failed">Simulate failed payment</button></form>@endif
+<p>The owner must confirm the booking first. Demo payments are allowed only before the stay or seating starts.</p></section>
+<section class="planner-panel"><h2>Payment attempts</h2>@forelse($payments as $payment)<p>#{{ $payment->id }} · {{ $payment->is_demo?'DEMO':'Recorded payment' }} · {{ ucfirst($payment->status) }} · ₱{{ number_format((float)$payment->amount,2) }}</p>@empty<p>No attempts yet.</p>@endforelse</section>
+@if($booking->status==='confirmed' && $payments->contains(fn($p)=>$p->status==='succeeded' && $p->is_demo && $p->provider==='demo') && !$refunds->contains('status','pending') && !$refunds->contains('status','succeeded'))<section class="planner-panel"><h2>Request demo refund and cancellation</h2><p>Admin approval simulates a full refund and cancels this booking. The request must be approved before the service starts.</p><form class="profile-form" method="POST" action="{{ route('demo.refund',$booking->id) }}">@csrf<input type="hidden" name="request_key" value="{{ \Illuminate\Support\Str::uuid() }}"><label>Reason<input required name="reason" minlength="5" maxlength="255"></label><button class="chip">Request demo refund</button></form></section>@endif
+<section class="planner-panel"><h2>Refund history</h2>@forelse($refunds as $refund)<p>#{{ $refund->id }} · {{ ucfirst($refund->status) }} · ₱{{ number_format((float)$refund->amount,2) }} · {{ $refund->reason }}</p>@empty<p>No refunds requested.</p>@endforelse</section>
+</main>
+@endsection

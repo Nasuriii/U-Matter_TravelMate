@@ -1,0 +1,6 @@
+
+.management-note{margin:12px 0 20px;font-size:15px;color:var(--olive)}
+.management-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px}
+.management-actions button{min-height:44px;font-size:14px}
+.tm-header nav{flex-wrap:wrap}
+.planner-panel .browse-tabs{padding:0 0 20px}

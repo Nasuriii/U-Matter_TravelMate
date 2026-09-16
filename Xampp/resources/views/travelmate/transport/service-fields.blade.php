@@ -1,0 +1,4 @@
+@php
+$sv=function($key,$fallback=''){ $v=old($key,$fallback);return is_scalar($v)?(string)$v:''; };
+@endphp
+<label>Service name<input name="service_name" required maxlength="150" value="{{ $sv('service_name',$service->service_name??'') }}" placeholder="Name or route supplied by your business"></label><div class="profile-row"><label>Type<select name="transport_type" required><option value="">Choose type</option>@foreach($types as $type)<option @selected($sv('transport_type',$service->transport_type??'')===$type)>{{ $type }}</option>@endforeach</select></label><label>Destination served<select name="destination_id" required><option value="">Choose active destination</option>@foreach($destinations as $d)<option value="{{ $d->id }}" @selected($sv('destination_id',$service->destination_id??'')===(string)$d->id)>{{ $d->name }} · {{ $d->province }}</option>@endforeach</select></label></div>

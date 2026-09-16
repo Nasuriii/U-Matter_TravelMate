@@ -1,0 +1,10 @@
+
+.wishlist-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:20px}
+.wishlist-actions .chip{font-size:14px;min-height:44px;display:inline-flex;align-items:center}
+.wishlist-save{color:var(--heart)}
+.wishlist-saved{font-size:15px;font-weight:600;color:var(--heart)}
+.wishlist-card .card-body{min-height:220px}
+.wishlist-card form{margin-top:auto}
+.wishlist-remove{min-height:44px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--heart);padding:8px 12px;font-size:14px}
+.wishlist-remove:hover{background:#fff1f3;border-color:var(--heart)}
+.wishlist-card h2{overflow-wrap:anywhere}
