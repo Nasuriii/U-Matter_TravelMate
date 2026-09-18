@@ -18,7 +18,7 @@ const notice = (message: string, error = false) => { el('notice').textContent = 
 const rawError = (e: unknown): string => e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String(e.message) : String(e);
 function explain(e: unknown) {
  const message = rawError(e);
- if (/Invalid schema|schema.*exposed|PGRST106/i.test(message)) return `${message} — Add api to the Data API exposed schemas, then reload.`;
+ if (/Invalid schema|schema.*exposed|PGRST106/i.test(message)) return `${message} — Add public to the Data API exposed schemas, then reload.`;
  if (/permission denied|row-level security/i.test(message)) return `${message} — Check the supplied Auth/Storage SQL policies. Do not disable RLS.`;
  if (/Failed to fetch|fetch failed/i.test(message)) return `${message} — Check your project URL, network and whether the project is active.`;
  return message;
@@ -38,10 +38,10 @@ function validConfig() {
 try { validConfig(); await start(); } catch(e) { notice(explain(e),true); }
 async function start() {
  const supabase = createClient(url!, key!, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true } });
- type Profile = {id: number|string; auth_user_id:string; full_name:string; address:string|null; avatar_object_path:string|null};
+ type Profile = {id: string; full_name:string; address:string|null; avatar_object_path:string|null};
  let user: User|null=null, profile:Profile|null=null, preview:string|null=null, busy=false, generation=0;
  const storage = supabase.storage.from('travelmate-avatars');
- const api = supabase.schema('api');
+ const api = supabase.schema('public');
  function controls() {
   for(const id of ['login','logout','refresh','save','upload']) el<HTMLButtonElement>(id).disabled=busy || (['save','upload'].includes(id) && !profile);
   el<HTMLFieldSetElement>('fields').disabled=busy || !profile;
@@ -63,11 +63,11 @@ async function start() {
  async function loadProfile() {
   if(!user)return;const uid=user.id,token=++generation;
   clearProfile();controls(); notice('Loading your profile…');
-  const {data,error}=await api.from('my_profile').select('id,auth_user_id,full_name,address,avatar_object_path').maybeSingle();
+  const {data,error}=await api.from('my_profile').select('id,full_name,address,avatar_object_path').maybeSingle();
   if(token!==generation || user?.id!==uid)return;
   if(error)throw error;
   if(!data)throw new Error('No active profile found. Confirm Auth SQL is installed, your email is confirmed, and your account is active. Imported demo accounts are not automatically linked.');
-  if(data.auth_user_id!==uid)throw new Error('Unexpected profile identity. Stop and review the RLS setup.');
+  if(data.id!==uid)throw new Error('Unexpected profile identity. Stop and review the RLS setup.');
   profile=data as Profile;el<HTMLInputElement>('name').value=profile.full_name;el<HTMLTextAreaElement>('address').value=profile.address??'';
   el('profile-id').textContent=String(profile.id);el('object-path').textContent=profile.avatar_object_path??'No avatar uploaded yet.';
   if(profile.avatar_object_path){
