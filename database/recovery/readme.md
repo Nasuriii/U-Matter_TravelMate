@@ -9,3 +9,4 @@ data have been restored to a separate Supabase recovery project.
 
 Do not run it on the existing source project.
 Database backups and credentials are stored separately.
+Sankyu sankyu please
