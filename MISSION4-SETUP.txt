@@ -1,0 +1,76 @@
+TRAVELMATE MISSION 4 - BATCH 1
+Google authentication, profiles, private avatars, destinations, saved destinations.
+
+SETUP ON WINDOWS
+1. Extract the ZIP. Copy the app folder into your existing GitHub repository,
+   beside its existing folders. Keep your old login test unchanged.
+2. Copy .env.local from your working login-test folder into the new app folder.
+   Its variables must be:
+   VITE_SUPABASE_URL
+   VITE_SUPABASE_PUBLISHABLE_KEY
+   Or copy app/.env.example to app/.env.local and fill in the real values.
+   Never enter a database password, Google secret or service-role key here.
+3. Stop your old npm dev server using Ctrl+C so port 5173 is free.
+4. Open the new app folder in File Explorer. Click its address bar, type cmd,
+   then press Enter. This opens Command Prompt at the correct folder.
+5. Run: node -v
+   The included project requires Node >=22.12 (matching your supplied package).
+6. Run: npm ci
+7. Run: npm run build
+8. Run: npm run dev
+9. Open http://localhost:5173 (do not double-click index.html).
+10. Supabase Authentication URL Configuration must allow http://localhost:5173/.
+    Keep your existing Google provider configuration. No new Google client needed.
+11. Follow verification-log.md and fill actual results after each test.
+
+NO DATABASE REBUILD
+The app targets the existing public schema, UUID profiles, my_profile view,
+update_my_profile function, destinations and saved_destinations tables, and private
+travelmate-avatars bucket. These match the reviewed schema.sql from Mission 3.
+Do not run profiles_setup.sql supplied with the alternate HTML.
+No schema changes or policy changes are included in this package.
+If a relation/function is missing or access is denied, send the exact error;
+do not disable RLS or grant broad access to fix it.
+
+WHAT CHANGED
+The uploaded main.ts was an older api-schema version with auth_user_id.
+It now uses public, selects UUID id, compares it to the Auth user id, and calls
+the existing public.update_my_profile function.
+Visuals adapt the prototype's blue/green palette, Inter typography, side navigation,
+split hero and rounded cards. The hero is an illustration, not a destination photo.
+Destination cards use actual database text with decorative backgrounds.
+No mock destinations or business localStorage are included in the delivered app.
+Supabase SDK still stores its own session in the browser normally.
+Private avatar bytes load through authenticated Storage download.
+Previous avatar files are retained to avoid breaking concurrent profile updates.
+
+FIRST LIVE TEST
+Browse destinations while signed out. Search by name/province.
+Open Your account. Continue with Google. Edit your name and save.
+Choose a JPEG/PNG/WebP <=2 MB and upload. Reload and verify it persists.
+Explore -> Save -> Saved. Reload. Remove a saved destination. Reload.
+Sign out -> Saved should request sign-in. Use another browser profile/account:
+its saved destinations and profile should be separate.
+Client-side filtering alone is not evidence of RLS; repeat direct API denial tests
+using ordinary user sessions as part of the security batch.
+
+REPOSITORY
+Copy component-log.md, verification-log.md, validation-log.md, scope-notes.md
+to the repository root (merge if logs already exist).
+Keep the app folder at the repository root. Commit source and package-lock.json.
+Do not commit .env.local, node_modules or dist. Review GitHub Desktop's Changes
+before committing. Suggested message:
+"Start Mission 4 app with Google profile and destination saving"
+
+LIMITS
+Batch 1 is not the entire Mission 4 app. No bookings, payment processing, owner
+management, recommendations, itinerary editing or reviewer/analyst screens yet.
+Saved destinations implement create/read/delete; full core CRUD and the multi-step
+transaction arrive in later batches. New Google users rely on your existing
+profile-provisioning trigger, not client-side role assignment.
+Full live OAuth, persistence and RLS tests must run against your project.
+Build success is not proof of those live behaviors.
+
+Sources:
+https://supabase.com/docs/reference/javascript/auth-onauthstatechange
+https://supabase.com/docs/guides/database/postgres/row-level-security
