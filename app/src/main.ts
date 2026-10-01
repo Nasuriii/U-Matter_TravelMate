@@ -1,40 +1,26 @@
 import { createClient, type User } from '@supabase/supabase-js';
 import './style.css';
 import { createExplorer } from './explorer';
+import { loadLanding } from './home-data';
+import { header, footer, dialogs } from './layout';
+import { landingPage } from './pages/landing';
+import { authPage } from './pages/auth';
+import { explorePage } from './pages/explore';
+import { accountPage } from './pages/account';
+import { route, go } from './router';
 
 // Static markup only. User/database content is inserted through textContent/value.
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<aside class="rail"><a href="#explore" class="monogram" aria-label="TravelMate home">Tm</a><nav aria-label="Main navigation"><a href="#explore">◎<span>Explore</span></a><a href="#saved">♡<span>Saved</span></a><a href="#profile">◉<span>Profile</span></a></nav></aside>
-<header><a href="#explore" class="brand">TRAVEL<span>MATE</span><small>The Philippine Field Guide</small></a><a class="account-link" href="#profile">Your account ↗</a></header>
-<main>
-<section id="explore-page"><div class="hero"><div><p class="eyebrow">PHILIPPINE EDITION · FIELD GUIDE & TRIP PLANNER</p><h1>Plan the trip.<br><span>Skip the<br>guesswork.</span></h1><p>Discover somewhere new.<br>Keep the places you want to come back to.</p><a class="primary button" href="#catalog">Explore destinations ↓</a></div><div class="hero-art" role="img" aria-label="Illustration of mountains and the sea"><span>YOUR NEXT CHAPTER<br>STARTS HERE.</span><small>TravelMate · Philippine Field Guide</small></div></div>
-<div class="catalog" id="catalog"><p class="eyebrow">FIND YOUR NEXT STOP</p><h2 id="catalog-title">Explore destinations</h2><form id="search-form" class="search-row"><label>Destination or province<input id="search" type="search" placeholder="Where do you want to go?"></label><label>Province<select id="province"><option value="">All provinces</option></select></label><button type="submit">Search</button><button id="reload-catalog" type="button" class="quiet">Refresh</button></form><p id="catalog-notice" role="status" aria-live="polite"></p><div id="destination-grid" class="grid"></div></div></section>
-<section id="profile-page" class="profile-page" hidden><div class="intro"><p class="eyebrow">YOUR TRAVELMATE ACCOUNT</p><h1>A little setup.<br>A world to explore.</h1><p>Your profile, your places, your next journey.</p></div>
-<div class="card"><div id="notice" role="status" aria-live="polite">Checking configuration…</div>
-<div id="guest" hidden><h2>Welcome to TravelMate</h2><p>Sign in to save destinations and make your profile yours.</p><button id="login" class="primary">Continue with Google</button></div>
-<div id="account" hidden><div class="account-top"><div><p class="eyebrow">SIGNED IN</p><p id="email"></p></div><button id="logout" class="quiet">Sign out</button></div>
-<span id="uid" hidden></span><span id="profile-id" hidden></span>
-<button id="refresh" class="quiet">Reload profile</button>
-<form id="profile-form"><fieldset id="fields" disabled><label for="name">Full name</label><input id="name" required maxlength="150" autocomplete="name"><label for="address">Address (optional)</label><textarea id="address" maxlength="255" rows="3" autocomplete="street-address"></textarea><button id="save" class="primary" type="submit">Save profile</button></fieldset></form>
-<div class="avatar-area"><div class="portrait"><img id="avatar" alt="Your avatar" hidden><span id="avatar-placeholder">TM</span></div><div><h3>Your avatar</h3><p>JPEG, PNG or WebP · up to 2 MB</p><label for="file">Choose an image</label><input id="file" type="file" accept="image/jpeg,image/png,image/webp" disabled><button id="upload" disabled>Upload selected image</button><p id="object-path" hidden></p></div></div>
-</div></div></section></main>
-<dialog id="destination-dialog"><button id="close-detail" class="quiet">Close ×</button><p id="detail-province" class="eyebrow"></p><h2 id="detail-name"></h2><p id="detail-description"></p></dialog>
-<footer>TravelMate · Make room for somewhere new.</footer>`;
-function route() {
- const page=location.hash;
- const profile=page==='#profile';
- document.getElementById('profile-page')!.hidden=!profile;
- document.getElementById('explore-page')!.hidden=profile;
- document.querySelectorAll('nav a').forEach(a=>a.setAttribute('aria-current',a.getAttribute('href')===(profile?'#profile':page==='#saved'?'#saved':'#explore')?'page':'false'));
-}
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main>${landingPage}${authPage}${explorePage}${accountPage}</main>` + dialogs + footer;
 window.addEventListener('hashchange',route); route();
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const notice = (message: string, error = false) => { el('notice').textContent = message; el('notice').classList.toggle('error', error); };
+const notice = (message: string, error = false) => { for (const id of ['notice', 'auth-notice']) { const n = el(id); n.textContent = message; n.classList.toggle('error', error); } };
 const rawError = (e: unknown): string => e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String(e.message) : String(e);
 function explain(e: unknown) {
  const message = rawError(e);
  if (/Invalid schema|schema.*exposed|PGRST106/i.test(message)) return `${message} — Check public in the Data API exposed schemas, then reload.`;
  if (/permission denied|row-level security/i.test(message)) return `${message} — Check the supplied Auth/Storage SQL policies. Do not disable RLS.`;
+ if (/Invalid login credentials/i.test(message)) return 'Incorrect email or password. If you signed up with Google, use Continue with Google.';
+ if (/Email not confirmed/i.test(message)) return 'Please confirm your email first — check your inbox for the link.';
  if (/Failed to fetch|fetch failed/i.test(message)) return `${message} — Check your project URL, network and whether the project is active.`;
  return message;
 }
@@ -50,7 +36,8 @@ function validConfig() {
   catch { throw new Error('Use the Supabase publishable key, or legacy anon key. Never use service_role or Google credentials.'); }
  }
 }
-try { validConfig(); await start(); } catch(e) { notice(explain(e),true); el('catalog-notice').textContent=explain(e); }
+try { validConfig(); await start(); } catch(e) { notice(explain(e),true); el('catalog-notice').textContent=explain(e);document.body.dataset.auth='out';route();
+ document.querySelectorAll<HTMLButtonElement>('#search-form button,#auth-form button,#login').forEach(b=>{b.disabled=true;b.title='Needs Supabase setup (.env.local)';}); }
 async function start() {
  const supabase = createClient(url!, key!, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true } });
  type Profile = {id:string; full_name:string; address:string|null; avatar_object_path:string|null};
@@ -58,8 +45,10 @@ async function start() {
  const storage = supabase.storage.from('travelmate-avatars');
  const api = supabase.schema('public');
  const explorer=createExplorer(supabase);
+ loadLanding(supabase);
+ let phoneId:string|null=null, roleNames:string[]=[];
  function controls() {
-  for(const id of ['login','logout','refresh','save','upload']) el<HTMLButtonElement>(id).disabled=busy || (['save','upload'].includes(id) && !profile);
+  for(const id of ['login','logout','refresh','save','upload','auth-submit']) el<HTMLButtonElement>(id).disabled=busy || (['save','upload'].includes(id) && !profile) || (id==='upload' && !el<HTMLInputElement>('file').files?.length);
   el<HTMLFieldSetElement>('fields').disabled=busy || !profile;
   el<HTMLInputElement>('file').disabled=busy || !profile;
  }
@@ -69,7 +58,7 @@ async function start() {
  }
  function clearProfile() {
   profile=null; clearAvatar(); el<HTMLInputElement>('name').value=''; el<HTMLTextAreaElement>('address').value='';
-  el('profile-id').textContent='Not loaded'; el('object-path').textContent='';el<HTMLInputElement>('file').value='';
+  el('profile-id').textContent='Not loaded';phoneId=null;roleNames=[];el<HTMLInputElement>('phone').value='';el('file-name').textContent='No file chosen';el('avatar-placeholder').textContent='TM'; el('object-path').textContent='';el<HTMLInputElement>('file').value='';
  }
  async function run(action:()=>Promise<void>) {
   if(busy)return; busy=true; controls();
@@ -85,26 +74,81 @@ async function start() {
   if(!data)throw new Error('No active profile found. Confirm Auth SQL is installed, your email is confirmed, and your account is active. Imported demo accounts are not automatically linked.');
   if(data.id!==uid)throw new Error('Unexpected profile identity. Stop and review the RLS setup.');
   profile=data as Profile;el<HTMLInputElement>('name').value=profile.full_name;el<HTMLTextAreaElement>('address').value=profile.address??'';
-  el('profile-id').textContent=String(profile.id);el('object-path').textContent=profile.avatar_object_path??'No avatar uploaded yet.';
+  el('profile-id').textContent=String(profile.id);el('avatar-placeholder').textContent=profile.full_name.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'TM';el('object-path').textContent=profile.avatar_object_path??'No avatar uploaded yet.';
   if(profile.avatar_object_path){
    const download=await storage.download(profile.avatar_object_path);
    if(token!==generation || user?.id!==uid)return;
    if(download.error)throw new Error(`Profile loaded, but avatar download failed: ${download.error.message}`);
    preview=URL.createObjectURL(download.data);el<HTMLImageElement>('avatar').src=preview;el('avatar').hidden=false;el('avatar-placeholder').hidden=true;
   }
+   const ph=await api.from('profile_phones').select('id,phone_number').order('phone_number').limit(1);
+  if(!ph.error&&ph.data?.[0]){phoneId=ph.data[0].id;el<HTMLInputElement>('phone').value=ph.data[0].phone_number;}
+  const rr=await api.from('profile_roles').select('roles(name)');
+  if(!rr.error)roleNames=(rr.data??[]).map((x:any)=>{const r=x.roles;return Array.isArray(r)?r[0]?.name:r?.name;}).filter(Boolean);
+  if(token!==generation || user?.id!==uid)return;
+  applyRole(user);
   notice('Your profile is ready.');controls();
+ }
+ function applyRole(u:User|null){
+  const d=el<HTMLDialogElement>('role-dialog'),owner=roleNames.includes('business_owner'),chosen=!!u?.user_metadata?.account_type||owner;
+  el('account-type').textContent=!u?'':owner?'Business Owner':'Traveler';el('owner-note').hidden=!owner;
+  if(u&&!chosen){if(!d.open)d.showModal();}else if(d.open)d.close();
  }
  async function displayUser(next:User|null){
   generation++;const changed=user?.id!==next?.id;user=next;
   if(changed || !next)clearProfile();
   explorer.setUser(next?.id??null);
-  el('guest').hidden=!!next;el('account').hidden=!next;el('email').textContent=next?.email??'';el('uid').textContent=next?.id??'';controls();
+  document.body.dataset.auth=next?'in':'out';if(!next)applyRole(null);route();el('account').hidden=!next;el('email').textContent=next?.email??'';el('uid').textContent=next?.id??'';controls();
   if(next)await loadProfile();else notice('Ready to sign in.');
  }
  el('login').addEventListener('click',()=>void run(async()=>{
   notice('Opening Google sign-in…');
   const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+'/',queryParams:{prompt:'select_account'}}});if(error)throw error;
  }));
+ const val=(id:string)=>el<HTMLInputElement>(id).value;
+ el('auth-form').addEventListener('submit',e=>{e.preventDefault();void run(async()=>{
+  const mode=location.hash.replace(/^#\/?/,''),email=val('auth-email').trim(),password=val('auth-password');
+  if(mode!=='reset'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('Enter a valid email address.');
+  if(mode==='forgot'){
+   notice('Sending reset link…');const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+'/'});if(error)throw error;
+   notice('If that email has an account, a reset link is on its way. Check your inbox.');return;
+  }
+  if(mode==='reset'||mode==='register'){
+   if(password.length<8)throw new Error('Use a password of at least 8 characters.');
+   if(password!==val('auth-confirm'))throw new Error('Passwords do not match.');
+  }
+  if(mode==='reset'){
+   notice('Saving your new password…');const {error}=await supabase.auth.updateUser({password});if(error)throw error;
+   notice('Password updated.');go('/explore');return;
+  }
+  if(mode==='register'){
+   const name=(val('reg-first').trim()+' '+val('reg-last').trim()).trim();
+   if(!val('reg-first').trim())throw new Error('Enter your first name.');
+   notice('Creating your account…');
+   const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:window.location.origin+'/'}});
+   if(error)throw error;
+   if(data.user&&data.user.identities?.length===0)throw new Error('That email is already registered. Log in instead.');
+   if(!data.session){go('/login');notice('Account created. Check your email and confirm your address, then log in. Your profile is created once your email is confirmed.');}
+   return;
+  }
+  if(!password)throw new Error('Enter your password.');
+  notice('Logging in…');const {error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;
+ });});
+ el('toggle-pw').addEventListener('click',()=>{const show=el<HTMLInputElement>('auth-password').type==='password';
+  for(const id of ['auth-password','auth-confirm'])el<HTMLInputElement>(id).type=show?'text':'password';el('toggle-pw').textContent=show?'Hide':'Show';});
+ el('top-logout').addEventListener('click',()=>el('logout').click());
+ el<HTMLInputElement>('file').addEventListener('change',()=>{el('file-name').textContent=el<HTMLInputElement>('file').files?.[0]?.name??'No file chosen';controls();});
+ el('role-dialog').addEventListener('cancel',e=>e.preventDefault());
+ document.querySelectorAll<HTMLButtonElement>('.role-card').forEach(b=>b.addEventListener('click',()=>void run(async()=>{
+  const role=b.dataset.role!;el('role-error').hidden=true;
+  try{
+   const rpc=await api.rpc('set_my_account_type',{p_account_type:role});
+   if(rpc.error){if(/set_my_account_type|PGRST202/.test(rpc.error.message+rpc.error.code))throw new Error('The account-type function is not installed yet. Run database/05_account_type.sql in the Supabase SQL Editor, then try again.');throw rpc.error;}
+   const {data,error}=await supabase.auth.updateUser({data:{account_type:role}});if(error)throw error;
+   await displayUser(data.user);
+  }catch(e){el('role-error').textContent=explain(e);el('role-error').hidden=false;return;}
+  location.hash=role==='business_owner'?'#/account':'#/explore';
+ })));
  el('logout').addEventListener('click',()=>void run(async()=>{
   const {error}=await supabase.auth.signOut({scope:'local'});if(error)throw error;await displayUser(null);
  }));
@@ -112,8 +156,12 @@ async function start() {
  el('profile-form').addEventListener('submit',event=>{event.preventDefault();void run(async()=>{
   if(!profile || !user)throw new Error('Sign in and load a profile first.');
   const name=el<HTMLInputElement>('name').value.trim();if(!name)throw new Error('Enter your name.');
+  const phone=el<HTMLInputElement>('phone').value.trim();if(phone&&!/^\+?[\d\s()-]{7,25}$/.test(phone))throw new Error('Enter a valid contact number, e.g. +63 900 000 0000.');
   const {error}=await api.rpc('update_my_profile',{p_full_name:name,p_address:el<HTMLTextAreaElement>('address').value.trim()||null,p_avatar_object_path:profile.avatar_object_path});
-  if(error)throw error;await loadProfile();notice('Profile saved.');
+  if(error)throw error;
+  const pe=phone&&phoneId?await api.from('profile_phones').update({phone_number:phone}).eq('id',phoneId):phone?await api.from('profile_phones').insert({profile_id:user.id,phone_number:phone}):phoneId?await api.from('profile_phones').delete().eq('id',phoneId):null;
+  if(pe?.error)throw new Error('Profile saved, but the contact number was not: '+pe.error.message);
+  await loadProfile();notice('Profile saved.');
  });});
  el('upload').addEventListener('click',()=>void run(async()=>{
   if(!profile || !user)throw new Error('Sign in and load a profile first.');
@@ -134,16 +182,18 @@ async function start() {
   el<HTMLInputElement>('file').value='';await loadProfile();notice('Avatar uploaded and linked to your profile.'+cleanup);
  }));
  // Do not make awaited Supabase calls inside the Auth event callback.
+ let recovery=false;
  supabase.auth.onAuthStateChange(event=>{
+  if(event==='PASSWORD_RECOVERY'){recovery=true;location.hash='#/reset';}
   if(event==='SIGNED_IN'){setTimeout(()=>void run(async()=>{const result=await supabase.auth.getUser();if(result.error)throw result.error;await displayUser(result.data.user);}),0);}
-  if(event==='SIGNED_OUT'){generation++;user=null;clearProfile();explorer.setUser(null);el('account').hidden=true;el('guest').hidden=false;controls();notice('Signed out.');}
+  if(event==='SIGNED_OUT'){generation++;user=null;clearProfile();explorer.setUser(null);el('account').hidden=true;document.body.dataset.auth='out';applyRole(null);location.hash='#/';route();controls();notice('Signed out.');}
  });
  const params=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.slice(1));
  const oauthError=params.get('error_description')||hash.get('error_description');
  const {data,error}=await supabase.auth.getSession();
  if(error)throw error;
  // The SDK handles the PKCE callback once. Remove callback parameters afterwards.
- if(params.has('code')||params.has('error')||hash.has('error'))history.replaceState({},'',location.pathname+'#profile');route();
+ if(params.has('code')||params.has('error')||hash.has('error'))history.replaceState({},'',location.pathname+(recovery?'#/reset':'#/explore'));route();
  await run(()=>displayUser(data.session?.user??null));
  if(oauthError)notice(`Google sign-in did not finish: ${oauthError}`,true);
 }

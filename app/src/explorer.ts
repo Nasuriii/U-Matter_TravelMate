@@ -3,12 +3,12 @@ type Destination={id:string;name:string;province:string;description:string|null}
 const node=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 export function createExplorer(client:SupabaseClient){
  const db=client.schema('public');
- let uid:string|null=null, generation=0, destinations:Destination[]=[],saved=new Set<string>(), savedReady=false;
+ let onlySaved=false, uid:string|null=null, generation=0, destinations:Destination[]=[],saved=new Set<string>(), savedReady=false;
  const pending=new Set<string>();
  const message=(s:string)=>{node('catalog-notice').textContent=s;};
  const errorText=(e:unknown)=>typeof e==='object' && e && 'message' in e?String(e.message):String(e);
  function render(){
-  const onlySaved=location.hash==='#saved';
+  node('saved-toggle').textContent=onlySaved?'Show all destinations':'♥ Show my saved';
   node('catalog-title').textContent=onlySaved?'Your saved destinations':'Explore destinations';
   const grid=node('destination-grid');grid.replaceChildren();
   if(onlySaved&&!uid){message('Sign in from Your account to see your saved destinations.');return;}
@@ -26,7 +26,7 @@ export function createExplorer(client:SupabaseClient){
    const actions=document.createElement('div');actions.className='card-actions';
    const details=document.createElement('button');details.className='quiet';details.textContent='View details ↗';
    details.onclick=()=>{node('detail-name').textContent=d.name;node('detail-province').textContent=d.province;node('detail-description').textContent=d.description||'No description available yet.';node<HTMLDialogElement>('destination-dialog').showModal();};
-   const button=document.createElement('button');button.textContent=saved.has(d.id)?'♥ Saved':'♡ Save';
+   const button=document.createElement('button');button.textContent=saved.has(d.id)?'♥ Saved':uid?'♡ Save':'♡ Sign in to save';
    button.setAttribute('aria-label',(saved.has(d.id)?'Remove saved destination ':'Save destination ')+d.name);
    button.setAttribute('aria-pressed',String(saved.has(d.id)));button.disabled=pending.has(d.id)||!!uid&&!savedReady;
    button.onclick=()=>void toggle(d.id);
@@ -57,11 +57,11 @@ export function createExplorer(client:SupabaseClient){
     }
     savedReady=true;
    }
-   render();if(location.hash!=='#saved'||owner)message(all.length+' destinations available.');
+   render();if(!onlySaved||owner)message(all.length+' destinations available.');
   }catch(e){if(token===generation){render();message('Could not load data: '+errorText(e)+' Use Refresh to retry.');}}
  }
  async function toggle(id:string){
-  if(!uid){location.hash='profile';return;}
+  if(!uid){location.hash='#/login';return;}
   if(pending.has(id)||!savedReady)return;
   const owner=uid,token=generation,wasSaved=saved.has(id);pending.add(id);render();
   try{
@@ -81,7 +81,9 @@ export function createExplorer(client:SupabaseClient){
  node('search-form').addEventListener('submit',e=>{e.preventDefault();render();});
  node('province').addEventListener('change',render);
  node('reload-catalog').addEventListener('click',()=>void load());
+ node('saved-toggle').addEventListener('click',()=>{onlySaved=!onlySaved;render();});
  node('close-detail').addEventListener('click',()=>node<HTMLDialogElement>('destination-dialog').close());
+ node<HTMLDialogElement>('destination-dialog').addEventListener('click',e=>{if(e.target===e.currentTarget)(e.currentTarget as HTMLDialogElement).close();});
  window.addEventListener('hashchange',render);
  return {setUser(next:string|null){uid=next;generation++;saved.clear();savedReady=false;pending.clear();render();void load();}};
 }
