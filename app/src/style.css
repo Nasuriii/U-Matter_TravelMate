@@ -55,3 +55,24 @@ footer{display:flex;gap:24px;justify-content:space-between;align-items:center;fl
 .switch{text-align:center;font-size:14px;color:#536277;margin:20px 0 0}.switch a{color:var(--blue);font-weight:700}#login{width:100%}.auth-box .divider{margin:16px 0}
 body[data-view=auth] header.top,body[data-view=auth] footer{display:none}
 @media(max-width:900px){.auth{grid-template-columns:1fr}.auth-photo{min-height:170px;padding:22px 24px}.auth-copy p,.auth-photo small{display:none}.auth-copy h2{font-size:26px;margin:0}.l-hero{padding:48px 22px}}
+
+/* ---- password toggle fix ---- */
+#auth-form .pw-wrap button{width:auto;margin:0;padding:6px 10px;top:50%;transform:translateY(-50%)}
+/* ---- images, browse pages, owner dashboard ---- */
+body:not([data-owner=yes]) [data-owner-only]{display:none!important}
+.owner-band{background:linear-gradient(90deg,rgba(15,42,67,.94),rgba(15,42,67,.7)),#0f2a43 url('https://upload.wikimedia.org/wikipedia/commons/8/86/El_Nido_Palawan_Big_Lagoon.jpg') center 70%/cover}
+.cta-band{background:linear-gradient(rgba(232,242,252,.93),rgba(232,242,252,.93)),#e8f2fc url('https://upload.wikimedia.org/wikipedia/commons/8/86/El_Nido_Palawan_Big_Lagoon.jpg') center/cover}
+.l-art{height:170px;position:relative;overflow:hidden}.l-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+button.l-click{display:block;text-align:left;padding:0;width:100%;font:inherit;color:inherit;cursor:pointer}button.l-click:hover{border-color:var(--blue);box-shadow:0 8px 24px rgba(20,121,209,.14)}.l-more{font-size:13px;font-weight:700;color:var(--blue)}
+.browse{padding:48px 44px;max-width:1200px;margin:0 auto}.browse h1{margin:6px 0 8px;font-size:34px;letter-spacing:-1px}.browse .lead{color:#536277;margin:0 0 28px}.muted{color:#536277;font-size:14px}
+#listing-dialog{border:0;border-radius:16px;padding:28px;max-width:560px;width:92%}#listing-dialog::backdrop{background:rgba(9,38,31,.55)}#close-listing{float:right}.d-sec{margin-top:18px}.d-list{margin:8px 0 0;padding-left:18px;line-height:1.8;font-size:14px}
+.owner{padding:44px;max-width:1200px;margin:0 auto}.o-head h1{margin:6px 0 8px;font-size:32px;letter-spacing:-1px}.o-head p{color:#536277;max-width:680px;line-height:1.6}
+.o-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0 8px}.o-stats div{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px;text-align:center}.o-stats strong{display:block;font-size:30px;color:var(--blue)}.o-stats span{font-size:13px;color:#536277}
+.o-notice{min-height:22px;font-size:14px;color:#087f4f;margin:10px 0}.o-notice.error{color:#b42318}
+.o-grid{display:grid;grid-template-columns:380px 1fr;gap:22px;align-items:start}.o-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:22px}.o-card h2{margin:0 0 10px;font-size:20px}.o-card label{margin-top:14px}.o-card #ol-submit{width:100%;margin-top:20px}
+.o-row{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)}.o-row:last-child{border:0}.o-acts{display:flex;gap:8px}.o-acts button{padding:7px 12px;font-size:13px}
+.status{font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;background:#eef1f5}.s-approved{background:#e6f6ee;color:#087f4f}.s-pending{background:#fff4d6;color:#8a5a00}.s-rejected{background:#fde8e6;color:#b42318}
+.o-inline{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;align-items:end;margin:14px 0}.o-inline button{height:46px;margin:0}.o-items{list-style:none;padding:0;margin:10px 0}.o-items li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}.o-sub{margin-top:22px;border-top:1px solid var(--border);padding-top:6px}
+@media(max-width:900px){.o-grid{grid-template-columns:1fr}.owner,.browse{padding:28px 18px}.o-row{grid-template-columns:1fr}}
+
+.o-items li{flex-wrap:wrap}.o-items li .o-inline{flex:1 1 100%;margin:4px 0}.o-items li .o-acts{margin-left:auto}

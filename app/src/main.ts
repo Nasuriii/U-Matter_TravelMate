@@ -1,7 +1,11 @@
 import { createClient, type User } from '@supabase/supabase-js';
 import './style.css';
 import { createExplorer } from './explorer';
-import { loadLanding } from './home-data';
+import { loadLanding, loadBrowse } from './home-data';
+import { initOwner } from './owner';
+import { ownerPage } from './pages/owner';
+import { stayPage } from './pages/stay';
+import { eatPage } from './pages/eat';
 import { header, footer, dialogs } from './layout';
 import { landingPage } from './pages/landing';
 import { authPage } from './pages/auth';
@@ -10,7 +14,7 @@ import { accountPage } from './pages/account';
 import { route, go } from './router';
 
 // Static markup only. User/database content is inserted through textContent/value.
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main>${landingPage}${authPage}${explorePage}${accountPage}</main>` + dialogs + footer;
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main>${landingPage}${authPage}${explorePage}${stayPage}${eatPage}${ownerPage}${accountPage}</main>` + dialogs + footer;
 window.addEventListener('hashchange',route); route();
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const notice = (message: string, error = false) => { for (const id of ['notice', 'auth-notice']) { const n = el(id); n.textContent = message; n.classList.toggle('error', error); } };
@@ -46,6 +50,7 @@ async function start() {
  const api = supabase.schema('public');
  const explorer=createExplorer(supabase);
  loadLanding(supabase);
+ const owner=initOwner(supabase);
  let phoneId:string|null=null, roleNames:string[]=[];
  function controls() {
   for(const id of ['login','logout','refresh','save','upload','auth-submit']) el<HTMLButtonElement>(id).disabled=busy || (['save','upload'].includes(id) && !profile) || (id==='upload' && !el<HTMLInputElement>('file').files?.length);
@@ -87,19 +92,22 @@ async function start() {
   if(!rr.error)roleNames=(rr.data??[]).map((x:any)=>{const r=x.roles;return Array.isArray(r)?r[0]?.name:r?.name;}).filter(Boolean);
   if(token!==generation || user?.id!==uid)return;
   applyRole(user);
+  if(roleNames.includes('business_owner'))void owner.refresh();
   notice('Your profile is ready.');controls();
  }
  function applyRole(u:User|null){
   const d=el<HTMLDialogElement>('role-dialog'),owner=roleNames.includes('business_owner'),chosen=!!u?.user_metadata?.account_type||owner;
   el('account-type').textContent=!u?'':owner?'Business Owner':'Traveler';el('owner-note').hidden=!owner;
   if(u&&!chosen){if(!d.open)d.showModal();}else if(d.open)d.close();
+  if(u)document.body.dataset.owner=owner?'yes':'no';else delete document.body.dataset.owner;
+  route();
  }
  async function displayUser(next:User|null){
   generation++;const changed=user?.id!==next?.id;user=next;
   if(changed || !next)clearProfile();
-  explorer.setUser(next?.id??null);
+  explorer.setUser(next?.id??null);if(next&&changed)loadBrowse(supabase);
   document.body.dataset.auth=next?'in':'out';if(!next)applyRole(null);route();el('account').hidden=!next;el('email').textContent=next?.email??'';el('uid').textContent=next?.id??'';controls();
-  if(next)await loadProfile();else notice('Ready to sign in.');
+  if(next)await loadProfile();else notice('');
  }
  el('login').addEventListener('click',()=>void run(async()=>{
   notice('Opening Google sign-in…');
@@ -147,7 +155,7 @@ async function start() {
    const {data,error}=await supabase.auth.updateUser({data:{account_type:role}});if(error)throw error;
    await displayUser(data.user);
   }catch(e){el('role-error').textContent=explain(e);el('role-error').hidden=false;return;}
-  location.hash=role==='business_owner'?'#/account':'#/explore';
+  location.hash=role==='business_owner'?'#/owner':'#/explore';
  })));
  el('logout').addEventListener('click',()=>void run(async()=>{
   const {error}=await supabase.auth.signOut({scope:'local'});if(error)throw error;await displayUser(null);

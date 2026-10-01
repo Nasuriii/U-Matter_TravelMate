@@ -1,0 +1,1 @@
+export const eatPage = `<section data-page="eat" class="browse" hidden><p class="eyebrow">WHERE TO EAT</p><h1>Restaurants worth the trip</h1><p class="lead">Approved restaurants and cafés. Select a card for the menu and opening hours.</p><div class="l-grid" id="eat-grid"><p class="muted">Loading…</p></div></section>`;

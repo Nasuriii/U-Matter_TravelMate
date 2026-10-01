@@ -1,0 +1,1 @@
+export const stayPage = `<section data-page="stay" class="browse" hidden><p class="eyebrow">WHERE TO STAY</p><h1>Hotels, resorts and homestays</h1><p class="lead">Approved places to sleep across our destinations. Select a card for rooms and details.</p><div class="l-grid" id="stay-grid"><p class="muted">Loading…</p></div></section>`;
