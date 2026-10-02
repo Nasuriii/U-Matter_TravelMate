@@ -10,7 +10,9 @@ it does not mean live verification passed. Record commit and evidence after test
 | Profile and avatar editor | 1 User Registration; 2 User Authentication | my_profile, update_my_profile, Storage avatars | Implemented; live verification pending |
 | Destination search, province filter, detail dialog | 8 Trip Planner Management | destinations | Implemented; live verification pending |
 | Saved destination list and save/remove buttons | 8 Trip Planner Management | saved_destinations | Implemented; live verification pending |
-| Hotel owner editor / approval | 3 Hotel Listing Management | listings, hotels, rooms, amenities, photos | Planned |
+| Hotel owner editor (details, rooms, amenities, approval checklist, notifications) | 3 Hotel Listing Management | business_listings, hotels, rooms, hotel_amenities, notifications | Implemented (database/06-09, app/src/owner.ts); live verification pending |
+| Administrator hotel review (approve / reject with reason) | 3 Hotel Listing Management | business_listings, notifications, profile_roles | Implemented (database/09, app/src/admin.ts); needs an admin role assigned; live verification pending |
+| Hotel photos and photo approval | 3 Hotel Listing Management | photos, Storage travelmate-listings | Planned (needs Storage policies) |
 | Restaurant owner editor | 4 Restaurant Listing Management | listings, restaurants, menus, cuisines | Planned |
 | Attraction owner editor | 5 Attraction Listing Management | listings, attractions, schedules | Planned |
 | Hotel checkout / booking history | 6 Booking Process | bookings, hotel_bookings, booking_rooms, payments | Planned; payment scope needs clarification |

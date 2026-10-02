@@ -76,3 +76,19 @@ button.l-click{display:block;text-align:left;padding:0;width:100%;font:inherit;c
 @media(max-width:900px){.o-grid{grid-template-columns:1fr}.owner,.browse{padding:28px 18px}.o-row{grid-template-columns:1fr}}
 
 .o-items li{flex-wrap:wrap}.o-items li .o-inline{flex:1 1 100%;margin:4px 0}.o-items li .o-acts{margin-left:auto}
+
+/* ---- Process 3: administrator review, amenities, notifications ---- */
+body:not([data-admin=yes]) [data-admin-only]{display:none!important}
+.a-grid{display:grid;grid-template-columns:1fr 340px;gap:22px;align-items:start}
+.a-card{border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0}.a-card h3{margin:0 0 4px}.a-card h4{margin:14px 0 4px;font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:#536277}
+.a-acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px}.a-acts input{flex:1 1 220px;min-width:180px}.a-acts button:disabled{opacity:.5;cursor:not-allowed}
+.a-problems{margin:6px 0;padding-left:20px;color:#b42318;font-size:14px;line-height:1.6}
+.o-reason{margin-top:4px;font-size:13px;color:#b42318}
+.o-amen{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;margin:12px 0}.o-amen label{display:flex;align-items:center;gap:8px;margin:0;font-size:14px}.o-amen input{width:auto}
+.o-notes{list-style:none;padding:0;margin:10px 0}.o-notes li{display:flex;flex-direction:column;gap:2px;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}.o-notes li.unread span{font-weight:700}
+@media(max-width:900px){.a-grid{grid-template-columns:1fr}}
+
+/* ---- owner guide + live time hint ---- */
+.time-hint{font-size:13px;line-height:1.55;color:#087f4f;background:#e6f6ee;border-radius:8px;padding:10px 12px;margin:10px 0 0}.time-hint:empty{display:none}.time-hint.bad{color:#b42318;background:#fde8e6}
+.o-guide{border:1px solid var(--border);border-radius:10px;background:#f7f9fc;padding:12px 16px;margin:12px 0;font-size:14px}.o-guide summary{cursor:pointer;font-weight:700;color:var(--blue)}.o-guide ul{margin:10px 0;padding-left:18px;line-height:1.7}.o-guide p{margin:8px 0;line-height:1.6}
+.o-guide table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}.o-guide th,.o-guide td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border)}.o-guide th{color:#536277;font-weight:600}

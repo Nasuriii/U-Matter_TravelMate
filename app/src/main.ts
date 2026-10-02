@@ -3,7 +3,9 @@ import './style.css';
 import { createExplorer } from './explorer';
 import { loadLanding, loadBrowse } from './home-data';
 import { initOwner } from './owner';
+import { initAdmin } from './admin';
 import { ownerPage } from './pages/owner';
+import { adminPage } from './pages/admin';
 import { stayPage } from './pages/stay';
 import { eatPage } from './pages/eat';
 import { header, footer, dialogs } from './layout';
@@ -14,7 +16,7 @@ import { accountPage } from './pages/account';
 import { route, go } from './router';
 
 // Static markup only. User/database content is inserted through textContent/value.
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main>${landingPage}${authPage}${explorePage}${stayPage}${eatPage}${ownerPage}${accountPage}</main>` + dialogs + footer;
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main>${landingPage}${authPage}${explorePage}${stayPage}${eatPage}${ownerPage}${adminPage}${accountPage}</main>` + dialogs + footer;
 window.addEventListener('hashchange',route); route();
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const notice = (message: string, error = false) => { for (const id of ['notice', 'auth-notice']) { const n = el(id); n.textContent = message; n.classList.toggle('error', error); } };
@@ -51,6 +53,7 @@ async function start() {
  const explorer=createExplorer(supabase);
  loadLanding(supabase);
  const owner=initOwner(supabase);
+ const adminTools=initAdmin(supabase);
  let phoneId:string|null=null, roleNames:string[]=[];
  function controls() {
   for(const id of ['login','logout','refresh','save','upload','auth-submit']) el<HTMLButtonElement>(id).disabled=busy || (['save','upload'].includes(id) && !profile) || (id==='upload' && !el<HTMLInputElement>('file').files?.length);
@@ -93,13 +96,15 @@ async function start() {
   if(token!==generation || user?.id!==uid)return;
   applyRole(user);
   if(roleNames.includes('business_owner'))void owner.refresh();
+  if(roleNames.includes('admin'))void adminTools.refresh();
   notice('Your profile is ready.');controls();
  }
  function applyRole(u:User|null){
-  const d=el<HTMLDialogElement>('role-dialog'),owner=roleNames.includes('business_owner'),chosen=!!u?.user_metadata?.account_type||owner;
+  const d=el<HTMLDialogElement>('role-dialog'),owner=roleNames.includes('business_owner'),admin=roleNames.includes('admin'),chosen=!!u?.user_metadata?.account_type||owner||admin;
   el('account-type').textContent=!u?'':owner?'Business Owner':'Traveler';el('owner-note').hidden=!owner;
   if(u&&!chosen){if(!d.open)d.showModal();}else if(d.open)d.close();
   if(u)document.body.dataset.owner=owner?'yes':'no';else delete document.body.dataset.owner;
+  if(u)document.body.dataset.admin=admin?'yes':'no';else delete document.body.dataset.admin;
   route();
  }
  async function displayUser(next:User|null){

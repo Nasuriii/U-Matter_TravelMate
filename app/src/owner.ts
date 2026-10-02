@@ -1,19 +1,46 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { loadNotifications } from './notifications';
 type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
 const val = (id: string) => ($(id) as HTMLInputElement).value.trim();
 const one = (v: any) => (Array.isArray(v) ? v[0] : v);
 const peso = (n: any) => (n == null ? '—' : '₱' + Number(n).toLocaleString());
 function h(tag: string, cls = '', text = '') { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
+/** Plain-language help for hotel owners (shown in the Add form and in Hotel details). */
+const t12 = (t: string) => { const [H, M] = t.split(':').map(Number); return `${((H + 11) % 12) + 1}:${String(M).padStart(2, '0')} ${H >= 12 ? 'PM' : 'AM'}`; };
+const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+function timeHint(ci: string, co: string): { text: string; ok: boolean } {
+  if (!ci && !co) return { text: 'Pick both times to see what travelers will be told.', ok: true };
+  if (!ci || !co) return { text: 'Pick the other time too.', ok: true };
+  if (co >= ci) return { text: `Check-out (${t12(co)}) must be earlier on the clock than check-in (${t12(ci)}), because check-out happens the next morning. Example: check-in 2:00 PM, check-out 11:00 AM.`, ok: false };
+  const gap = mins(ci) - mins(co), gh = Math.floor(gap / 60), gm = gap % 60;
+  return { text: `Guests can arrive from ${t12(ci)} and must leave by ${t12(co)} on the day they depart. You have ${gh ? gh + ' h' : ''}${gh && gm ? ' ' : ''}${gm ? gm + ' min' : ''} to clean between check-out and the next check-in.`, ok: true };
+}
+function applyHint(p: HTMLElement, ci: string, co: string) { const r = timeHint(ci, co); p.textContent = r.text; p.classList.toggle('bad', !r.ok); }
+function timeGuide(): HTMLElement {
+  const d = document.createElement('details'); d.className = 'o-guide';
+  d.innerHTML = `<summary>Guide: how check-in and check-out times work</summary>
+<ul><li><strong>Check-in time</strong> is the earliest time a guest can get their room, for example <em>2:00 PM</em>.</li>
+<li><strong>Check-out time</strong> is the time guests must leave on the morning they depart, for example <em>11:00 AM</em>.</li>
+<li>TravelMate needs the check-out time to be <strong>earlier on the clock</strong> than the check-in time. The gap between them is your cleaning window.</li>
+<li><strong>Example:</strong> a guest books 2 nights and arrives Monday at 2:00 PM. They leave Wednesday by 11:00 AM.</li></ul>
+<table><thead><tr><th>Hotel style</th><th>Check-in</th><th>Check-out</th></tr></thead><tbody>
+<tr><td>Standard hotel</td><td>2:00 PM</td><td>11:00 AM</td></tr><tr><td>Resort</td><td>3:00 PM</td><td>12:00 PM (noon)</td></tr><tr><td>Budget stay</td><td>12:00 PM</td><td>10:00 AM</td></tr></tbody></table>
+<p>Travelers see these times on your listing. Changing them later sends the hotel back to the administrator for approval. Early arrival or late departure is arranged with you directly.</p>
+<p>Restaurants and attractions do not use check-in or check-out. They use operating hours and schedules instead.</p>
+<p class="muted">If your hotel works differently (for example check-in 7:00 AM and check-out 7:00 PM the next day), tell your administrator. This rule does not allow it yet.</p>`;
+  return d;
+}
 const LABEL: Record<string, string> = { pending: 'Awaiting review', approved: 'Live', rejected: 'Rejected', inactive: 'Inactive' };
 
 /** Business-owner dashboard. All writes go through RLS (database/06_owner_listings.sql). */
 export function initOwner(client: SupabaseClient) {
   const db = client.schema('public');
   let ownerId: string | null = null, destsLoaded = false, wired = false;
-  const say = (m: string, err = false) => { for (const id of ['o-notice', 'o-manage-notice']) { const n = document.getElementById(id); if (n) { n.textContent = m; n.classList.toggle('error', err); } } };
+  let after: (() => void) | null = null; // re-checks the hotel checklist after a save
+  const say = (m: string, err = false) => { for (const id of ['o-notice', 'o-manage-notice']) { const n = document.getElementById(id); if (n) { n.textContent = m; n.classList.toggle('error', err); } } if (!err && after && /^(Saved|Removed|Details saved)/.test(m)) after(); };
   const fail = (e: any) => say(/owner_[a-z_]+|PGRST202|permission denied|row-level security/i.test(String(e?.message) + String(e?.code))
-    ? 'The database is not ready for owners yet. Run database/06_owner_listings.sql and then database/07_owner_actions.sql in the Supabase SQL Editor. (' + (e?.message ?? e) + ')' : (e?.message ?? String(e)), true);
+    ? 'The database is not ready for owners yet. Run database/06 to 09 (06_owner_listings, 07_owner_actions, 08_owner_edit, 09_hotel_listing) in the Supabase SQL Editor, in that order. (' + (e?.message ?? e) + ')' : (e?.message ?? String(e)), true);
 
   function addForm(fields: [string, string, string?][], submit: (v: Record<string, string>) => Promise<void>) {
     const f = h('form', 'o-inline') as HTMLFormElement; f.noValidate = true;
@@ -75,13 +102,16 @@ export function initOwner(client: SupabaseClient) {
       const x = await client.rpc('owner_update_listing', { p_listing: l.id, p_name: g('name'), p_address: g('address') || null, p_description: g('description') || null });
       if (x.error) return fail(x.error); say('Saved. Edited listings go back to review before travelers see the changes.'); await refresh();
     });
-    const sub = h('div', 'o-sub'), dh = h('div', 'o-sub'); box.append(f, dh, sub); void details(dh, l);
+    const sub = h('div', 'o-sub'), dh = h('div', 'o-sub'); after = null;
+    if (l.listing_type === 'hotel') { const ck = h('div', 'o-sub'), am = h('div', 'o-sub'); box.append(f, ck, dh, sub, am); after = () => void checklist(ck, l); void checklist(ck, l); void amenities(am, l); }
+    else box.append(f, dh, sub);
+    void details(dh, l);
     if (l.listing_type === 'restaurant') void children(sub, 'Menu', 'menu_items', 'restaurant_id', l.id, r => `${r.name}${r.category ? ' (' + r.category + ')' : ''} — ${peso(r.price)}${r.is_available ? '' : ' · sold out'}`,
       [['name', 'Dish / drink'], ['category', 'Category (e.g. Mains)'], ['price', 'Price (₱)', 'number'], ['description', 'Description']],
       v => { if (!v.name) throw new Error('Enter a name.'); return { p_restaurant: l.id, p_name: v.name, p_category: v.category || null, p_price: money(v.price, 'Price'), p_description: v.description || null }; }, 'owner_add_menu_item', 'owner_delete_menu_item', 'p_item', 'owner_update_menu_item', ['p_available', 'Availability', [['1', 'Available'], ['0', 'Sold out']], r => String(r.is_available)]);
     else if (l.listing_type === 'hotel') void children(sub, 'Rooms', 'rooms', 'hotel_id', l.id, r => `Room ${r.room_number} · ${r.room_type} · ${r.max_guests} guests · ${peso(r.base_nightly_rate)}/night · ${r.operational_status}`,
       [['room_number', 'Room number'], ['room_type', 'Type (Standard, Deluxe…)'], ['max_guests', 'Max guests', 'number'], ['base_nightly_rate', 'Nightly rate (₱)', 'number']],
-      v => { if (!v.room_number || !v.room_type) throw new Error('Room number and type are required.'); const g = Math.floor(money(v.max_guests, 'Max guests')); if (g < 1) throw new Error('Max guests must be at least 1.'); return { p_hotel: l.id, p_room_number: v.room_number, p_room_type: v.room_type, p_max_guests: g, p_rate: money(v.base_nightly_rate, 'Nightly rate') }; }, 'owner_add_room', 'owner_delete_room', 'p_room', 'owner_update_room', ['p_status', 'Status', [['available', 'Available'], ['maintenance', 'Maintenance'], ['unavailable', 'Unavailable']], r => r.operational_status]);
+      v => { if (!v.room_number || !v.room_type) throw new Error('Room number and type are required.'); const g = Math.floor(money(v.max_guests, 'Max guests')); if (g < 1) throw new Error('Max guests must be at least 1.'); const rate = money(v.base_nightly_rate, 'Nightly rate'); if (rate <= 0) throw new Error('Nightly rate must be above 0.'); return { p_hotel: l.id, p_room_number: v.room_number, p_room_type: v.room_type, p_max_guests: g, p_rate: rate }; }, 'owner_add_room', 'owner_delete_room', 'p_room', 'owner_update_room', ['p_status', 'Status', [['available', 'Available'], ['maintenance', 'Maintenance'], ['unavailable', 'Unavailable']], r => r.operational_status]);
     else void children(sub, 'Operating schedule', 'attraction_schedules', 'attraction_id', l.id, r => `${r.operating_day}: ${r.schedule_text}`,
       [['operating_day', 'Day (e.g. Daily)'], ['schedule_text', 'Time slot']],
       v => { if (!v.operating_day || !v.schedule_text) throw new Error('Day and time slot are required.'); return { p_attraction: l.id, p_day: v.operating_day, p_text: v.schedule_text }; }, 'owner_add_schedule', 'owner_delete_schedule', 'p_schedule', 'owner_update_schedule');
@@ -100,12 +130,45 @@ export function initOwner(client: SupabaseClient) {
     f.addEventListener('submit', async e => {
       e.preventDefault(); const g = (n: string) => (f.elements.namedItem(n) as HTMLInputElement | null)?.value.trim() ?? '';
       try {
+        if (t === 'hotel') timesOk(g('ci'), g('co'));
         const x = await client.rpc('owner_update_details', { p_listing: l.id, p_check_in: g('ci') || null, p_check_out: g('co') || null, p_hours: g('hours') || null,
           p_resfee: t === 'restaurant' ? money(g('rf') || '0', 'Reservation fee') : null, p_fee: t === 'attraction' && g('fee') !== '' ? money(g('fee'), 'Entrance fee') : null });
         if (x.error) throw x.error; say('Details saved.');
       } catch (err) { fail(err); }
     });
     box.replaceChildren(h('h3', '', t === 'hotel' ? 'Hotel details' : t === 'restaurant' ? 'Restaurant details' : 'Attraction details'), f);
+    if (t === 'hotel') {
+      const hint = h('p', 'time-hint'), upd = () => applyHint(hint, g0('ci'), g0('co')), g0 = (n: string) => (f.elements.namedItem(n) as HTMLInputElement).value;
+      f.addEventListener('input', upd); upd(); box.append(hint, timeGuide());
+    }
+  }
+  /** Hotels turn rooms over, so check-out must be earlier than check-in (e.g. in 14:00, out 11:00). */
+  function timesOk(ci: string, co: string) {
+    if (!ci || !co) throw new Error('Set both the check-in and check-out time.');
+    if (co >= ci) throw new Error('Check-out time must be earlier than check-in time (for example check-in 14:00, check-out 11:00).');
+  }
+  async function checklist(box: HTMLElement, l: Row) {
+    const x = await client.schema('public').rpc('owner_hotel_checklist', { p_hotel: l.id });
+    if (x.error) { box.replaceChildren(); return; } // 09 not installed yet: stay quiet, fail() explains on the next save
+    const items = (x.data ?? []) as string[];
+    box.replaceChildren(h('h3', '', items.length ? 'Before this hotel can be approved' : 'Ready for review'));
+    if (!items.length) { box.append(h('p', 'muted', 'Times and rooms look complete. An administrator reviews the listing before travelers see it.')); return; }
+    const ul = h('ul', 'a-problems'); for (const t of items) ul.append(h('li', '', t)); box.append(ul);
+  }
+  async function amenities(box: HTMLElement, l: Row) {
+    const x = await client.schema('public').rpc('owner_get_hotel_amenities', { p_hotel: l.id });
+    if (x.error) { box.replaceChildren(); return; }
+    const list = (x.data ?? []) as Row[], f = h('form', 'o-amen') as HTMLFormElement; f.noValidate = true;
+    box.replaceChildren(h('h3', '', 'Amenities'));
+    for (const a of list) { const w = h('label'), c = document.createElement('input'); c.type = 'checkbox'; c.value = a.id; c.checked = !!a.selected; w.append(c, document.createTextNode(' ' + a.name)); f.append(w); }
+    const b = h('button', 'primary', 'Save amenities') as HTMLButtonElement; b.type = 'submit'; f.append(b);
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const ids = [...f.querySelectorAll<HTMLInputElement>('input:checked')].map(i => i.value);
+      const r = await client.schema('public').rpc('owner_set_hotel_amenities', { p_hotel: l.id, p_amenities: ids });
+      if (r.error) return fail(r.error); say('Saved. Amenities updated.');
+    });
+    box.append(f);
   }
   async function setStatus(l: Row, status: string, msg: string) {
     const x = await client.rpc('owner_set_listing_status', { p_listing: l.id, p_status: status }); if (x.error) return fail(x.error); say(msg); await refresh();
@@ -119,6 +182,7 @@ export function initOwner(client: SupabaseClient) {
     for (const l of rows) {
       const row = h('div', 'o-row'), d = one(l.destinations), info = h('div');
       info.append(h('strong', '', l.name), h('span', 'muted', ` ${l.listing_type} · ${d ? d.name : ''}`));
+      if (l.status === 'rejected' && l.rejection_reason) info.append(h('div', 'o-reason', 'Reason: ' + l.rejection_reason));
       const badge = h('span', 'status s-' + l.status, LABEL[l.status] ?? l.status), acts = h('div', 'o-acts');
       const m = h('button', 'quiet', 'Manage'); m.addEventListener('click', () => manage(l)); acts.append(m);
       if (l.status === 'inactive' || l.status === 'rejected') { const b = h('button', 'quiet', 'Resubmit'); b.addEventListener('click', () => void setStatus(l, 'pending', 'Resubmitted for review.')); acts.append(b); }
@@ -135,20 +199,27 @@ export function initOwner(client: SupabaseClient) {
       const sel = $('ol-dest') as HTMLSelectElement; sel.replaceChildren(new Option('Choose a destination…', ''));
       for (const x of (d.data ?? []) as Row[]) sel.append(new Option(`${x.name}, ${x.province}`, x.id)); destsLoaded = true;
     }
-    const l = await db.from('business_listings').select('id,name,listing_type,status,description,address,destinations(name,province)').eq('owner_id', ownerId).order('created_at', { ascending: false });
+    const cols = 'id,name,listing_type,status,description,address,destinations(name,province)';
+    let l: { data: any; error: any } = await db.from('business_listings').select(cols + ',rejection_reason').eq('owner_id', ownerId).order('created_at', { ascending: false });
+    if (l.error && /rejection_reason/.test(String(l.error.message))) l = await db.from('business_listings').select(cols).eq('owner_id', ownerId).order('created_at', { ascending: false }); // 09 not run yet
     if (l.error) return fail(l.error);
     render((l.data ?? []) as Row[]);
+    void loadNotifications(client, $('o-notes'));
   }
   function wire() {
     if (wired) return; wired = true;
     const typeSel = $('ol-type') as HTMLSelectElement;
     const sync = () => document.querySelectorAll<HTMLElement>('#ol-form [data-type]').forEach(n => { n.hidden = n.dataset.type !== typeSel.value; });
     typeSel.addEventListener('change', sync); sync();
+    $('ol-guide-slot').append(timeGuide());
+    const hint = () => applyHint($('ol-time-hint'), val('ol-checkin'), val('ol-checkout'));
+    $('ol-checkin').addEventListener('input', hint); $('ol-checkout').addEventListener('input', hint); hint();
     $('ol-form').addEventListener('submit', async e => {
       e.preventDefault(); const type = typeSel.value;
       try {
         if (!val('ol-name')) throw new Error('Enter the business name.');
         if (!val('ol-dest')) throw new Error('Choose a destination.');
+        if (type === 'hotel') timesOk(val('ol-checkin'), val('ol-checkout'));
         const fee = val('ol-fee') === '' ? null : money(val('ol-fee'), 'Entrance fee');
         const resfee = type === 'restaurant' ? money(val('ol-resfee') || '0', 'Reservation fee') : 0;
         say('Submitting…');

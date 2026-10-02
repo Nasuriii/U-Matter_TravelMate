@@ -1,6 +1,6 @@
 // Header, footer and shared dialogs. Pages live in src/pages/.
 export const header = `<header class="top"><a href="#/" class="brand">TRAVEL<span>MATE</span></a>
-<nav class="top-nav" data-auth-only aria-label="Main"><a href="#/explore">Explore</a><a href="#/stay">Stay</a><a href="#/eat">Eat</a><a href="#/owner" data-owner-only>Dashboard</a><a href="#/account">My account</a></nav>
+<nav class="top-nav" data-auth-only aria-label="Main"><a href="#/explore">Explore</a><a href="#/stay">Stay</a><a href="#/eat">Eat</a><a href="#/owner" data-owner-only>Dashboard</a><a href="#/admin" data-admin-only>Review</a><a href="#/account">My account</a></nav>
 <div class="top-actions"><a class="plain" href="#/login" data-guest-only>Log in</a><a class="btn primary" href="#/register" data-guest-only>Get started</a><button id="top-logout" class="quiet" data-auth-only type="button">Log out</button></div></header>`;
 export const footer = `<footer><span class="brand">TRAVEL<span>MATE</span></span><span>© 2026 TravelMate — a U-Matter platform</span></footer>`;
 export const dialogs = `<dialog id="listing-dialog"><button id="close-listing" type="button" class="quiet">Close</button><div id="listing-detail"></div></dialog>
