@@ -88,7 +88,16 @@ export function initOwner(client: SupabaseClient) {
       del.addEventListener('click', async () => { const x = await client.rpc(delFn, { [delArg]: r.id }); if (x.error) return fail(x.error); say('Removed.'); await redo(); });
       const ed = h('button', 'quiet', 'Edit') as HTMLButtonElement; ed.type = 'button';
       ed.addEventListener('click', () => li.replaceChildren(editForm(r)));
-      const acts = h('div', 'o-acts'); acts.append(ed, del); li.append(acts); ul.append(li);
+      const acts = h('div', 'o-acts');
+      if (extra && extra[0] === 'p_available') {
+        const soldOut = !r.is_available, t = h('button', 'quiet', soldOut ? 'Back in stock' : 'Mark sold out') as HTMLButtonElement; t.type = 'button';
+        t.addEventListener('click', async () => {
+          const x = await client.rpc(editFn, { p_item: r.id, p_name: r.name, p_category: r.category, p_price: r.price, p_description: r.description, p_available: soldOut ? 1 : 0 });
+          if (x.error) return fail(x.error); say(soldOut ? 'Back in stock. Travelers can see this dish again.' : 'Marked sold out. Travelers no longer see this dish.'); await redo();
+        });
+        acts.append(t);
+      }
+      acts.append(ed, del); li.append(acts); ul.append(li);
     }
     if (!ul.children.length) ul.append(h('li', 'muted', 'Nothing added yet.'));
     box.append(ul, addForm(fields, async v => { const x = await client.rpc(addFn, toRow(v)); if (x.error) throw x.error; say('Saved.'); await redo(); }));
