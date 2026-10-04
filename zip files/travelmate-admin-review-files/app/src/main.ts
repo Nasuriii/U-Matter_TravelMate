@@ -8,18 +8,15 @@ import { ownerPage } from './pages/owner';
 import { adminPage } from './pages/admin';
 import { stayPage } from './pages/stay';
 import { eatPage } from './pages/eat';
-import { attractionsPage } from './pages/attractions';
 import { header, footer, dialogs } from './layout';
 import { landingPage } from './pages/landing';
 import { authPage } from './pages/auth';
 import { explorePage } from './pages/explore';
 import { accountPage } from './pages/account';
 import { route, go } from './router';
-import { installButtonLoading } from './ui';
-import { homePage } from './pages/home';
 
 // Static markup only. User/database content is inserted through textContent/value.
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main>${landingPage}${homePage}${authPage}${explorePage}${stayPage}${eatPage}${attractionsPage}${ownerPage}${adminPage}${accountPage}</main>` + dialogs + footer;
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main>${landingPage}${authPage}${explorePage}${stayPage}${eatPage}${ownerPage}${adminPage}${accountPage}</main>` + dialogs + footer;
 window.addEventListener('hashchange',route); route();
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const notice = (message: string, error = false) => { for (const id of ['notice', 'auth-notice']) { const n = el(id); n.textContent = message; n.classList.toggle('error', error); } };
@@ -45,7 +42,6 @@ function validConfig() {
   catch { throw new Error('Use the Supabase publishable key, or legacy anon key. Never use service_role or Google credentials.'); }
  }
 }
-installButtonLoading();
 try { validConfig(); await start(); } catch(e) { notice(explain(e),true); el('catalog-notice').textContent=explain(e);document.body.dataset.auth='out';route();
  document.querySelectorAll<HTMLButtonElement>('#search-form button,#auth-form button,#login').forEach(b=>{b.disabled=true;b.title='Needs Supabase setup (.env.local)';}); }
 async function start() {
@@ -93,9 +89,9 @@ async function start() {
    if(download.error)throw new Error(`Profile loaded, but avatar download failed: ${download.error.message}`);
    preview=URL.createObjectURL(download.data);el<HTMLImageElement>('avatar').src=preview;el('avatar').hidden=false;el('avatar-placeholder').hidden=true;
   }
-   const [ph,rr]=await Promise.all([api.from('profile_phones').select('id,phone_number').order('phone_number').limit(1),api.from('profile_roles').select('roles(name)')]);
+   const ph=await api.from('profile_phones').select('id,phone_number').order('phone_number').limit(1);
   if(!ph.error&&ph.data?.[0]){phoneId=ph.data[0].id;el<HTMLInputElement>('phone').value=ph.data[0].phone_number;}
-  
+  const rr=await api.from('profile_roles').select('roles(name)');
   if(!rr.error)roleNames=(rr.data??[]).map((x:any)=>{const r=x.roles;return Array.isArray(r)?r[0]?.name:r?.name;}).filter(Boolean);
   if(token!==generation || user?.id!==uid)return;
   applyRole(user);
@@ -115,7 +111,7 @@ async function start() {
   generation++;const changed=user?.id!==next?.id;user=next;
   if(changed || !next)clearProfile();
   explorer.setUser(next?.id??null);if(next&&changed)loadBrowse(supabase);
-  document.body.dataset.auth=next?'in':'out';if(!next)applyRole(null);route();el('account').hidden=!next;el('email').textContent=next?.email??'';el('uid').textContent=next?.id??'';el('hm-name').textContent=String(next?.user_metadata?.full_name||next?.email||'traveler').split(' ')[0].split('@')[0].toUpperCase();controls();
+  document.body.dataset.auth=next?'in':'out';if(!next)applyRole(null);route();el('account').hidden=!next;el('email').textContent=next?.email??'';el('uid').textContent=next?.id??'';controls();
   if(next)await loadProfile();else notice('');
  }
  el('login').addEventListener('click',()=>void run(async()=>{
@@ -136,7 +132,7 @@ async function start() {
   }
   if(mode==='reset'){
    notice('Saving your new password…');const {error}=await supabase.auth.updateUser({password});if(error)throw error;
-   notice('Password updated.');go('/home');return;
+   notice('Password updated.');go('/explore');return;
   }
   if(mode==='register'){
    const name=(val('reg-first').trim()+' '+val('reg-last').trim()).trim();
@@ -154,7 +150,6 @@ async function start() {
  el('toggle-pw').addEventListener('click',()=>{const show=el<HTMLInputElement>('auth-password').type==='password';
   for(const id of ['auth-password','auth-confirm'])el<HTMLInputElement>(id).type=show?'text':'password';el('toggle-pw').textContent=show?'Hide':'Show';});
  el('top-logout').addEventListener('click',()=>el('logout').click());
- el('home-search-form').addEventListener('submit',e=>{e.preventDefault();el<HTMLInputElement>('search').value=val('home-search').trim();go('/explore');el<HTMLFormElement>('search-form').requestSubmit();});
  el<HTMLInputElement>('file').addEventListener('change',()=>{el('file-name').textContent=el<HTMLInputElement>('file').files?.[0]?.name??'No file chosen';controls();});
  el('role-dialog').addEventListener('cancel',e=>e.preventDefault());
  document.querySelectorAll<HTMLButtonElement>('.role-card').forEach(b=>b.addEventListener('click',()=>void run(async()=>{
@@ -165,7 +160,7 @@ async function start() {
    const {data,error}=await supabase.auth.updateUser({data:{account_type:role}});if(error)throw error;
    await displayUser(data.user);
   }catch(e){el('role-error').textContent=explain(e);el('role-error').hidden=false;return;}
-  location.hash=role==='business_owner'?'#/owner':'#/home';
+  location.hash=role==='business_owner'?'#/owner':'#/explore';
  })));
  el('logout').addEventListener('click',()=>void run(async()=>{
   const {error}=await supabase.auth.signOut({scope:'local'});if(error)throw error;await displayUser(null);
@@ -201,9 +196,9 @@ async function start() {
  }));
  // Do not make awaited Supabase calls inside the Auth event callback.
  let recovery=false;
- supabase.auth.onAuthStateChange((event,session)=>{
+ supabase.auth.onAuthStateChange(event=>{
   if(event==='PASSWORD_RECOVERY'){recovery=true;location.hash='#/reset';}
-  if(event==='SIGNED_IN'){if(session?.user?.id&&session.user.id===user?.id&&profile)return;setTimeout(()=>void run(async()=>{const result=await supabase.auth.getUser();if(result.error)throw result.error;await displayUser(result.data.user);}),0);}
+  if(event==='SIGNED_IN'){setTimeout(()=>void run(async()=>{const result=await supabase.auth.getUser();if(result.error)throw result.error;await displayUser(result.data.user);}),0);}
   if(event==='SIGNED_OUT'){generation++;user=null;clearProfile();explorer.setUser(null);el('account').hidden=true;document.body.dataset.auth='out';applyRole(null);location.hash='#/';route();controls();notice('Signed out.');}
  });
  const params=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.slice(1));
@@ -211,7 +206,7 @@ async function start() {
  const {data,error}=await supabase.auth.getSession();
  if(error)throw error;
  // The SDK handles the PKCE callback once. Remove callback parameters afterwards.
- if(params.has('code')||params.has('error')||hash.has('error'))history.replaceState({},'',location.pathname+(recovery?'#/reset':'#/home'));route();
+ if(params.has('code')||params.has('error')||hash.has('error'))history.replaceState({},'',location.pathname+(recovery?'#/reset':'#/explore'));route();
  await run(()=>displayUser(data.session?.user??null));
  if(oauthError)notice(`Google sign-in did not finish: ${oauthError}`,true);
 }

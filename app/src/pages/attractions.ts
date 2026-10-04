@@ -1,0 +1,1 @@
+export const attractionsPage = `<section data-page="attractions" class="browse" hidden><p class="eyebrow">THINGS TO DO</p><h1>Attractions</h1><p class="lead">Approved attractions with entrance fees and schedules. Select a card for details.</p><div class="l-grid" id="attr-grid"><p class="muted">Loading…</p></div></section>`;

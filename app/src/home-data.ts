@@ -15,13 +15,13 @@ export function loadLanding(client: SupabaseClient) {
   void (async () => {
     const [d, h, r] = await Promise.all([head('destinations').eq('is_active', 1), head('business_listings').eq('listing_type', 'hotel'), head('business_listings').eq('listing_type', 'restaurant')]);
     if (d.error && h.error && r.error) return;
-    setStat('st-dest', d.count); setStat('st-stay', h.count); setStat('st-eat', r.count); $('stats').hidden = false;
+    setStat('st-dest', d.count); setStat('st-stay', h.count); setStat('st-eat', r.count); setStat('hm-dest', d.count); setStat('hm-stay', h.count); setStat('hm-eat', r.count); $('stats').hidden = false;
   })();
   void (async () => {
     const { data, error } = await db.from('reviews').select('rating,review_text,destinations(name),business_listings(name)').order('created_at', { ascending: false }).limit(100);
     if (error || !data?.length) return;
     const rows = data as Row[];
-    $('st-rate').textContent = (rows.reduce((s, r) => s + r.rating, 0) / rows.length).toFixed(1) + '★'; $('stats').hidden = false;
+    $('st-rate').textContent = (rows.reduce((s, r) => s + r.rating, 0) / rows.length).toFixed(1) + '★'; $('hm-rate').textContent = (rows.reduce((s, r) => s + r.rating, 0) / rows.length).toFixed(1); $('stats').hidden = false;
     const grid = $('review-grid'); grid.replaceChildren();
     for (const r of rows.filter(x => (x.review_text || '').length > 20).slice(0, 3)) {
       const card = mk('blockquote', 'r-card'), place = one(r.business_listings)?.name || one(r.destinations)?.name || 'TravelMate';
@@ -29,6 +29,7 @@ export function loadLanding(client: SupabaseClient) {
       grid.append(card);
     }
     if (grid.children.length) $('reviews').hidden = false;
+    const hg = $('home-review-grid'); hg.replaceChildren(...[...grid.children].map(c => c.cloneNode(true))); if (hg.children.length) $('home-reviews').hidden = false;
   })();
 }
 
@@ -55,16 +56,30 @@ export function loadBrowse(client: SupabaseClient) {
     else { const ul = mk('ul', 'd-list'); rows.forEach(r => ul.append(mk('li', '', r))); box.append(ul); }
     return box;
   }
+  async function allPhotos(id: string) {
+    const { data } = await db.from('photos').select('bucket_id,object_path').eq('listing_id', id).eq('status', 'approved').order('sort_order');
+    const urls: string[] = [];
+    for (const p of (data ?? []) as Row[]) { const s = await client.storage.from(p.bucket_id || BUCKET_FALLBACK).createSignedUrl(p.object_path, 3600); if (s.data?.signedUrl) urls.push(s.data.signedUrl); }
+    return urls;
+  }
   async function openDetail(l: Row) {
     body.replaceChildren(mk('p', 'eyebrow', l.listing_type), mk('h2', '', l.name), mk('p', 'muted', l.address || ''), mk('p', '', l.description || ''));
     dlg.showModal();
+    const gal = mk('div', 'd-gallery'); body.append(gal);
+    void allPhotos(l.id).then(us => us.forEach(u => { const i = document.createElement('img'); i.src = u; i.alt = ''; i.loading = 'lazy'; i.onerror = () => i.remove(); gal.append(i); }));
     if (l.listing_type === 'hotel') {
       const [h, r] = await Promise.all([db.from('hotels').select('check_in_time,check_out_time').eq('hotel_id', l.id).maybeSingle(), db.from('rooms').select('room_type,max_guests,base_nightly_rate,operational_status').eq('hotel_id', l.id)]);
       if (h.data) body.append(mk('p', '', `Check-in ${String(h.data.check_in_time ?? '—').slice(0, 5)} · Check-out ${String(h.data.check_out_time ?? '—').slice(0, 5)}`));
       body.append(list('Rooms', (r.data ?? []).map((x: Row) => `${x.room_type} · up to ${x.max_guests} guests · ${peso(x.base_nightly_rate)}/night · ${x.operational_status}`)));
+      const am = await db.from('hotel_amenities').select('amenities(name)').eq('hotel_id', l.id);
+      const amNames = ((am.data ?? []) as Row[]).map(x => one(x.amenities)?.name).filter(Boolean) as string[];
+      if (amNames.length) body.append(list('Amenities', amNames));
     } else if (l.listing_type === 'restaurant') {
       const [h, m] = await Promise.all([db.from('restaurants').select('operating_hours,reservation_fee').eq('restaurant_id', l.id).maybeSingle(), db.from('menu_items').select('name,category,price,is_available').eq('restaurant_id', l.id).order('category')]);
       if (h.data) body.append(mk('p', '', `Hours: ${h.data.operating_hours ?? '—'} · Reservation fee ${peso(h.data.reservation_fee)}`));
+      const cu = await db.from('restaurant_cuisines').select('cuisines(name)').eq('restaurant_id', l.id);
+      const cuNames = ((cu.data ?? []) as Row[]).map(x => one(x.cuisines)?.name).filter(Boolean) as string[];
+      if (cuNames.length) body.append(mk('p', '', 'Cuisine: ' + cuNames.join(', ')));
       body.append(list('Menu', (m.data ?? []).filter((x: Row) => x.is_available).map((x: Row) => `${x.name}${x.category ? ' (' + x.category + ')' : ''} — ${peso(x.price)}`)));
     } else {
       const [a, s] = await Promise.all([db.from('attractions').select('entrance_fee').eq('attraction_id', l.id).maybeSingle(), db.from('attraction_schedules').select('operating_day,schedule_text').eq('attraction_id', l.id)]);
@@ -87,5 +102,5 @@ export function loadBrowse(client: SupabaseClient) {
       card.append(art, b); card.addEventListener('click', () => void openDetail(l)); grid.append(card);
     }
   }
-  void listings('hotel', 'stay-grid', 'Hotel'); void listings('restaurant', 'eat-grid', 'Restaurant');
+  void listings('hotel', 'stay-grid', 'Hotel'); void listings('restaurant', 'eat-grid', 'Restaurant'); void listings('attraction', 'attr-grid', 'Attraction');
 }

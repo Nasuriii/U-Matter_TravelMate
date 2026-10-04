@@ -6,31 +6,6 @@ const val = (id: string) => ($(id) as HTMLInputElement).value.trim();
 const one = (v: any) => (Array.isArray(v) ? v[0] : v);
 const peso = (n: any) => (n == null ? '—' : '₱' + Number(n).toLocaleString());
 function h(tag: string, cls = '', text = '') { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
-/** Plain-language help for hotel owners (shown in the Add form and in Hotel details). */
-const t12 = (t: string) => { const [H, M] = t.split(':').map(Number); return `${((H + 11) % 12) + 1}:${String(M).padStart(2, '0')} ${H >= 12 ? 'PM' : 'AM'}`; };
-const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-function timeHint(ci: string, co: string): { text: string; ok: boolean } {
-  if (!ci && !co) return { text: 'Pick both times to see what travelers will be told.', ok: true };
-  if (!ci || !co) return { text: 'Pick the other time too.', ok: true };
-  if (co >= ci) return { text: `Check-out (${t12(co)}) must be earlier on the clock than check-in (${t12(ci)}), because check-out happens the next morning. Example: check-in 2:00 PM, check-out 11:00 AM.`, ok: false };
-  const gap = mins(ci) - mins(co), gh = Math.floor(gap / 60), gm = gap % 60;
-  return { text: `Guests can arrive from ${t12(ci)} and must leave by ${t12(co)} on the day they depart. You have ${gh ? gh + ' h' : ''}${gh && gm ? ' ' : ''}${gm ? gm + ' min' : ''} to clean between check-out and the next check-in.`, ok: true };
-}
-function applyHint(p: HTMLElement, ci: string, co: string) { const r = timeHint(ci, co); p.textContent = r.text; p.classList.toggle('bad', !r.ok); }
-function timeGuide(): HTMLElement {
-  const d = document.createElement('details'); d.className = 'o-guide';
-  d.innerHTML = `<summary>Guide: how check-in and check-out times work</summary>
-<ul><li><strong>Check-in time</strong> is the earliest time a guest can get their room, for example <em>2:00 PM</em>.</li>
-<li><strong>Check-out time</strong> is the time guests must leave on the morning they depart, for example <em>11:00 AM</em>.</li>
-<li>TravelMate needs the check-out time to be <strong>earlier on the clock</strong> than the check-in time. The gap between them is your cleaning window.</li>
-<li><strong>Example:</strong> a guest books 2 nights and arrives Monday at 2:00 PM. They leave Wednesday by 11:00 AM.</li></ul>
-<table><thead><tr><th>Hotel style</th><th>Check-in</th><th>Check-out</th></tr></thead><tbody>
-<tr><td>Standard hotel</td><td>2:00 PM</td><td>11:00 AM</td></tr><tr><td>Resort</td><td>3:00 PM</td><td>12:00 PM (noon)</td></tr><tr><td>Budget stay</td><td>12:00 PM</td><td>10:00 AM</td></tr></tbody></table>
-<p>Travelers see these times on your listing. Changing them later sends the hotel back to the administrator for approval. Early arrival or late departure is arranged with you directly.</p>
-<p>Restaurants and attractions do not use check-in or check-out. They use operating hours and schedules instead.</p>
-<p class="muted">If your hotel works differently (for example check-in 7:00 AM and check-out 7:00 PM the next day), tell your administrator. This rule does not allow it yet.</p>`;
-  return d;
-}
 const LABEL: Record<string, string> = { pending: 'Awaiting review', approved: 'Live', rejected: 'Rejected', inactive: 'Inactive' };
 
 /** Business-owner dashboard. All writes go through RLS (database/06_owner_listings.sql). */
@@ -39,22 +14,17 @@ export function initOwner(client: SupabaseClient) {
   let ownerId: string | null = null, destsLoaded = false, wired = false;
   let after: (() => void) | null = null; // re-checks the hotel checklist after a save
   const say = (m: string, err = false) => { for (const id of ['o-notice', 'o-manage-notice']) { const n = document.getElementById(id); if (n) { n.textContent = m; n.classList.toggle('error', err); } } if (!err && after && /^(Saved|Removed|Details saved)/.test(m)) after(); };
-  const failBase = (e: any) => say(/owner_[a-z_]+|PGRST202|permission denied|row-level security/i.test(String(e?.message) + String(e?.code))
-    ? 'The database is not ready for owners yet. Run database/06 to 11 in the Supabase SQL Editor, in order. (' + (e?.message ?? e) + ')' : (e?.message ?? String(e)), true);
-
-  const dupText = (m: string) => /tm_listing_name_unique/.test(m) ? 'A listing with this name and type already exists in this destination. Choose a different name or open the existing listing.'
-    : /tm_menu_item_name_unique/.test(m) ? 'That dish or drink is already on this menu.' : /tm_schedule_unique/.test(m) ? 'That schedule row already exists.' : '';
-  const fail = (e: any) => { const d = dupText(String(e?.message ?? '')); return d ? say(d, true) : failBase(e); };
+  const fail = (e: any) => say(/owner_[a-z_]+|PGRST202|permission denied|row-level security/i.test(String(e?.message) + String(e?.code))
+    ? 'The database is not ready for owners yet. Run database/06 to 09 (06_owner_listings, 07_owner_actions, 08_owner_edit, 09_hotel_listing) in the Supabase SQL Editor, in that order. (' + (e?.message ?? e) + ')' : (e?.message ?? String(e)), true);
 
   function addForm(fields: [string, string, string?][], submit: (v: Record<string, string>) => Promise<void>) {
     const f = h('form', 'o-inline') as HTMLFormElement; f.noValidate = true;
     for (const [n, l, t] of fields) { const w = h('label', '', l); const i = document.createElement('input'); i.name = n; i.type = t || 'text'; if (t === 'number') { i.min = '0'; i.step = '0.01'; } w.append(i); f.append(w); }
     const b = h('button', 'primary', 'Add') as HTMLButtonElement; b.type = 'submit'; f.append(b);
-    let sending = false;
     f.addEventListener('submit', async e => {
-      e.preventDefault(); if (sending) return; sending = true; b.disabled = true; const v: Record<string, string> = {};
+      e.preventDefault(); const v: Record<string, string> = {};
       for (const [n] of fields) v[n] = (f.elements.namedItem(n) as HTMLInputElement).value.trim();
-      try { await submit(v); f.reset(); } catch (x) { fail(x); } finally { sending = false; b.disabled = false; }
+      try { await submit(v); f.reset(); } catch (x) { fail(x); }
     });
     return f;
   }
@@ -105,14 +75,12 @@ export function initOwner(client: SupabaseClient) {
       e.preventDefault(); const g = (n: string) => (f.elements.namedItem(n) as HTMLInputElement).value.trim();
       if (!g('name')) return say('Name is required.', true);
       const x = await client.rpc('owner_update_listing', { p_listing: l.id, p_name: g('name'), p_address: g('address') || null, p_description: g('description') || null });
-      if (x.error) return fail(x.error); say(l.status === 'rejected' ? 'Saved. This listing is still rejected. Press Resubmit when you are ready to send it for review.' : l.status === 'inactive' ? 'Saved. This listing is inactive.' : 'Saved. Edited listings go back to review before travelers see the changes.'); await refresh();
+      if (x.error) return fail(x.error); say('Saved. Edited listings go back to review before travelers see the changes.'); await refresh();
     });
     const sub = h('div', 'o-sub'), dh = h('div', 'o-sub'); after = null;
     if (l.listing_type === 'hotel') { const ck = h('div', 'o-sub'), am = h('div', 'o-sub'); box.append(f, ck, dh, sub, am); after = () => void checklist(ck, l); void checklist(ck, l); void amenities(am, l); }
     else box.append(f, dh, sub);
     void details(dh, l);
-    if (l.listing_type === 'restaurant') { const cu = h('div', 'o-sub'); box.append(cu); void cuisines(cu, l); }
-    const ph = h('div', 'o-sub'); box.append(ph); void photos(ph, l);
     if (l.listing_type === 'restaurant') void children(sub, 'Menu', 'menu_items', 'restaurant_id', l.id, r => `${r.name}${r.category ? ' (' + r.category + ')' : ''} — ${peso(r.price)}${r.is_available ? '' : ' · sold out'}`,
       [['name', 'Dish / drink'], ['category', 'Category (e.g. Mains)'], ['price', 'Price (₱)', 'number'], ['description', 'Description']],
       v => { if (!v.name) throw new Error('Enter a name.'); return { p_restaurant: l.id, p_name: v.name, p_category: v.category || null, p_price: money(v.price, 'Price'), p_description: v.description || null }; }, 'owner_add_menu_item', 'owner_delete_menu_item', 'p_item', 'owner_update_menu_item', ['p_available', 'Availability', [['1', 'Available'], ['0', 'Sold out']], r => String(r.is_available)]);
@@ -144,10 +112,6 @@ export function initOwner(client: SupabaseClient) {
       } catch (err) { fail(err); }
     });
     box.replaceChildren(h('h3', '', t === 'hotel' ? 'Hotel details' : t === 'restaurant' ? 'Restaurant details' : 'Attraction details'), f);
-    if (t === 'hotel') {
-      const hint = h('p', 'time-hint'), upd = () => applyHint(hint, g0('ci'), g0('co')), g0 = (n: string) => (f.elements.namedItem(n) as HTMLInputElement).value;
-      f.addEventListener('input', upd); upd(); box.append(hint, timeGuide());
-    }
   }
   /** Hotels turn rooms over, so check-out must be earlier than check-in (e.g. in 14:00, out 11:00). */
   function timesOk(ci: string, co: string) {
@@ -177,55 +141,6 @@ export function initOwner(client: SupabaseClient) {
     });
     box.append(f);
   }
-  async function cuisines(box: HTMLElement, l: Row) {
-    const x = await client.schema('public').rpc('owner_get_restaurant_cuisines', { p_restaurant: l.id });
-    if (x.error) { box.replaceChildren(); return; }
-    const f = h('form', 'o-amen') as HTMLFormElement; f.noValidate = true; box.replaceChildren(h('h3', '', 'Cuisine type'));
-    for (const a of (x.data ?? []) as Row[]) { const w = h('label'), c = document.createElement('input'); c.type = 'checkbox'; c.value = a.id; c.checked = !!a.selected; w.append(c, document.createTextNode(' ' + a.name)); f.append(w); }
-    const b = h('button', 'primary', 'Save cuisines') as HTMLButtonElement; b.type = 'submit'; f.append(b);
-    f.addEventListener('submit', async e => {
-      e.preventDefault();
-      const r = await client.schema('public').rpc('owner_set_restaurant_cuisines', { p_restaurant: l.id, p_cuisines: [...f.querySelectorAll<HTMLInputElement>('input:checked')].map(i => i.value) });
-      if (r.error) return fail(r.error); say('Saved. Cuisines updated.');
-    });
-    box.append(f);
-  }
-  const BUCKET = 'travelmate-listings', MAX_PHOTOS = 6, EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
-  async function photos(box: HTMLElement, l: Row) {
-    const x = await client.rpc('owner_list_photos', { p_listing: l.id });
-    if (x.error) { box.replaceChildren(); return fail(x.error); }
-    const rows = (x.data ?? []) as Row[], grid = h('div', 'o-photos');
-    box.replaceChildren(h('h3', '', 'Photos'), h('p', 'muted', `Up to ${MAX_PHOTOS} photos (JPEG, PNG or WebP, 5 MB each). New photos are reviewed with your listing, and adding one to a live listing sends it back to review.`));
-    for (const p of rows) {
-      const fig = h('figure', 'o-photo'), img = document.createElement('img'); img.alt = ''; img.loading = 'lazy';
-      void client.storage.from(BUCKET).createSignedUrl(p.object_path, 3600).then(s => { if (s.data) img.src = s.data.signedUrl; });
-      const del = h('button', 'quiet', 'Remove') as HTMLButtonElement; del.type = 'button';
-      del.addEventListener('click', async () => {
-        const r = await client.rpc('owner_delete_photo', { p_photo: p.id }); if (r.error) return fail(r.error);
-        if (r.data) await client.storage.from(BUCKET).remove([String(r.data)]); say('Photo removed.'); await photos(box, l);
-      });
-      fig.append(img, h('figcaption', '', p.status === 'approved' ? 'Live' : 'Awaiting review'), del); grid.append(fig);
-    }
-    box.append(grid);
-    if (rows.length >= MAX_PHOTOS) return;
-    const f = h('form', 'o-inline') as HTMLFormElement, w = h('label', '', 'Add a photo'), inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = 'image/jpeg,image/png,image/webp'; w.append(inp); f.append(w);
-    const b = h('button', 'primary', 'Upload photo') as HTMLButtonElement; b.type = 'submit'; f.append(b);
-    f.addEventListener('submit', async e => {
-      e.preventDefault(); const file = inp.files?.[0];
-      if (!file) return say('Choose a photo first.', true);
-      if (!EXT[file.type]) return say('Use a JPEG, PNG or WebP image.', true);
-      if (file.size > 5 * 1024 * 1024) return say('That photo is larger than 5 MB.', true);
-      const uid = (await client.auth.getUser()).data.user?.id; if (!uid) return say('Please log in again.', true);
-      const path = `${uid}/${l.id}/${crypto.randomUUID()}.${EXT[file.type]}`; b.disabled = true; say('Uploading…');
-      const up = await client.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: false });
-      if (up.error) { b.disabled = false; return say('Upload failed: ' + up.error.message, true); }
-      const r = await client.rpc('owner_add_photo', { p_listing: l.id, p_path: path });
-      if (r.error) { await client.storage.from(BUCKET).remove([path]); b.disabled = false; return fail(r.error); }
-      say('Photo uploaded. It goes live when an administrator approves the listing.'); await photos(box, l); await refresh();
-    });
-    box.append(f);
-  }
   async function setStatus(l: Row, status: string, msg: string) {
     const x = await client.rpc('owner_set_listing_status', { p_listing: l.id, p_status: status }); if (x.error) return fail(x.error); say(msg); await refresh();
   }
@@ -243,33 +158,17 @@ export function initOwner(client: SupabaseClient) {
       const m = h('button', 'quiet', 'Manage'); m.addEventListener('click', () => manage(l)); acts.append(m);
       if (l.status === 'inactive' || l.status === 'rejected') { const b = h('button', 'quiet', 'Resubmit'); b.addEventListener('click', () => void setStatus(l, 'pending', 'Resubmitted for review.')); acts.append(b); }
       else { const b = h('button', 'quiet', 'Deactivate'); b.addEventListener('click', () => { if (confirm(`Deactivate "${l.name}"? Travelers will no longer see it.`)) void setStatus(l, 'inactive', 'Listing deactivated.'); }); acts.append(b); }
-      if (l.status !== 'approved') {
-        const d = h('button', 'quiet danger', 'Delete'); d.addEventListener('click', () => { if (confirm(`Delete "${l.name}" permanently? Its rooms, menu, schedules and photos are removed too. This cannot be undone.`)) void removeListing(l); }); acts.append(d);
-      }
       row.append(info, badge, acts); box.append(row);
     }
   }
-  async function loadDests() {
-    if (destsLoaded) return; destsLoaded = true;
-    const d = await db.from('destinations').select('id,name,province').eq('is_active', 1).order('name');
-    const sel = $('ol-dest') as HTMLSelectElement;
-    if (d.error) { destsLoaded = false; sel.replaceChildren(new Option('Could not load destinations. Reload the page.', '')); return; }
-    sel.replaceChildren(new Option('Choose a destination…', ''));
-    for (const x of (d.data ?? []) as Row[]) sel.append(new Option(`${x.name}, ${x.province}`, x.id));
-  }
-  async function removeListing(l: Row) {
-    const x = await client.rpc('owner_delete_listing', { p_listing: l.id }); if (x.error) return fail(x.error);
-    const paths = (x.data ?? []) as string[]; if (paths.length) await client.storage.from('travelmate-listings').remove(paths);
-    $('o-manage').hidden = true; say(`"${l.name}" was deleted.`); await refresh();
-  }
-  let inflight: Promise<void> | null = null;
-  const refresh = (): Promise<void> => (inflight ??= refreshNow().finally(() => { inflight = null; }));
-  async function refreshNow() {
-    void loadDests();
-    if (!ownerId) {
-      const o = await db.from('business_owners').select('id').limit(1);
-      if (o.error || !o.data?.[0]) { say('No business owner record found for this account.', true); return; }
-      ownerId = o.data[0].id;
+  async function refresh() {
+    const o = await db.from('business_owners').select('id').limit(1);
+    if (o.error || !o.data?.[0]) { say('No business owner record found for this account.', true); return; }
+    ownerId = o.data[0].id;
+    if (!destsLoaded) {
+      const d = await db.from('destinations').select('id,name,province').eq('is_active', 1).order('name');
+      const sel = $('ol-dest') as HTMLSelectElement; sel.replaceChildren(new Option('Choose a destination…', ''));
+      for (const x of (d.data ?? []) as Row[]) sel.append(new Option(`${x.name}, ${x.province}`, x.id)); destsLoaded = true;
     }
     const cols = 'id,name,listing_type,status,description,address,destinations(name,province)';
     let l: { data: any; error: any } = await db.from('business_listings').select(cols + ',rejection_reason').eq('owner_id', ownerId).order('created_at', { ascending: false });
@@ -283,13 +182,8 @@ export function initOwner(client: SupabaseClient) {
     const typeSel = $('ol-type') as HTMLSelectElement;
     const sync = () => document.querySelectorAll<HTMLElement>('#ol-form [data-type]').forEach(n => { n.hidden = n.dataset.type !== typeSel.value; });
     typeSel.addEventListener('change', sync); sync();
-    $('ol-guide-slot').append(timeGuide());
-    const hint = () => applyHint($('ol-time-hint'), val('ol-checkin'), val('ol-checkout'));
-    $('ol-checkin').addEventListener('input', hint); $('ol-checkout').addEventListener('input', hint); hint();
-    let submitting = false;
     $('ol-form').addEventListener('submit', async e => {
-      e.preventDefault(); if (submitting) return; const type = typeSel.value;
-      submitting = true;
+      e.preventDefault(); const type = typeSel.value;
       try {
         if (!val('ol-name')) throw new Error('Enter the business name.');
         if (!val('ol-dest')) throw new Error('Choose a destination.');
@@ -302,10 +196,9 @@ export function initOwner(client: SupabaseClient) {
           p_entrance_fee: type === 'attraction' ? fee : null, p_schedule_day: val('ol-day') || null, p_schedule_text: val('ol-slot') || null });
         if (x.error) throw x.error;
         ($('ol-form') as HTMLFormElement).reset(); sync(); say('Listing submitted. It will appear to travelers once an administrator approves it.'); await refresh();
-      } catch (err) { fail(err); } finally { submitting = false; }
+      } catch (err) { fail(err); }
     });
     window.addEventListener('hashchange', () => { if (location.hash === '#/owner') void refresh(); });
   }
-  void loadDests();
   return { refresh: () => { wire(); return refresh(); } };
 }

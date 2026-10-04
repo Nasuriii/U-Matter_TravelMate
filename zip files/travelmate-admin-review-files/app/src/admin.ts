@@ -45,23 +45,12 @@ export function initAdmin(client: SupabaseClient) {
     }
   }
 
-  async function photoStrip(c: HTMLElement, id: string) {
-    const box = h('div', 'a-photos'); c.append(h('h4', '', 'Photos'), box);
-    const x = await db.rpc('admin_listing_photos', { p_listing: id });
-    if (x.error) { box.append(h('p', 'muted', 'Photos unavailable: ' + x.error.message)); return; }
-    const rows = (x.data ?? []) as Row[]; if (!rows.length) { box.append(h('p', 'muted', 'No photos uploaded.')); return; }
-    for (const p of rows) {
-      const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy'; box.append(img);
-      void client.storage.from('travelmate-listings').createSignedUrl(p.object_path, 3600).then(s => { if (s.data) img.src = s.data.signedUrl; else img.alt = 'Photo could not be loaded'; });
-    }
-  }
   function card(l: Row) {
     const c = h('article', 'a-card'), problems = (l.problems ?? []) as string[];
     c.append(h('span', 'a-type', LABEL[l.type] ?? String(l.type)), h('h3', '', l.name), h('p', 'muted', `${l.destination} · ${l.address ?? 'No address'}`),
       h('p', 'muted', `Owner: ${l.owner ?? '—'}${l.owner_email ? ' (' + l.owner_email + ')' : ''}`));
     if (l.description) c.append(h('p', '', l.description));
     details(c, l);
-    void photoStrip(c, l.id);
     if (problems.length) { const w = h('ul', 'a-problems'); for (const p of problems) w.append(h('li', '', p)); c.append(h('h4', '', 'Blocks approval'), w); }
     const reason = document.createElement('input'); reason.placeholder = 'Reason (required to reject)'; reason.maxLength = 300; reason.setAttribute('aria-label', 'Rejection reason');
     const ok = h('button', 'primary', 'Approve') as HTMLButtonElement, no = h('button', 'quiet', 'Reject') as HTMLButtonElement; ok.type = no.type = 'button';
@@ -83,7 +72,7 @@ export function initAdmin(client: SupabaseClient) {
     $('a-count').textContent = queue.length ? `(${queue.length})` : '';
     $('a-list').replaceChildren(...(rows.length ? rows.map(card) : [h('p', 'muted', queue.length ? 'Nothing of this type is waiting.' : 'Nothing is waiting for review.')]));
     const link = document.querySelector<HTMLElement>('a[data-admin-only]');
-    const lbl = link?.querySelector('span'); if (lbl) lbl.textContent = queue.length ? `Review (${queue.length})` : 'Review';
+    if (link) link.textContent = queue.length ? `Review (${queue.length})` : 'Review';
   }
 
   function renderHistory(rows: Row[]) {
