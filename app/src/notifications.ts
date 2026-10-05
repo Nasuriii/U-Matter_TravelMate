@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { tidy } from './ui';
 type Row = Record<string, any>;
 function h(tag: string, cls = '', text = '') { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
 
@@ -12,7 +13,7 @@ export async function loadNotifications(client: SupabaseClient, box: HTMLElement
   const ul = h('ul', 'o-notes');
   for (const n of rows) {
     const li = h('li', n.read ? '' : 'unread'), when = new Date(n.created_at);
-    li.append(h('span', '', String(n.message)), h('small', 'muted', Number.isNaN(when.getTime()) ? '' : when.toLocaleString()));
+    li.append(h('span', '', tidy(String(n.message))), h('small', 'muted', Number.isNaN(when.getTime()) ? '' : when.toLocaleString()));
     ul.append(li);
   }
   box.append(ul);

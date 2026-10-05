@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadNotifications } from './notifications';
+import { tidy } from './ui';
 type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
 const peso = (n: any) => (n == null ? '—' : '₱' + Number(n).toLocaleString());
@@ -94,7 +95,7 @@ export function initAdmin(client: SupabaseClient) {
       const li = h('li', ''), when = r.reviewed_at ? new Date(r.reviewed_at) : null;
       li.append(h('strong', '', r.name), h('span', r.status === 'approved' ? 'a-ok' : 'a-no', r.status === 'approved' ? 'Approved' : 'Rejected'),
         h('small', 'muted', `${LABEL[r.type] ?? r.type} · ${r.reviewer ?? 'an administrator'}${when && !Number.isNaN(when.getTime()) ? ' · ' + when.toLocaleString() : ''}`));
-      if (r.status === 'rejected' && r.reason) li.append(h('small', 'o-reason', 'Reason: ' + r.reason));
+      if (r.status === 'rejected' && r.reason) li.append(h('small', 'o-reason', tidy('Reason: ' + r.reason)));
       ul.append(li);
     }
     box.replaceChildren(ul);

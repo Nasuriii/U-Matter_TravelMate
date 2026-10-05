@@ -3,6 +3,18 @@ type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
 const one = (v: any) => (Array.isArray(v) ? v[0] : v);
 const peso = (n: any) => (n == null ? '—' : '₱' + Number(n).toLocaleString());
+function menuList(items: Row[], urls: Map<string, string>) {
+  const box = mk('div', 'd-sec'); box.append(mk('h3', '', 'Menu'));
+  if (!items.length) { box.append(mk('p', 'muted', 'Nothing listed yet.')); return box; }
+  const ul = mk('ul', 'd-menu');
+  for (const x of items) {
+    const li = mk('li', ''), u = urls.get(x.id);
+    if (u) { const i = document.createElement('img'); i.src = u; i.alt = ''; i.loading = 'lazy'; i.onerror = () => i.remove(); li.append(i); }
+    const t = mk('div', 'dm-text'); t.append(mk('strong', '', x.name)); if (x.category) t.append(mk('span', 'muted', x.category)); t.append(mk('span', 'dm-price', peso(x.price)));
+    li.append(t); ul.append(li);
+  }
+  box.append(ul); return box;
+}
 function mk(tag: string, cls: string, text?: string) { const e = document.createElement(tag); e.className = cls; if (text !== undefined) e.textContent = text; return e; }
 const BUCKET_FALLBACK = 'travelmate-listings';
 let wired = false;
@@ -42,7 +54,9 @@ export function loadBrowse(client: SupabaseClient) {
   async function photoUrls(ids: string[]) {
     const out = new Map<string, string>();
     if (!ids.length) return out;
-    const { data } = await db.from('photos').select('listing_id,bucket_id,object_path').in('listing_id', ids).eq('status', 'approved').order('sort_order');
+    let q: { data: any } = await db.from('photos').select('listing_id,bucket_id,object_path').in('listing_id', ids).eq('status', 'approved').is('menu_item_id', null).order('sort_order');
+    if ((q as any).error) q = await db.from('photos').select('listing_id,bucket_id,object_path').in('listing_id', ids).eq('status', 'approved').order('sort_order'); // 14 not run yet
+    const data = q.data;
     for (const p of (data ?? []) as Row[]) {
       if (out.has(p.listing_id)) continue;
       const signed = await client.storage.from(p.bucket_id || BUCKET_FALLBACK).createSignedUrl(p.object_path, 3600);
@@ -57,7 +71,9 @@ export function loadBrowse(client: SupabaseClient) {
     return box;
   }
   async function allPhotos(id: string) {
-    const { data } = await db.from('photos').select('bucket_id,object_path').eq('listing_id', id).eq('status', 'approved').order('sort_order');
+    let q: { data: any } = await db.from('photos').select('bucket_id,object_path').eq('listing_id', id).eq('status', 'approved').is('menu_item_id', null).order('sort_order');
+    if ((q as any).error) q = await db.from('photos').select('bucket_id,object_path').eq('listing_id', id).eq('status', 'approved').order('sort_order');
+    const data = q.data;
     const urls: string[] = [];
     for (const p of (data ?? []) as Row[]) { const s = await client.storage.from(p.bucket_id || BUCKET_FALLBACK).createSignedUrl(p.object_path, 3600); if (s.data?.signedUrl) urls.push(s.data.signedUrl); }
     return urls;
@@ -75,12 +91,15 @@ export function loadBrowse(client: SupabaseClient) {
       const amNames = ((am.data ?? []) as Row[]).map(x => one(x.amenities)?.name).filter(Boolean) as string[];
       if (amNames.length) body.append(list('Amenities', amNames));
     } else if (l.listing_type === 'restaurant') {
-      const [h, m] = await Promise.all([db.from('restaurants').select('operating_hours,reservation_fee').eq('restaurant_id', l.id).maybeSingle(), db.from('menu_items').select('name,category,price,is_available').eq('restaurant_id', l.id).order('category')]);
+      const [h, m] = await Promise.all([db.from('restaurants').select('operating_hours,reservation_fee').eq('restaurant_id', l.id).maybeSingle(), db.from('menu_items').select('id,name,category,price,is_available').eq('restaurant_id', l.id).order('category')]);
       if (h.data) body.append(mk('p', '', `Hours: ${h.data.operating_hours ?? '—'} · Reservation fee ${peso(h.data.reservation_fee)}`));
       const cu = await db.from('restaurant_cuisines').select('cuisines(name)').eq('restaurant_id', l.id);
       const cuNames = ((cu.data ?? []) as Row[]).map(x => one(x.cuisines)?.name).filter(Boolean) as string[];
       if (cuNames.length) body.append(mk('p', '', 'Cuisine: ' + cuNames.join(', ')));
-      body.append(list('Menu', (m.data ?? []).filter((x: Row) => x.is_available).map((x: Row) => `${x.name}${x.category ? ' (' + x.category + ')' : ''} — ${peso(x.price)}`)));
+      const dp = await db.from('photos').select('menu_item_id,object_path').eq('listing_id', l.id).eq('status', 'approved').not('menu_item_id', 'is', null);
+      const dishUrl = new Map<string, string>();
+      if (!dp.error) await Promise.all(((dp.data ?? []) as Row[]).map(async p => { const s2 = await client.storage.from(BUCKET_FALLBACK).createSignedUrl(p.object_path, 3600); if (s2.data?.signedUrl) dishUrl.set(p.menu_item_id, s2.data.signedUrl); }));
+      body.append(menuList(((m.data ?? []) as Row[]).filter(x => x.is_available), dishUrl));
     } else {
       const [a, s] = await Promise.all([db.from('attractions').select('entrance_fee').eq('attraction_id', l.id).maybeSingle(), db.from('attraction_schedules').select('operating_day,schedule_text').eq('attraction_id', l.id)]);
       if (a.data) body.append(mk('p', '', `Entrance fee ${peso(a.data.entrance_fee)}`));

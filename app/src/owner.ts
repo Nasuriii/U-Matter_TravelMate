@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadNotifications } from './notifications';
+import { accordion, checkImage, filePicker, tidy, toast, IMAGE_TYPES } from './ui';
 type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
 const val = (id: string) => ($(id) as HTMLInputElement).value.trim();
@@ -38,7 +39,7 @@ export function initOwner(client: SupabaseClient) {
   const db = client.schema('public');
   let ownerId: string | null = null, destsLoaded = false, wired = false;
   let after: (() => void) | null = null; // re-checks the hotel checklist after a save
-  const say = (m: string, err = false) => { for (const id of ['o-notice', 'o-manage-notice']) { const n = document.getElementById(id); if (n) { n.textContent = m; n.classList.toggle('error', err); } } if (!err && after && /^(Saved|Removed|Details saved)/.test(m)) after(); };
+  const say = (m: string, err = false) => { m = tidy(m); for (const id of ['o-notice', 'o-manage-notice']) { const n = document.getElementById(id); if (n) { n.textContent = m; n.classList.toggle('error', err); } } if (m && !/…$/.test(m)) toast(m, err); };
   const failBase = (e: any) => say(/owner_[a-z_]+|PGRST202|permission denied|row-level security/i.test(String(e?.message) + String(e?.code))
     ? 'The database is not ready for owners yet. Run database/06 to 11 in the Supabase SQL Editor, in order. (' + (e?.message ?? e) + ')' : (e?.message ?? String(e)), true);
 
@@ -46,50 +47,68 @@ export function initOwner(client: SupabaseClient) {
     : /tm_menu_item_name_unique/.test(m) ? 'That dish or drink is already on this menu.' : /tm_schedule_unique/.test(m) ? 'That schedule row already exists.' : '';
   const fail = (e: any) => { const d = dupText(String(e?.message ?? '')); return d ? say(d, true) : failBase(e); };
 
-  function addForm(fields: [string, string, string?][], submit: (v: Record<string, string>) => Promise<void>) {
+  function addForm(fields: [string, string, string?][], submit: (v: Record<string, string>, file: File | null) => Promise<void>, withPhoto = false) {
     const f = h('form', 'o-inline') as HTMLFormElement; f.noValidate = true;
     for (const [n, l, t] of fields) { const w = h('label', '', l); const i = document.createElement('input'); i.name = n; i.type = t || 'text'; if (t === 'number') { i.min = '0'; i.step = '0.01'; } w.append(i); f.append(w); }
+    const pick = withPhoto ? filePicker() : null;
+    if (pick) { const w = h('div', 'o-wide'); w.append(h('span', 'lbl', 'Photo (optional)'), pick.el); f.append(w); }
     const b = h('button', 'primary', 'Add') as HTMLButtonElement; b.type = 'submit'; f.append(b);
     let sending = false;
     f.addEventListener('submit', async e => {
       e.preventDefault(); if (sending) return; sending = true; b.disabled = true; const v: Record<string, string> = {};
       for (const [n] of fields) v[n] = (f.elements.namedItem(n) as HTMLInputElement).value.trim();
-      try { await submit(v); f.reset(); } catch (x) { fail(x); } finally { sending = false; b.disabled = false; }
+      try { await submit(v, pick?.file() ?? null); f.reset(); pick?.clear(); } catch (x) { fail(x); } finally { sending = false; b.disabled = false; }
     });
     return f;
   }
   async function children(box: HTMLElement, title: string, table: string, fk: string, id: string, line: (r: Row) => string,
     fields: [string, string, string?][], toRow: (v: Record<string, string>) => Row, addFn: string, delFn: string, delArg: string, editFn: string, extra?: [string, string, [string, string][], (r: Row) => string]) {
     const redo = () => children(box, title, table, fk, id, line, fields, toRow, addFn, delFn, delArg, editFn, extra);
+    const isMenu = extra?.[0] === 'p_available';
     box.replaceChildren(h('h3', '', title));
     const { data, error } = await db.from(table).select('*').eq(fk, id);
     if (error) return fail(error);
- const editForm = (r: Row) => {
+    const dish = new Map<string, { path: string; status: string }>();
+    if (isMenu) { const dp = await client.rpc('owner_list_dish_photos', { p_listing: id }); if (!dp.error) for (const p of (dp.data ?? []) as Row[]) dish.set(p.menu_item_id, { path: p.object_path, status: p.status }); }
+    const sign = (path: string, then: (url: string | null) => void) => void client.storage.from(BUCKET).createSignedUrl(path, 3600).then(s => then(s.data?.signedUrl ?? null));
+    const editForm = (r: Row) => {
       const f = h('form', 'o-inline') as HTMLFormElement; f.noValidate = true;
       for (const [n, l, t] of fields) { const w = h('label', '', l), i = document.createElement('input'); i.name = n; i.type = t || 'text'; if (t === 'number') { i.min = '0'; i.step = '0.01'; } i.value = r[n] ?? ''; w.append(i); f.append(w); }
       let sel: HTMLSelectElement | null = null;
       if (extra) { const w = h('label', '', extra[1]); sel = document.createElement('select'); for (const [v, t] of extra[2]) sel.append(new Option(t, v)); sel.value = extra[3](r); w.append(sel); f.append(w); }
+      const cur = dish.get(r.id), pick = isMenu ? filePicker() : null;
+      if (pick) { const w = h('div', 'o-wide'); w.append(h('span', 'lbl', 'Photo'), pick.el); f.append(w); if (cur) sign(cur.path, u => pick.setCurrent(u)); }
       const save = h('button', 'primary', 'Save') as HTMLButtonElement, cancel = h('button', 'quiet', 'Cancel') as HTMLButtonElement; save.type = 'submit'; cancel.type = 'button';
       cancel.addEventListener('click', () => void redo()); f.append(save, cancel);
+      let sending = false;
       f.addEventListener('submit', async e => {
-        e.preventDefault(); const v: Record<string, string> = {};
+        e.preventDefault(); if (sending) return; sending = true; const v: Record<string, string> = {};
         for (const [n] of fields) v[n] = (f.elements.namedItem(n) as HTMLInputElement).value.trim();
         try {
           const args = toRow(v); delete args[Object.keys(args)[0]]; args[delArg] = r.id;
           if (extra && sel) args[extra[0]] = extra[0] === 'p_available' ? Number(sel.value) : sel.value;
-          const x = await client.rpc(editFn, args); if (x.error) throw x.error; say('Saved.'); await redo();
-        } catch (err) { fail(err); }
+          const x = await client.rpc(editFn, args); if (x.error) throw x.error;
+          if (pick) { const file = pick.file(); if (file) await saveDish(id, r.id, file); else if (pick.removed() && cur) await dropDish(r.id); }
+          say('Saved.'); await redo();
+        } catch (err) { fail(err); } finally { sending = false; }
       });
       return f;
     };
     const ul = h('ul', 'o-items');
     for (const r of (data ?? []) as Row[]) {
-      const li = h('li', '', line(r)), del = h('button', 'quiet', 'Remove'); (del as HTMLButtonElement).type = 'button';
-      del.addEventListener('click', async () => { const x = await client.rpc(delFn, { [delArg]: r.id }); if (x.error) return fail(x.error); say('Removed.'); await redo(); });
+      const li = h('li'), cur = dish.get(r.id);
+      if (isMenu) { const th = h('span', 'o-thumb' + (cur ? '' : ' empty')); if (cur) { const img = document.createElement('img'); img.alt = ''; th.append(img); sign(cur.path, u => { if (u) img.src = u; }); } li.append(th); }
+      li.append(h('span', 'o-line', line(r)));
+      if (cur?.status === 'pending') li.append(h('span', 'status s-pending', 'Photo awaiting review'));
+      const del = h('button', 'quiet', 'Remove') as HTMLButtonElement; del.type = 'button';
+      del.addEventListener('click', async () => {
+        if (isMenu && cur) { try { await dropDish(r.id); } catch { /* the delete below still removes the row */ } }
+        const x = await client.rpc(delFn, { [delArg]: r.id }); if (x.error) return fail(x.error); say('Removed.'); await redo();
+      });
       const ed = h('button', 'quiet', 'Edit') as HTMLButtonElement; ed.type = 'button';
       ed.addEventListener('click', () => li.replaceChildren(editForm(r)));
       const acts = h('div', 'o-acts');
-      if (extra && extra[0] === 'p_available') {
+      if (isMenu) {
         const soldOut = !r.is_available, t = h('button', 'quiet', soldOut ? 'Back in stock' : 'Mark sold out') as HTMLButtonElement; t.type = 'button';
         t.addEventListener('click', async () => {
           const x = await client.rpc(editFn, { p_item: r.id, p_name: r.name, p_category: r.category, p_price: r.price, p_description: r.description, p_available: soldOut ? 1 : 0 });
@@ -100,7 +119,11 @@ export function initOwner(client: SupabaseClient) {
       acts.append(ed, del); li.append(acts); ul.append(li);
     }
     if (!ul.children.length) ul.append(h('li', 'muted', 'Nothing added yet.'));
-    box.append(ul, addForm(fields, async v => { const x = await client.rpc(addFn, toRow(v)); if (x.error) throw x.error; say('Saved.'); await redo(); }));
+    box.append(ul, addForm(fields, async (v, file) => {
+      const x = await client.rpc(addFn, toRow(v)); if (x.error) throw x.error;
+      if (isMenu && file && x.data) { try { await saveDish(id, String(x.data), file); } catch (err) { say('The dish was added, but its photo was not saved. ' + ((err as Error).message ?? String(err)), true); await redo(); return; } }
+      say('Saved.'); await redo();
+    }, isMenu));
   }
   const money = (s: string, what: string) => { const n = Number(s); if (s === '' || !Number.isFinite(n) || n < 0) throw new Error(`${what} must be 0 or more.`); return n; };
 
@@ -116,12 +139,15 @@ export function initOwner(client: SupabaseClient) {
       const x = await client.rpc('owner_update_listing', { p_listing: l.id, p_name: g('name'), p_address: g('address') || null, p_description: g('description') || null });
       if (x.error) return fail(x.error); say(l.status === 'rejected' ? 'Saved. This listing is still rejected. Press Resubmit when you are ready to send it for review.' : l.status === 'inactive' ? 'Saved. This listing is inactive.' : 'Saved. Edited listings go back to review before travelers see the changes.'); await refresh();
     });
-    const sub = h('div', 'o-sub'), dh = h('div', 'o-sub'); after = null;
-    if (l.listing_type === 'hotel') { const ck = h('div', 'o-sub'), am = h('div', 'o-sub'); box.append(f, ck, dh, sub, am); after = () => void checklist(ck, l); void checklist(ck, l); void amenities(am, l); }
-    else box.append(f, dh, sub);
-    void details(dh, l);
-    if (l.listing_type === 'restaurant') { const cu = h('div', 'o-sub'); box.append(cu); void cuisines(cu, l); }
-    const ph = h('div', 'o-sub'); box.append(ph); void photos(ph, l);
+    const sub = h('div', 'o-sub'), dh = h('div', 'o-sub'), ph = h('div', 'o-sub'); after = null;
+    const typeName = l.listing_type === 'hotel' ? 'Hotel' : l.listing_type === 'restaurant' ? 'Restaurant' : 'Attraction';
+    const subTitle = l.listing_type === 'hotel' ? 'Rooms' : l.listing_type === 'restaurant' ? 'Menu' : 'Operating schedule';
+    if (l.listing_type === 'hotel') { const ck = h('div', 'o-sub'); box.append(ck); after = () => void checklist(ck, l); void checklist(ck, l); }
+    box.append(accordion('Basic information', f, { open: true }), accordion(typeName + ' details', dh), accordion(subTitle, sub, { count: '.o-items li:not(.muted)' }));
+    if (l.listing_type === 'hotel') { const am = h('div', 'o-sub'); box.append(accordion('Amenities', am, { count: 'input:checked' })); void amenities(am, l); }
+    if (l.listing_type === 'restaurant') { const cu = h('div', 'o-sub'); box.append(accordion('Cuisine type', cu, { count: 'input:checked' })); void cuisines(cu, l); }
+    box.append(accordion('Photos', ph, { count: '.o-photo' }));
+    void details(dh, l); void photos(ph, l);
     if (l.listing_type === 'restaurant') void children(sub, 'Menu', 'menu_items', 'restaurant_id', l.id, r => `${r.name}${r.category ? ' (' + r.category + ')' : ''} — ${peso(r.price)}${r.is_available ? '' : ' · sold out'}`,
       [['name', 'Dish / drink'], ['category', 'Category (e.g. Mains)'], ['price', 'Price (₱)', 'number'], ['description', 'Description']],
       v => { if (!v.name) throw new Error('Enter a name.'); return { p_restaurant: l.id, p_name: v.name, p_category: v.category || null, p_price: money(v.price, 'Price'), p_description: v.description || null }; }, 'owner_add_menu_item', 'owner_delete_menu_item', 'p_item', 'owner_update_menu_item', ['p_available', 'Availability', [['1', 'Available'], ['0', 'Sold out']], r => String(r.is_available)]);
@@ -200,6 +226,21 @@ export function initOwner(client: SupabaseClient) {
     box.append(f);
   }
   const BUCKET = 'travelmate-listings', MAX_PHOTOS = 6, EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+  async function saveDish(listingId: string, itemId: string, file: File) {
+    const bad = checkImage(file); if (bad) throw new Error(bad);
+    const uid = (await client.auth.getUser()).data.user?.id; if (!uid) throw new Error('Please log in again.');
+    const path = `${uid}/${listingId}/dish-${crypto.randomUUID()}.${IMAGE_TYPES[file.type]}`;
+    const up = await client.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+    if (up.error) throw new Error('Upload failed: ' + up.error.message);
+    const r = await client.rpc('owner_set_dish_photo', { p_item: itemId, p_path: path });
+    if (r.error) { await client.storage.from(BUCKET).remove([path]); throw r.error; }
+    if (r.data) await client.storage.from(BUCKET).remove([String(r.data)]);
+    void refresh();
+  }
+  async function dropDish(itemId: string) {
+    const r = await client.rpc('owner_delete_dish_photo', { p_item: itemId }); if (r.error) throw r.error;
+    if (r.data) await client.storage.from(BUCKET).remove([String(r.data)]);
+  }
   async function photos(box: HTMLElement, l: Row) {
     const x = await client.rpc('owner_list_photos', { p_listing: l.id });
     if (x.error) { box.replaceChildren(); return fail(x.error); }
@@ -217,11 +258,11 @@ export function initOwner(client: SupabaseClient) {
     }
     box.append(grid);
     if (rows.length >= MAX_PHOTOS) return;
-    const f = h('form', 'o-inline') as HTMLFormElement, w = h('label', '', 'Add a photo'), inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = 'image/jpeg,image/png,image/webp'; w.append(inp); f.append(w);
+    const f = h('form', 'o-inline') as HTMLFormElement, pick = filePicker(), w = h('div', 'o-wide');
+    w.append(h('span', 'lbl', 'Add a photo'), pick.el); f.append(w);
     const b = h('button', 'primary', 'Upload photo') as HTMLButtonElement; b.type = 'submit'; f.append(b);
     f.addEventListener('submit', async e => {
-      e.preventDefault(); const file = inp.files?.[0];
+      e.preventDefault(); const file = pick.file();
       if (!file) return say('Choose a photo first.', true);
       if (!EXT[file.type]) return say('Use a JPEG, PNG or WebP image.', true);
       if (file.size > 5 * 1024 * 1024) return say('That photo is larger than 5 MB.', true);
