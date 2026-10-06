@@ -25,7 +25,7 @@ export function loadLanding(client: SupabaseClient) {
   const head = (t: string) => db.from(t).select('*', { count: 'exact', head: true });
   const setStat = (id: string, n: number | null | undefined) => { $(id).textContent = n == null ? '–' : n.toLocaleString(); };
   void (async () => {
-    const [d, h, r] = await Promise.all([head('destinations').eq('is_active', 1), head('business_listings').eq('status','approved').eq('listing_type', 'hotel'), head('business_listings').eq('status','approved').eq('listing_type', 'restaurant')]);
+    const [d, h, r] = await Promise.all([head('destinations').eq('is_active', 1), head('business_listings').eq('listing_type', 'hotel'), head('business_listings').eq('listing_type', 'restaurant')]);
     if (d.error && h.error && r.error) return;
     setStat('st-dest', d.count); setStat('st-stay', h.count); setStat('st-eat', r.count); setStat('hm-dest', d.count); setStat('hm-stay', h.count); setStat('hm-eat', r.count); $('stats').hidden = false;
   })();
@@ -41,14 +41,7 @@ export function loadLanding(client: SupabaseClient) {
       grid.append(card);
     }
     if (grid.children.length) $('reviews').hidden = false;
-    const hg = $('home-review-grid'), rating = $('home-review-rating') as HTMLSelectElement;
-    const renderReviews = () => {
-      const matched = rows.filter(r => r.review_text && (rating.value === 'all' || Number(r.rating) === Number(rating.value))).slice(0,6);
-      hg.replaceChildren();
-      for(const r of matched){const card=mk('blockquote','r-card');card.append(mk('p','stars',`${r.rating} / 5 stars`),mk('p','',r.review_text),mk('footer','',`About ${one(r.business_listings)?.name || one(r.destinations)?.name || 'TravelMate'}`));hg.append(card);}
-      if(!matched.length)hg.append(mk('p','empty','No recent reviews match this rating.'));
-    };
-    rating.onchange=renderReviews;renderReviews();$('home-reviews').hidden=false;
+    const hg = $('home-review-grid'); hg.replaceChildren(...[...grid.children].map(c => c.cloneNode(true))); if (hg.children.length) $('home-reviews').hidden = false;
   })();
 }
 
@@ -115,28 +108,18 @@ export function loadBrowse(client: SupabaseClient) {
   }
   async function listings(type: string, gridId: string, label: string) {
     const grid = $(gridId);
-    const { data, error } = await db.from('business_listings').select('id,name,description,address,listing_type,destinations(name,province)').eq('status', 'approved').eq('listing_type', type).order('name').limit(200);
+    const { data, error } = await db.from('business_listings').select('id,name,description,address,listing_type,destinations(name,province)').eq('listing_type', type).order('name').limit(48);
     if (error) { grid.replaceChildren(mk('p', 'muted', 'Could not load listings: ' + error.message)); return; }
     if (!data?.length) { grid.replaceChildren(mk('p', 'muted', 'No approved listings yet.')); return; }
     const photos = await photoUrls((data as Row[]).map(l => l.id)); grid.replaceChildren();
-    const cards: { node: HTMLElement; name: string; search: string }[] = [];
     for (const l of data as Row[]) {
       const dest = one(l.destinations), card = mk('button', 'l-card l-click'); (card as HTMLButtonElement).type = 'button';
       const art = mk('div', 'l-art', label), url = photos.get(l.id);
       if (url) { const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy'; img.src = url; img.onerror = () => img.remove(); art.append(img); }
       const b = mk('div', 'l-body');
       b.append(mk('p', 'eyebrow', dest ? `${dest.name} · ${dest.province}` : label), mk('h3', '', l.name), mk('p', 'l-desc', l.description || l.address || 'Details coming soon.'), mk('span', 'l-more', 'View details →'));
-      card.append(art, b); card.addEventListener('click', () => void openDetail(l)); cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
+      card.append(art, b); card.addEventListener('click', () => void openDetail(l)); grid.append(card);
     }
-    const prefix = gridId.replace('-grid','');
-    const search = $(prefix+'-search') as HTMLInputElement, sort = $(prefix+'-sort') as HTMLSelectElement;
-    const render = () => {
-      const query=search.value.trim().toLowerCase(); const matched=cards.filter(c=>c.search.includes(query)).sort((a,b)=>a.name.localeCompare(b.name)*(sort.value==='za'?-1:1));
-      grid.replaceChildren(...matched.map(c=>c.node));
-      if(!matched.length)grid.append(mk('p','empty','No places match. Try another name or destination.'));
-      $(prefix+'-results').textContent=`${matched.length} matching places · ${cards.length} loaded${cards.length===200?' (first 200 by name)':''}`;
-    };
-    search.oninput=render;sort.onchange=render;render();
   }
   void listings('hotel', 'stay-grid', 'Hotel'); void listings('restaurant', 'eat-grid', 'Restaurant'); void listings('attraction', 'attr-grid', 'Attraction');
 }

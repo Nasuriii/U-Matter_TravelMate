@@ -15,7 +15,7 @@ export const ownerPage = `<section data-page="owner" class="owner" hidden>
 <div data-type="restaurant" hidden><label for="ol-hours">Operating hours</label><input id="ol-hours" placeholder="10:00 AM - 9:00 PM"><label for="ol-resfee">Reservation fee (₱)</label><input id="ol-resfee" type="number" min="0" step="0.01" value="0"></div>
 <div data-type="attraction" hidden><label for="ol-fee">Entrance fee (₱)</label><input id="ol-fee" type="number" min="0" step="0.01"><div class="row2"><div><label for="ol-day">Operating day</label><select id="ol-day"><option>Daily</option><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></div><div><label for="ol-slot">Time slot</label><input id="ol-slot" placeholder="08:00 AM - 05:00 PM"></div></div></div>
 <button id="ol-submit" class="primary" type="submit">Submit for review</button></form>
-<div class="o-card"><h2>My listings</h2><div class="browse-toolbar"><label>Search my listings<input id="o-search" type="search" placeholder="Business name"></label><label>Status<select id="o-status"><option value="all">All statuses</option><option value="pending">Awaiting review</option><option value="approved">Live</option><option value="rejected">Needs changes</option><option value="inactive">Inactive</option></select></label></div><div id="o-list"><div class="skel"></div><div class="skel"></div></div></div>
+<div class="o-card"><h2>My listings</h2><div id="o-list"><div class="skel"></div><div class="skel"></div></div></div>
 </div>
 <div id="o-notes" class="o-card"></div>
 <div id="o-manage" class="o-card" hidden></div>

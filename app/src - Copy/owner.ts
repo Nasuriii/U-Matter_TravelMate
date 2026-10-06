@@ -1,4 +1,3 @@
-import { confirmAction } from './action-confirm';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadNotifications } from './notifications';
 import { accordion, checkImage, filePicker, tidy, toast, IMAGE_TYPES } from './ui';
@@ -277,46 +276,26 @@ export function initOwner(client: SupabaseClient) {
     });
     box.append(f);
   }
-  let changingStatus = false;
   async function setStatus(l: Row, status: string, msg: string) {
-    if (changingStatus) return;
-    changingStatus = true;
-    try {
-      const resubmit = status === 'pending';
-      if (!await confirmAction(resubmit ? 'Submit for review?' : 'Deactivate listing?',
-        resubmit ? `Submit “${l.name}” for administrator review? It will remain hidden from travelers until approved.`
-          : `Deactivate “${l.name}”? It will be hidden from travelers. Existing bookings are not cancelled.`,
-        resubmit ? 'Submit for review' : 'Deactivate')) return;
-      const x = await client.rpc('owner_transition_listing', { p_listing: l.id, p_status: status, p_expected_updated_at: l.updated_at });
-      if (x.error) { say(x.error.code === 'PGRST202' ? 'Run database/19_listing_actions.sql, then reload this page.' : x.error.message, true); await refresh(); return; }
-      $('o-manage').hidden = true; say(msg); await refresh();
-    } catch (e) { fail(e); } finally { changingStatus = false; }
+    const x = await client.rpc('owner_set_listing_status', { p_listing: l.id, p_status: status }); if (x.error) return fail(x.error); say(msg); await refresh();
   }
-  let displayedRows: Row[] = [];
   function render(rows: Row[]) {
-    displayedRows = rows;
     $('o-total').textContent = String(rows.length);
     $('o-active').textContent = String(rows.filter(r => r.status === 'approved').length);
     $('o-pending').textContent = String(rows.filter(r => r.status === 'pending').length);
     const box = $('o-list'); box.replaceChildren();
     if (!rows.length) { box.append(h('p', 'muted', 'No listings yet. Use the form to add your first one.')); return; }
-    const query = ($('o-search') as HTMLInputElement).value.toLowerCase().trim();
-    const status = ($('o-status') as HTMLSelectElement).value;
-    const filtered = rows.filter(l => String(l.name).toLowerCase().includes(query) && (status === 'all' || l.status === status));
-    if (!filtered.length) box.append(h('p', 'muted', 'No listings match these filters.'));
-    for (const l of filtered) {
+    for (const l of rows) {
       const row = h('div', 'o-row'), d = one(l.destinations), info = h('div');
       info.append(h('strong', '', l.name), h('span', 'muted', ` ${l.listing_type} · ${d ? d.name : ''}`));
       if (l.status === 'rejected' && l.rejection_reason) info.append(h('div', 'o-reason', 'Reason: ' + l.rejection_reason));
       const badge = h('span', 'status s-' + l.status, LABEL[l.status] ?? l.status), acts = h('div', 'o-acts');
       const m = h('button', 'quiet', 'Manage'); m.addEventListener('click', () => manage(l)); acts.append(m);
       if (l.status === 'inactive' || l.status === 'rejected') { const b = h('button', 'quiet', 'Resubmit'); b.addEventListener('click', () => void setStatus(l, 'pending', 'Resubmitted for review.')); acts.append(b); }
-      else if (l.status === 'approved' || l.status === 'pending') { const b = h('button', 'quiet', 'Deactivate'); b.addEventListener('click', () => void setStatus(l, 'inactive', 'Listing deactivated.')); acts.append(b); }
+      else { const b = h('button', 'quiet', 'Deactivate'); b.addEventListener('click', () => { if (confirm(`Deactivate "${l.name}"? Travelers will no longer see it.`)) void setStatus(l, 'inactive', 'Listing deactivated.'); }); acts.append(b); }
       if (l.status !== 'approved') {
         const d = h('button', 'quiet danger', 'Delete'); d.addEventListener('click', () => { if (confirm(`Delete "${l.name}" permanently? Its rooms, menu, schedules and photos are removed too. This cannot be undone.`)) void removeListing(l); }); acts.append(d);
       }
-      const help: Record<string, string> = { pending: 'Awaiting administrator review. Hidden from travelers.', approved: 'Live: travelers can discover this listing.', rejected: 'Changes requested. Edit your details, then resubmit.', inactive: 'Hidden from travelers. Resubmit when ready to reopen.' };
-      info.append(h('p', 'muted', help[l.status] ?? 'Unknown status. Contact an administrator.'));
       row.append(info, badge, acts); box.append(row);
     }
   }
@@ -335,27 +314,20 @@ export function initOwner(client: SupabaseClient) {
   }
   let inflight: Promise<void> | null = null;
   const refresh = (): Promise<void> => (inflight ??= refreshNow().finally(() => { inflight = null; }));
-  let activeUser: string | null = null, ownerEpoch = 0;
   async function refreshNow() {
-    if (!activeUser) return;
-    const epoch = ownerEpoch;
     void loadDests();
     if (!ownerId) {
-      const o = await db.from('business_owners').select('id').eq('profile_id', activeUser).limit(1);
-      if (epoch !== ownerEpoch) return;
+      const o = await db.from('business_owners').select('id').limit(1);
       if (o.error || !o.data?.[0]) { say('No business owner record found for this account.', true); return; }
       ownerId = o.data[0].id;
     }
-    const cols = 'id,name,listing_type,status,updated_at,description,address,destinations(name,province)';
+    const cols = 'id,name,listing_type,status,description,address,destinations(name,province)';
     let l: { data: any; error: any } = await db.from('business_listings').select(cols + ',rejection_reason').eq('owner_id', ownerId).order('created_at', { ascending: false });
     if (l.error && /rejection_reason/.test(String(l.error.message))) l = await db.from('business_listings').select(cols).eq('owner_id', ownerId).order('created_at', { ascending: false }); // 09 not run yet
-    if (epoch !== ownerEpoch) return;
     if (l.error) return fail(l.error);
     render((l.data ?? []) as Row[]);
     void loadNotifications(client, $('o-notes'));
   }
-  $('o-search').addEventListener('input', () => render(displayedRows));
-  $('o-status').addEventListener('change', () => render(displayedRows));
   function wire() {
     if (wired) return; wired = true;
     const typeSel = $('ol-type') as HTMLSelectElement;
@@ -385,5 +357,5 @@ export function initOwner(client: SupabaseClient) {
     window.addEventListener('hashchange', () => { if (location.hash === '#/owner') void refresh(); });
   }
   void loadDests();
-  return { setUser(id: string | null) { if (activeUser === id) return; activeUser = id; ownerEpoch++; ownerId = null; inflight = null; displayedRows = []; $('o-list').replaceChildren(); $('o-manage').hidden = true; $('o-notes').replaceChildren(); }, refresh: () => { wire(); return refresh(); } };
+  return { refresh: () => { wire(); return refresh(); } };
 }

@@ -1,4 +1,3 @@
-import { initDashboard } from './dashboard';
 import './utilities.css';
 import { tripsPage, initTrips } from './trips';
 import { createClient, type User } from '@supabase/supabase-js';
@@ -23,12 +22,6 @@ import { homePage } from './pages/home';
 
 // Static markup only. User/database content is inserted through textContent/value.
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main>${landingPage}${homePage}${authPage}${explorePage}${stayPage}${eatPage}${attractionsPage}${ownerPage}${adminPage}${accountPage}${tripsPage}</main>` + dialogs + footer;
-const menu = document.querySelector<HTMLButtonElement>('#mobile-menu')!;
-const closeMenu = () => { document.body.classList.remove('nav-open'); menu.setAttribute('aria-expanded','false'); };
-menu.addEventListener('click', () => { const open = document.body.classList.toggle('nav-open'); menu.setAttribute('aria-expanded',String(open)); });
-window.addEventListener('hashchange', closeMenu);
-document.addEventListener('keydown', e => { if(e.key === 'Escape') closeMenu(); });
-document.querySelector('#main-navigation')!.addEventListener('click', e => { if ((e.target as HTMLElement).closest('a,button')) closeMenu(); });
 window.addEventListener('hashchange',route); route();
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const notice = (message: string, error = false) => { for (const id of ['notice', 'auth-notice']) { const n = el(id); n.textContent = message; n.classList.toggle('error', error); } };
@@ -62,7 +55,6 @@ async function start() {
  type Profile = {id:string; full_name:string; address:string|null; avatar_object_path:string|null};
  let user: User|null=null, profile:Profile|null=null, preview:string|null=null, busy=false, generation=0;
  const storage = supabase.storage.from('travelmate-avatars');
- const dashboard = initDashboard(supabase);
  const api = supabase.schema('public');
  const explorer=createExplorer(supabase);
  const trips=initTrips(supabase);
@@ -126,12 +118,9 @@ async function start() {
   if(u&&!chosen){if(!d.open)d.showModal();}else if(d.open)d.close();
   if(u)document.body.dataset.owner=owner?'yes':'no';else delete document.body.dataset.owner;
   if(u)document.body.dataset.admin=admin?'yes':'no';else delete document.body.dataset.admin;
-  dashboard.setUser(u?.id ?? null, admin ? 'admin' : owner ? 'owner' : 'traveler');
   route();
  }
  async function displayUser(next:User|null){
-  dashboard.setUser(null, 'traveler');
-  owner.setUser(next?.id ?? null);
   generation++;const changed=user?.id!==next?.id;user=next;
   if(changed || !next)clearProfile();
   explorer.setUser(next?.id??null);trips.setUser(next?.id??null);if(next&&changed)loadBrowse(supabase);
@@ -224,7 +213,7 @@ async function start() {
  supabase.auth.onAuthStateChange((event,session)=>{
   if(event==='PASSWORD_RECOVERY'){recovery=true;location.hash='#/reset';}
   if(event==='SIGNED_IN'){if(session?.user?.id&&session.user.id===user?.id&&profile)return;setTimeout(()=>void run(async()=>{const result=await supabase.auth.getUser();if(result.error)throw result.error;await displayUser(result.data.user);}),0);}
-  if(event==='SIGNED_OUT'){owner.setUser(null);generation++;user=null;clearProfile();explorer.setUser(null);trips.setUser(null);el('account').hidden=true;document.body.dataset.auth='out';applyRole(null);location.hash='#/';route();controls();notice('Signed out.');}
+  if(event==='SIGNED_OUT'){generation++;user=null;clearProfile();explorer.setUser(null);trips.setUser(null);el('account').hidden=true;document.body.dataset.auth='out';applyRole(null);location.hash='#/';route();controls();notice('Signed out.');}
  });
  const params=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.slice(1));
  const oauthError=params.get('error_description')||hash.get('error_description');
@@ -237,5 +226,3 @@ async function start() {
 }
 
 import './overhaul.css';
-
-import './ui-overhaul.css';

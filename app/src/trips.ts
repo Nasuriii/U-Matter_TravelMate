@@ -1,0 +1,51 @@
+import { itineraryMarkup, initItinerary } from './itinerary';
+import type { SupabaseClient } from '@supabase/supabase-js';
+export const tripsPage = `<section data-page="trips" class="journey-page" hidden>
+<div class="journey-heading"><div><p class="eyebrow">YOUR NEXT CHAPTER</p><h1>A trip worth<br><em>looking forward to.</em></h1><p>Start with the essentials. Your saved trip brief is the foundation for your itinerary.</p></div><span class="step-label">01 / TRIP DETAILS</span></div>
+<div class="journey-grid"><div class="journey-panel"><div class="flex items-center justify-between gap-4"><h2 id="trip-form-title">Plan a trip</h2><button id="trip-new" type="button">New trip</button></div>
+<form id="trip-form"><fieldset id="trip-fields"><label>Trip name<input name="name" required maxlength="150" placeholder="A long weekend away"></label>
+<label>Destination<select name="destination_id" required><option value="">Loading destinations…</option></select></label>
+<div class="field-pair"><label>Arrival date<input name="start_date" type="date" required></label><label>Departure date<input name="end_date" type="date" required></label></div>
+<div class="field-pair"><label>Arrival time<input name="arrival_time" type="time" required value="09:00"></label><label>Departure time<input name="departure_time" type="time" required value="18:00"></label></div><p class="hint">Use the local time at your destination.</p>
+<div class="field-pair"><label>Total trip budget<input name="budget" type="number" min="0" max="9999999999" step="0.01" required placeholder="10000"></label><label>Currency<select name="budget_currency"><option>PHP</option><option>HKD</option><option>USD</option></select></label></div>
+<div class="field-pair"><label>Travelers<input name="party_size" type="number" min="1" max="20" value="1" required></label><label>Travel pace<select name="travel_pace"><option value="relaxed">Relaxed</option><option value="balanced" selected>Balanced</option><option value="active">Active</option></select></label></div>
+<label>Interests<select name="interests" multiple size="4"><option value="food">Food & local culture</option><option value="nature">Nature & scenery</option><option value="history">History & heritage</option><option value="shopping">Shopping</option></select></label><p class="hint">Choose one or more. On desktop, hold Ctrl or Cmd to select several.</p>
+<button class="primary trip-submit" type="submit">Review & save trip →</button></fieldset></form>
+<p id="trip-notice" role="status" aria-live="polite"></p></div>
+<aside><div class="journey-panel itinerary-note"><p class="eyebrow">MAKE ROOM FOR THE JOURNEY</p><h2>Your days,<br>your way.</h2><p>Save your travel details, then choose View itinerary on a saved trip. Generate a day-by-day proposal from approved places.</p><div class="timeline-sample"><span>Arrival</span><i></i><span>Time to explore</span><i></i><span>Departure</span></div><p class="hint">Recommendations use catalog information and estimated time allowances. They are not reservations.</p></div>
+<div class="journey-panel"><div class="flex items-center justify-between gap-4"><h2>My trips</h2><button id="trip-reload" type="button">Refresh</button></div><div id="trip-list" aria-live="polite">Sign in to load your trips.</div></div></aside></div>
+<dialog id="trip-confirm"><form method="dialog"><p class="eyebrow">READY TO SAVE?</p><h2>Check your trip details</h2><p id="trip-summary"></p><p>Your trip will be saved as a draft. No booking or payment will be made.</p><div class="flex gap-4"><button value="cancel">Go back</button><button value="save" class="primary">Save draft</button></div></form></dialog>${itineraryMarkup}</section>`;
+const columns='id,name,destination_id,start_date,end_date,arrival_time,departure_time,budget,budget_currency,party_size,travel_pace,interests,status';
+type Trip={id:string;name:string;destination_id:string|null;start_date:string|null;end_date:string|null;arrival_time:string|null;departure_time:string|null;budget:number|null;budget_currency:string|null;party_size:number|null;travel_pace:string|null;interests:string[]|null;status:string};
+export function initTrips(client:SupabaseClient){
+ const itinerary=initItinerary(client);
+ const db=client.schema('public'); const form=document.querySelector<HTMLFormElement>('#trip-form')!;
+ const fields=document.querySelector<HTMLFieldSetElement>('#trip-fields')!; const list=document.querySelector<HTMLElement>('#trip-list')!;
+ const notice=document.querySelector<HTMLElement>('#trip-notice')!; const dialog=document.querySelector<HTMLDialogElement>('#trip-confirm')!;
+ let user:string|null=null, editing:string|null=null, epoch=0, busy=false, editable=true; let destinations=new Map<string,string>();
+ const field=(name:string)=>form.elements.namedItem(name) as HTMLInputElement|HTMLSelectElement;
+ const say=(s:string,error=false)=>{notice.textContent=s;notice.classList.toggle('error',error);};
+ const reset=()=>{editing=null;editable=true;form.reset();document.querySelector('#trip-form-title')!.textContent='Plan a trip';};
+ function lock(value:boolean){busy=value;fields.disabled=value||!user||!editable;document.querySelectorAll<HTMLButtonElement>('#trip-list button,#trip-new,#trip-reload').forEach(b=>b.disabled=value);}
+ function failure(e:unknown){const message=e&&typeof e==='object'&&'message' in e?String(e.message):String(e);say(/column|schema cache/.test(message)?'Trip setup is not installed yet. Run database/16_trip_briefs.sql, then refresh.':message,true);}
+ async function refresh(){if(!user)return;const id=user,ticket=epoch;lock(true);try{
+ const [d,t]=await Promise.all([db.from('destinations').select('id,name,province').eq('is_active',1).order('name'),db.from('trips').select(columns).eq('profile_id',id).order('created_at',{ascending:false}).limit(100)]);
+ if(ticket!==epoch)return;if(d.error)throw d.error;if(t.error)throw t.error;
+ const selected=field('destination_id').value;destinations=new Map((d.data??[]).map(x=>[x.id,`${x.name} · ${x.province}`]));
+ const sel=field('destination_id') as HTMLSelectElement;sel.replaceChildren(new Option('Choose a destination',''));destinations.forEach((label,id)=>sel.add(new Option(label,id)));sel.value=selected;
+ list.replaceChildren();if(!t.data?.length){list.textContent='No trips yet. Plan your first one here.';return;}
+ for(const item of t.data as Trip[]){const card=document.createElement('article');card.className='saved-trip';const title=document.createElement('h3');title.textContent=item.name;const meta=document.createElement('p');meta.textContent=`${item.start_date??'Dates undecided'} → ${item.end_date??'Dates undecided'} · ${item.status}`;const open=document.createElement('button');open.type='button';open.textContent=item.status==='draft'?'Open draft':'View details';open.onclick=()=>{reset();editing=item.id;for(const key of ['name','destination_id','start_date','end_date','arrival_time','departure_time','budget','budget_currency','party_size','travel_pace'] as const)if(item[key]!=null)field(key).value=String(item[key]);for(const o of (field('interests') as HTMLSelectElement).options)o.selected=(item.interests??[]).includes(o.value);editable=item.status==='draft';fields.disabled=!editable;document.querySelector('#trip-form-title')!.textContent=item.status==='draft'?'Edit trip':'Trip details';say(item.status==='draft'?'Draft loaded. You can update its details.':'This trip is no longer a draft. Its details are read-only in this release.');form.scrollIntoView({behavior:'smooth',block:'start'});};const schedule=document.createElement('button');schedule.type='button';schedule.textContent='View itinerary';schedule.onclick=()=>void itinerary.open(item.id);card.append(title,meta,open,schedule);list.append(card);}
+ }catch(e){if(ticket===epoch){list.textContent='Trips could not be loaded.';failure(e);}}finally{if(ticket===epoch)lock(false);}}
+ form.onsubmit=async event=>{event.preventDefault();if(!user||busy||!editable)return;
+ const val=(n:string)=>field(n).value;const start=val('start_date'),end=val('end_date');
+ if(!val('name').trim())return say('Enter a trip name.',true);
+ if(end<start||(end===start&&val('departure_time')<=val('arrival_time')))return say('Departure must be after arrival.',true);
+ if(!destinations.has(val('destination_id')))return say('Choose a supported destination.',true);
+ const payload={name:val('name').trim(),destination_id:val('destination_id'),start_date:start,end_date:end,arrival_time:val('arrival_time'),departure_time:val('departure_time'),budget:Number(val('budget')),budget_currency:val('budget_currency'),party_size:Number(val('party_size')),travel_pace:val('travel_pace'),interests:Array.from((field('interests') as HTMLSelectElement).selectedOptions,o=>o.value)};
+ document.querySelector('#trip-summary')!.textContent=`${payload.name} — ${destinations.get(payload.destination_id)}. ${start} at ${payload.arrival_time} to ${end} at ${payload.departure_time}. ${payload.party_size} traveler(s); total budget ${payload.budget_currency} ${payload.budget.toLocaleString()}.`;
+ const ticket=epoch,id=user,tripId=editing;dialog.returnValue='cancel';dialog.showModal();const choice=await new Promise<string>(resolve=>dialog.addEventListener('close',()=>resolve(dialog.returnValue),{once:true}));if(choice!=='save'||ticket!==epoch||busy)return;
+ lock(true);try{const result=tripId?await db.from('trips').update(payload).eq('id',tripId).eq('profile_id',id).eq('status','draft').select('id').single():await db.from('trips').insert({...payload,profile_id:id,status:'draft'}).select('id').single();if(ticket!==epoch)return;if(result.error)throw result.error;reset();say('Trip saved. Open it from My trips—even after reloading.');await refresh();}catch(e){if(ticket===epoch)failure(e);}finally{if(ticket===epoch)lock(false);}
+ };
+ document.querySelector<HTMLButtonElement>('#trip-new')!.onclick=()=>{reset();fields.disabled=!user;say('Start a new trip.');};document.querySelector<HTMLButtonElement>('#trip-reload')!.onclick=()=>void refresh();
+ return {setUser(id:string|null){itinerary.clear();epoch++;user=id;reset();if(dialog.open)dialog.close('cancel');list.replaceChildren();say('');lock(false);if(id)void refresh();else list.textContent='Sign in to load your trips.';}};
+}

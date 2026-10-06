@@ -1,4 +1,3 @@
-import { confirmAction } from './action-confirm';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadNotifications } from './notifications';
 import { tidy } from './ui';
@@ -23,25 +22,13 @@ export function initAdmin(client: SupabaseClient) {
     ? 'The database is not ready for reviews yet. Run database/09_hotel_listing.sql and database/10_admin_review.sql in the Supabase SQL Editor. (' + (e?.message ?? e) + ')'
     : (e?.message ?? String(e)), true);
 
-  let deciding = false;
   async function decide(l: Row, approve: boolean, reason: string, buttons: HTMLButtonElement[]) {
-    if (deciding) return;
     if (!approve && !reason.trim()) return say('Write a reason so the owner knows what to fix.', true);
-    deciding = true;
-    const disabled = buttons.map(b => b.disabled);
     buttons.forEach(b => (b.disabled = true));
-    try {
-      if (!await confirmAction(approve ? 'Approve listing?' : 'Reject listing?',
-        approve ? `Approve “${l.name}”? It will become visible to travelers and the owner will be notified.`
-          : `Reject “${l.name}”? It stays hidden. The owner will receive this reason: ${reason.trim()}`,
-        approve ? 'Approve listing' : 'Reject listing')) return;
-      const x = await db.rpc('admin_decide_listing', { p_listing: l.id, p_approve: approve, p_reason: approve ? null : reason.trim(), p_expected_updated_at: l.submitted });
-      if (x.error) { say(x.error.code === 'PGRST202' ? 'Run database/19_listing_actions.sql, then reload this page.' : x.error.message, true); await refresh(); return; }
-      say(approve ? `“${l.name}” approved. The owner has been notified.` : `“${l.name}” rejected. The owner has been notified.`);
-      await refresh();
-    } catch (e) { fail(e); } finally {
-      buttons.forEach((b, i) => (b.disabled = disabled[i])); deciding = false;
-    }
+    const x = await db.rpc('admin_review_listing', { p_listing: l.id, p_approve: approve, p_reason: approve ? null : reason.trim() });
+    if (x.error) { buttons.forEach(b => (b.disabled = false)); return fail(x.error); }
+    say(approve ? `“${l.name}” approved. The owner has been notified.` : `“${l.name}” rejected. The owner has been notified.`);
+    await refresh();
   }
 
   function details(c: HTMLElement, l: Row) {
@@ -71,7 +58,7 @@ export function initAdmin(client: SupabaseClient) {
   }
   function card(l: Row) {
     const c = h('article', 'a-card'), problems = (l.problems ?? []) as string[];
-    c.append(h('span', 'status s-pending', 'Awaiting review'), h('span', 'a-type', LABEL[l.type] ?? String(l.type)), h('h3', '', l.name), h('p', 'muted', `${l.destination} · ${l.address ?? 'No address'}`),
+    c.append(h('span', 'a-type', LABEL[l.type] ?? String(l.type)), h('h3', '', l.name), h('p', 'muted', `${l.destination} · ${l.address ?? 'No address'}`),
       h('p', 'muted', `Owner: ${l.owner ?? '—'}${l.owner_email ? ' (' + l.owner_email + ')' : ''}`));
     if (l.description) c.append(h('p', '', l.description));
     details(c, l);
