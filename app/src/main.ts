@@ -1,4 +1,5 @@
-import { initDashboard } from './dashboard';
+import { initExperience, mountExperience, experiencePages } from './experience';
+import { confirmAction } from './action-confirm';
 import './utilities.css';
 import { tripsPage, initTrips } from './trips';
 import { createClient, type User } from '@supabase/supabase-js';
@@ -22,7 +23,8 @@ import { installButtonLoading } from './ui';
 import { homePage } from './pages/home';
 
 // Static markup only. User/database content is inserted through textContent/value.
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main>${landingPage}${homePage}${authPage}${explorePage}${stayPage}${eatPage}${attractionsPage}${ownerPage}${adminPage}${accountPage}${tripsPage}</main>` + dialogs + footer;
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main id="main-content" tabindex="-1">${landingPage}${homePage}${authPage}${explorePage}${stayPage}${eatPage}${attractionsPage}${ownerPage}${adminPage}${accountPage}${tripsPage}${experiencePages}</main>` + dialogs + footer;
+mountExperience();
 const menu = document.querySelector<HTMLButtonElement>('#mobile-menu')!;
 const closeMenu = () => { document.body.classList.remove('nav-open'); menu.setAttribute('aria-expanded','false'); };
 menu.addEventListener('click', () => { const open = document.body.classList.toggle('nav-open'); menu.setAttribute('aria-expanded',String(open)); });
@@ -62,7 +64,7 @@ async function start() {
  type Profile = {id:string; full_name:string; address:string|null; avatar_object_path:string|null};
  let user: User|null=null, profile:Profile|null=null, preview:string|null=null, busy=false, generation=0;
  const storage = supabase.storage.from('travelmate-avatars');
- const dashboard = initDashboard(supabase);
+ const experience = initExperience(supabase);
  const api = supabase.schema('public');
  const explorer=createExplorer(supabase);
  const trips=initTrips(supabase);
@@ -104,10 +106,12 @@ async function start() {
    if(download.error)throw new Error(`Profile loaded, but avatar download failed: ${download.error.message}`);
    preview=URL.createObjectURL(download.data);el<HTMLImageElement>('avatar').src=preview;el('avatar').hidden=false;el('avatar-placeholder').hidden=true;
   }
-   const [ph,rr]=await Promise.all([api.from('profile_phones').select('id,phone_number').order('phone_number').limit(1),api.from('profile_roles').select('roles(name)')]);
+  const [ph,rr]=await Promise.all([api.from('profile_phones').select('id,phone_number').order('phone_number').limit(1),api.from('profile_roles').select('roles(name)')]);
+  if(token!==generation || user?.id!==uid)return;
   if(!ph.error&&ph.data?.[0]){phoneId=ph.data[0].id;el<HTMLInputElement>('phone').value=ph.data[0].phone_number;}
   
   if(!rr.error)roleNames=(rr.data??[]).map((x:any)=>{const r=x.roles;return Array.isArray(r)?r[0]?.name:r?.name;}).filter(Boolean);
+  if(rr.error)throw new Error('Your workspace role could not be verified. Refresh your account to try again.');
   if(token!==generation || user?.id!==uid)return;
   applyRole(user);
   if(roleNames.includes('business_owner'))void owner.refresh();
@@ -126,15 +130,19 @@ async function start() {
   if(u&&!chosen){if(!d.open)d.showModal();}else if(d.open)d.close();
   if(u)document.body.dataset.owner=owner?'yes':'no';else delete document.body.dataset.owner;
   if(u)document.body.dataset.admin=admin?'yes':'no';else delete document.body.dataset.admin;
-  dashboard.setUser(u?.id ?? null, admin ? 'admin' : owner ? 'owner' : 'traveler');
+  experience.setUser({id:u?.id??null,role:!u?'guest':admin?'admin':owner?'owner':'traveler',name:profile?.full_name||String(u?.user_metadata?.full_name||u?.email?.split('@')[0]||''),email:u?.email||''});
+  const traveler=!!u&&!admin&&!owner;
+  explorer.setUser(traveler?u!.id:null);trips.setUser(traveler?u!.id:null);
+  if(traveler)loadBrowse(supabase);
   route();
  }
  async function displayUser(next:User|null){
-  dashboard.setUser(null, 'traveler');
+  experience.setUser({id:next?.id??null,role:next?'loading':'guest',name:'',email:next?.email||''});
+  delete document.body.dataset.owner;delete document.body.dataset.admin;
   owner.setUser(next?.id ?? null);
   generation++;const changed=user?.id!==next?.id;user=next;
   if(changed || !next)clearProfile();
-  explorer.setUser(next?.id??null);trips.setUser(next?.id??null);if(next&&changed)loadBrowse(supabase);
+  explorer.setUser(null);trips.setUser(null);
   document.body.dataset.auth=next?'in':'out';if(!next)applyRole(null);route();el('account').hidden=!next;el('email').textContent=next?.email??'';el('uid').textContent=next?.id??'';el('hm-name').textContent=String(next?.user_metadata?.full_name||next?.email||'traveler').split(' ')[0].split('@')[0].toUpperCase();controls();
   if(next)await loadProfile();else notice('');
  }
@@ -195,6 +203,9 @@ async function start() {
   if(!profile || !user)throw new Error('Sign in and load a profile first.');
   const name=el<HTMLInputElement>('name').value.trim();if(!name)throw new Error('Enter your name.');
   const phone=el<HTMLInputElement>('phone').value.trim();if(phone&&!/^\+?[\d\s()-]{7,25}$/.test(phone))throw new Error('Enter a valid contact number, e.g. +63 900 000 0000.');
+  const profileUser=user.id;
+  if(!await confirmAction('Save your profile changes?',`${name}\n${el<HTMLTextAreaElement>('address').value.trim()||'No address'}\n${phone||'No phone number'}`,'Save profile'))return;
+  if(user?.id!==profileUser||!profile)return;
   const {error}=await api.rpc('update_my_profile',{p_full_name:name,p_address:el<HTMLTextAreaElement>('address').value.trim()||null,p_avatar_object_path:profile.avatar_object_path});
   if(error)throw error;
   const pe=phone&&phoneId?await api.from('profile_phones').update({phone_number:phone}).eq('id',phoneId):phone?await api.from('profile_phones').insert({profile_id:user.id,phone_number:phone}):phoneId?await api.from('profile_phones').delete().eq('id',phoneId):null;
@@ -207,6 +218,9 @@ async function start() {
   const extensions:Record<string,string>={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
   if(!extensions[file.type])throw new Error('Choose a JPEG, PNG or WebP image.');
   if(file.size===0 || file.size>2*1024*1024)throw new Error('Choose a nonempty image no larger than 2 MB.');
+  const avatarUser=user.id;
+  if(!await confirmAction('Update your profile photo?',`Upload ${file.name} as your new profile photo?`,'Upload photo'))return;
+  if(user?.id!==avatarUser||!profile)return;
   const uid=user.id;
   const path=`${uid}/${crypto.randomUUID()}.${extensions[file.type]}`;
   notice('Uploading your private avatar…');
@@ -232,6 +246,7 @@ async function start() {
  if(error)throw error;
  // The SDK handles the PKCE callback once. Remove callback parameters afterwards.
  if(params.has('code')||params.has('error')||hash.has('error'))history.replaceState({},'',location.pathname+(recovery?'#/reset':'#/home'));route();
+ if(location.pathname.startsWith('/payment-'))location.hash='#/bookings';
  await run(()=>displayUser(data.session?.user??null));
  if(oauthError)notice(`Google sign-in did not finish: ${oauthError}`,true);
 }
@@ -239,3 +254,4 @@ async function start() {
 import './overhaul.css';
 
 import './ui-overhaul.css';
+import './experience.css';

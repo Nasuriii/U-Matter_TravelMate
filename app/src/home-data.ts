@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { navigate } from './experience/state';
 type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
 const one = (v: any) => (Array.isArray(v) ? v[0] : v);
@@ -126,7 +127,7 @@ export function loadBrowse(client: SupabaseClient) {
       if (url) { const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy'; img.src = url; img.onerror = () => img.remove(); art.append(img); }
       const b = mk('div', 'l-body');
       b.append(mk('p', 'eyebrow', dest ? `${dest.name} · ${dest.province}` : label), mk('h3', '', l.name), mk('p', 'l-desc', l.description || l.address || 'Details coming soon.'), mk('span', 'l-more', 'View details →'));
-      card.append(art, b); card.addEventListener('click', () => void openDetail(l)); cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
+      card.append(art, b); card.addEventListener('click', () => navigate('/listing/'+l.id)); cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
     }
     const prefix = gridId.replace('-grid','');
     const search = $(prefix+'-search') as HTMLInputElement, sort = $(prefix+'-sort') as HTMLSelectElement;

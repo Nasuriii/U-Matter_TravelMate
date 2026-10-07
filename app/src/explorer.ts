@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { confirmAction } from './action-confirm';
 type Destination={id:string;name:string;province:string;description:string|null};
 const node=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 export function createExplorer(client:SupabaseClient){
@@ -25,7 +26,8 @@ export function createExplorer(client:SupabaseClient){
    const desc=document.createElement('p');desc.textContent=d.description||'Explore this destination and save it for later.';
    const actions=document.createElement('div');actions.className='card-actions';
    const details=document.createElement('button');details.className='quiet';details.textContent='View details ↗';
-   details.onclick=()=>{node('detail-name').textContent=d.name;node('detail-province').textContent=d.province;node('detail-description').textContent=d.description||'No description available yet.';node<HTMLDialogElement>('destination-dialog').showModal();};
+   details.textContent='Explore stays, food & attractions ↗';
+   details.onclick=()=>{location.hash='#/destination/'+d.id;};
    const button=document.createElement('button');button.textContent=saved.has(d.id)?'♥ Saved':uid?'♡ Save':'♡ Sign in to save';
    button.setAttribute('aria-label',(saved.has(d.id)?'Remove saved destination ':'Save destination ')+d.name);
    button.setAttribute('aria-pressed',String(saved.has(d.id)));button.disabled=pending.has(d.id)||!!uid&&!savedReady;
@@ -65,6 +67,7 @@ export function createExplorer(client:SupabaseClient){
   if(pending.has(id)||!savedReady)return;
   const owner=uid,token=generation,wasSaved=saved.has(id);pending.add(id);render();
   try{
+   if(!await confirmAction(wasSaved?'Remove this saved destination?':'Save this destination?',destinations.find(d=>d.id===id)?.name||'This updates your saved destinations.',wasSaved?'Remove destination':'Save destination')||uid!==owner||token!==generation)return;
    if(wasSaved){
     const {data,error}=await db.from('saved_destinations').delete().eq('profile_id',owner).eq('destination_id',id).select('destination_id');
     if(error)throw error;if(!data?.length)throw new Error('Removal was not confirmed. Refresh and try again.');

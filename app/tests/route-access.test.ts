@@ -1,0 +1,13 @@
+import { strict as assert } from 'node:assert';
+import { redirectForAccess } from '../src/route-access.ts';
+for (const role of ['owner','admin'] as const) assert.equal(redirectForAccess(role,'traveler'),'/home');
+assert.equal(redirectForAccess('traveler','owner'),'/home');
+assert.equal(redirectForAccess('traveler','admin'),'/home');
+assert.equal(redirectForAccess('owner','admin'),'/home');
+assert.equal(redirectForAccess('admin','owner'),'/home');
+assert.equal(redirectForAccess('guest','traveler'),'/login');
+assert.equal(redirectForAccess('loading','traveler'),null);
+assert.equal(redirectForAccess('traveler','traveler'),null);
+assert.equal(redirectForAccess('owner','staff'),null);
+assert.equal(redirectForAccess('admin','staff'),null);
+console.log('11 role-routing assertions passed.');

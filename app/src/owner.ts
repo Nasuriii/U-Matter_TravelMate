@@ -38,6 +38,7 @@ const LABEL: Record<string, string> = { pending: 'Awaiting review', approved: 'L
 /** Business-owner dashboard. All writes go through RLS (database/06_owner_listings.sql). */
 export function initOwner(client: SupabaseClient) {
   const db = client.schema('public');
+  const confirmChange = async (title: string, message: string, label: string) => { const user=activeUser,epoch=ownerEpoch; return await confirmAction(title,message,label) && user!==null && user===activeUser && epoch===ownerEpoch; };
   let ownerId: string | null = null, destsLoaded = false, wired = false;
   let after: (() => void) | null = null; // re-checks the hotel checklist after a save
   const say = (m: string, err = false) => { m = tidy(m); for (const id of ['o-notice', 'o-manage-notice']) { const n = document.getElementById(id); if (n) { n.textContent = m; n.classList.toggle('error', err); } } if (m && !/…$/.test(m)) toast(m, err); };
@@ -58,7 +59,7 @@ export function initOwner(client: SupabaseClient) {
     f.addEventListener('submit', async e => {
       e.preventDefault(); if (sending) return; sending = true; b.disabled = true; const v: Record<string, string> = {};
       for (const [n] of fields) v[n] = (f.elements.namedItem(n) as HTMLInputElement).value.trim();
-      try { await submit(v, pick?.file() ?? null); f.reset(); pick?.clear(); } catch (x) { fail(x); } finally { sending = false; b.disabled = false; }
+      try { if(!await confirmChange('Add this information?',fields.map(([n,l])=>`${l}: ${v[n]||'Not set'}`).join('\n')+(pick?.file()?`\nPhoto: ${pick.file()!.name}`:''),'Add information'))return; await submit(v, pick?.file() ?? null); f.reset(); pick?.clear(); } catch (x) { fail(x); } finally { sending = false; b.disabled = false; }
     });
     return f;
   }
@@ -88,6 +89,7 @@ export function initOwner(client: SupabaseClient) {
         try {
           const args = toRow(v); delete args[Object.keys(args)[0]]; args[delArg] = r.id;
           if (extra && sel) args[extra[0]] = extra[0] === 'p_available' ? Number(sel.value) : sel.value;
+          if(!await confirmChange('Save these changes?',fields.map(([n,l])=>`${l}: ${v[n]||'Not set'}`).join('\n')+(extra&&sel?`\n${extra[1]}: ${sel.selectedOptions[0].text}`:''),'Save changes'))return;
           const x = await client.rpc(editFn, args); if (x.error) throw x.error;
           if (pick) { const file = pick.file(); if (file) await saveDish(id, r.id, file); else if (pick.removed() && cur) await dropDish(r.id); }
           say('Saved.'); await redo();
@@ -103,6 +105,7 @@ export function initOwner(client: SupabaseClient) {
       if (cur?.status === 'pending') li.append(h('span', 'status s-pending', 'Photo awaiting review'));
       const del = h('button', 'quiet', 'Remove') as HTMLButtonElement; del.type = 'button';
       del.addEventListener('click', async () => {
+        if(!await confirmChange('Remove this item?',line(r)+'\nThis removes the item from your listing.','Remove item'))return;
         if (isMenu && cur) { try { await dropDish(r.id); } catch { /* the delete below still removes the row */ } }
         const x = await client.rpc(delFn, { [delArg]: r.id }); if (x.error) return fail(x.error); say('Removed.'); await redo();
       });
@@ -112,6 +115,7 @@ export function initOwner(client: SupabaseClient) {
       if (isMenu) {
         const soldOut = !r.is_available, t = h('button', 'quiet', soldOut ? 'Back in stock' : 'Mark sold out') as HTMLButtonElement; t.type = 'button';
         t.addEventListener('click', async () => {
+          if(!await confirmChange(soldOut?'Make this item available?':'Mark this item sold out?',r.name,soldOut?'Make available':'Mark sold out'))return;
           const x = await client.rpc(editFn, { p_item: r.id, p_name: r.name, p_category: r.category, p_price: r.price, p_description: r.description, p_available: soldOut ? 1 : 0 });
           if (x.error) return fail(x.error); say(soldOut ? 'Back in stock. Travelers can see this dish again.' : 'Marked sold out. Travelers no longer see this dish.'); await redo();
         });
@@ -137,6 +141,7 @@ export function initOwner(client: SupabaseClient) {
     f.addEventListener('submit', async e => {
       e.preventDefault(); const g = (n: string) => (f.elements.namedItem(n) as HTMLInputElement).value.trim();
       if (!g('name')) return say('Name is required.', true);
+      if(!await confirmChange('Save listing changes?',`${g('name')}\n${g('address')}\n${g('description')}\nAn edited live listing returns to administrator review.`,'Save changes'))return;
       const x = await client.rpc('owner_update_listing', { p_listing: l.id, p_name: g('name'), p_address: g('address') || null, p_description: g('description') || null });
       if (x.error) return fail(x.error); say(l.status === 'rejected' ? 'Saved. This listing is still rejected. Press Resubmit when you are ready to send it for review.' : l.status === 'inactive' ? 'Saved. This listing is inactive.' : 'Saved. Edited listings go back to review before travelers see the changes.'); await refresh();
     });
@@ -174,6 +179,7 @@ export function initOwner(client: SupabaseClient) {
       e.preventDefault(); const g = (n: string) => (f.elements.namedItem(n) as HTMLInputElement | null)?.value.trim() ?? '';
       try {
         if (t === 'hotel') timesOk(g('ci'), g('co'));
+        if(!await confirmChange('Save business details?',`${l.name}\n${t==='hotel'?`Check-in ${g('ci')} · Check-out ${g('co')}`:t==='restaurant'?`Hours: ${g('hours')}\nReservation fee: ₱${g('rf')||0}`:`Entrance fee: ₱${g('fee')||'Not set'}`}`,'Save details'))return;
         const x = await client.rpc('owner_update_details', { p_listing: l.id, p_check_in: g('ci') || null, p_check_out: g('co') || null, p_hours: g('hours') || null,
           p_resfee: t === 'restaurant' ? money(g('rf') || '0', 'Reservation fee') : null, p_fee: t === 'attraction' && g('fee') !== '' ? money(g('fee'), 'Entrance fee') : null });
         if (x.error) throw x.error; say('Details saved.');
@@ -208,6 +214,7 @@ export function initOwner(client: SupabaseClient) {
     f.addEventListener('submit', async e => {
       e.preventDefault();
       const ids = [...f.querySelectorAll<HTMLInputElement>('input:checked')].map(i => i.value);
+      if(!await confirmChange('Update hotel amenities?',`${l.name}\n${ids.length} selected amenities`,'Save amenities'))return;
       const r = await client.schema('public').rpc('owner_set_hotel_amenities', { p_hotel: l.id, p_amenities: ids });
       if (r.error) return fail(r.error); say('Saved. Amenities updated.');
     });
@@ -221,6 +228,7 @@ export function initOwner(client: SupabaseClient) {
     const b = h('button', 'primary', 'Save cuisines') as HTMLButtonElement; b.type = 'submit'; f.append(b);
     f.addEventListener('submit', async e => {
       e.preventDefault();
+      if(!await confirmChange('Update restaurant cuisines?',`${l.name}\n${f.querySelectorAll('input:checked').length} selected cuisines`,'Save cuisines'))return;
       const r = await client.schema('public').rpc('owner_set_restaurant_cuisines', { p_restaurant: l.id, p_cuisines: [...f.querySelectorAll<HTMLInputElement>('input:checked')].map(i => i.value) });
       if (r.error) return fail(r.error); say('Saved. Cuisines updated.');
     });
@@ -252,6 +260,7 @@ export function initOwner(client: SupabaseClient) {
       void client.storage.from(BUCKET).createSignedUrl(p.object_path, 3600).then(s => { if (s.data) img.src = s.data.signedUrl; });
       const del = h('button', 'quiet', 'Remove') as HTMLButtonElement; del.type = 'button';
       del.addEventListener('click', async () => {
+        if(!await confirmChange('Remove this listing photo?',l.name+'\nThe photo will be removed from this listing.','Remove photo'))return;
         const r = await client.rpc('owner_delete_photo', { p_photo: p.id }); if (r.error) return fail(r.error);
         if (r.data) await client.storage.from(BUCKET).remove([String(r.data)]); say('Photo removed.'); await photos(box, l);
       });
@@ -267,6 +276,7 @@ export function initOwner(client: SupabaseClient) {
       if (!file) return say('Choose a photo first.', true);
       if (!EXT[file.type]) return say('Use a JPEG, PNG or WebP image.', true);
       if (file.size > 5 * 1024 * 1024) return say('That photo is larger than 5 MB.', true);
+      if(!await confirmChange('Upload this business photo?',`${l.name}\n${file.name}\nNew photos require administrator approval.`,'Upload photo'))return;
       const uid = (await client.auth.getUser()).data.user?.id; if (!uid) return say('Please log in again.', true);
       const path = `${uid}/${l.id}/${crypto.randomUUID()}.${EXT[file.type]}`; b.disabled = true; say('Uploading…');
       const up = await client.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: false });
@@ -313,7 +323,7 @@ export function initOwner(client: SupabaseClient) {
       if (l.status === 'inactive' || l.status === 'rejected') { const b = h('button', 'quiet', 'Resubmit'); b.addEventListener('click', () => void setStatus(l, 'pending', 'Resubmitted for review.')); acts.append(b); }
       else if (l.status === 'approved' || l.status === 'pending') { const b = h('button', 'quiet', 'Deactivate'); b.addEventListener('click', () => void setStatus(l, 'inactive', 'Listing deactivated.')); acts.append(b); }
       if (l.status !== 'approved') {
-        const d = h('button', 'quiet danger', 'Delete'); d.addEventListener('click', () => { if (confirm(`Delete "${l.name}" permanently? Its rooms, menu, schedules and photos are removed too. This cannot be undone.`)) void removeListing(l); }); acts.append(d);
+        const d = h('button', 'quiet danger', 'Delete'); d.addEventListener('click', async () => { if (await confirmChange('Delete this listing permanently?',`${l.name}\nIts rooms, menu, schedules and photos are removed too. This cannot be undone.`,'Delete listing')) void removeListing(l); }); acts.append(d);
       }
       const help: Record<string, string> = { pending: 'Awaiting administrator review. Hidden from travelers.', approved: 'Live: travelers can discover this listing.', rejected: 'Changes requested. Edit your details, then resubmit.', inactive: 'Hidden from travelers. Resubmit when ready to reopen.' };
       info.append(h('p', 'muted', help[l.status] ?? 'Unknown status. Contact an administrator.'));
@@ -374,6 +384,7 @@ export function initOwner(client: SupabaseClient) {
         if (type === 'hotel') timesOk(val('ol-checkin'), val('ol-checkout'));
         const fee = val('ol-fee') === '' ? null : money(val('ol-fee'), 'Entrance fee');
         const resfee = type === 'restaurant' ? money(val('ol-resfee') || '0', 'Reservation fee') : 0;
+        if(!await confirmChange('Submit this business listing?',`${val('ol-name')} · ${type}\n${($('ol-dest') as HTMLSelectElement).selectedOptions[0]?.text}\n${val('ol-address')}\n${val('ol-desc')}\nAn administrator will review it before travelers can see it.`,'Submit for review'))return;
         say('Submitting…');
         const x = await client.rpc('owner_create_listing', { p_type: type, p_destination: val('ol-dest'), p_name: val('ol-name'), p_description: val('ol-desc') || null, p_address: val('ol-address') || null,
           p_check_in: val('ol-checkin') || null, p_check_out: val('ol-checkout') || null, p_operating_hours: val('ol-hours') || null, p_reservation_fee: resfee,
