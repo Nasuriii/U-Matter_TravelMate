@@ -21,6 +21,7 @@ import { accountPage } from './pages/account';
 import { route, go } from './router';
 import { installButtonLoading } from './ui';
 import { homePage } from './pages/home';
+import { purposeForPath, workspaceAfterSignup } from './signup-flow';
 
 // Static markup only. User/database content is inserted through textContent/value.
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main id="main-content" tabindex="-1">${landingPage}${homePage}${authPage}${explorePage}${stayPage}${eatPage}${attractionsPage}${ownerPage}${adminPage}${accountPage}${tripsPage}${experiencePages}</main>` + dialogs + footer;
@@ -73,7 +74,7 @@ async function start() {
  const adminTools=initAdmin(supabase);
  let phoneId:string|null=null, roleNames:string[]=[];
  function controls() {
-  for(const id of ['login','logout','refresh','save','upload','auth-submit']) el<HTMLButtonElement>(id).disabled=busy || (['save','upload'].includes(id) && !profile) || (id==='upload' && !el<HTMLInputElement>('file').files?.length);
+  for(const id of ['login','refresh','save','upload','auth-submit']) el<HTMLButtonElement>(id).disabled=busy || (['save','upload'].includes(id) && !profile) || (id==='upload' && !el<HTMLInputElement>('file').files?.length);
   el<HTMLFieldSetElement>('fields').disabled=busy || !profile;
   el<HTMLInputElement>('file').disabled=busy || !profile;
  }
@@ -93,6 +94,9 @@ async function start() {
  async function loadProfile() {
   if(!user)return;const uid=user.id,token=++generation;
   clearProfile();controls(); notice('Loading your profile…');
+  const signup = await api.rpc('finish_my_signup', {p_account_type: sessionStorage.getItem('travelmate:entry-intent') === 'business_owner' ? 'business_owner' : 'traveler'});
+  if(token!==generation || user?.id!==uid)return;
+  if(signup.error)throw signup.error;
   const {data,error}=await api.from('my_profile').select('id,full_name,address,avatar_object_path').maybeSingle();
   if(token!==generation || user?.id!==uid)return;
   if(error)throw error;
@@ -114,12 +118,17 @@ async function start() {
   if(rr.error)throw new Error('Your workspace role could not be verified. Refresh your account to try again.');
   if(token!==generation || user?.id!==uid)return;
   applyRole(user);
+  const entry = sessionStorage.getItem('travelmate:entry-intent');
+  if (signup.data?.onboarding_needed || entry) {
+   sessionStorage.removeItem('travelmate:entry-intent');
+   go(workspaceAfterSignup(signup.data?.role ?? 'traveler', !!signup.data?.onboarding_needed));
+  }
   if(roleNames.includes('business_owner'))void owner.refresh();
   if(roleNames.includes('admin'))void adminTools.refresh();
   notice('Your profile is ready.');controls();
  }
  function applyRole(u:User|null){
-  const d=el<HTMLDialogElement>('role-dialog'),owner=roleNames.includes('business_owner'),admin=roleNames.includes('admin'),chosen=!!u?.user_metadata?.account_type||owner||admin;
+  const owner=roleNames.includes('business_owner'),admin=roleNames.includes('admin');
   el('account-type').textContent=!u?'':admin?'Administrator':owner?'Business Owner':'Traveler';
   document.querySelector('#workspace-role')!.textContent=!u?'':admin?'Administrator':owner?'Business owner':'Traveler';
   document.querySelector<HTMLElement>('#traveler-home')!.hidden=admin||owner;
@@ -127,7 +136,7 @@ async function start() {
   document.querySelector('#workspace-title')!.textContent=admin?'A better journey starts with trust.':'Make your next guest feel welcome.';
   document.querySelector('#workspace-description')!.textContent=admin?'Review submissions and keep the catalog accurate.':'Keep your listings current and follow their approval status.';
   const workLink=document.querySelector<HTMLAnchorElement>('#workspace-action')!;workLink.href=admin?'#/admin':'#/owner';workLink.textContent=admin?'Open review queue →':'Manage my listings →';el('owner-note').hidden=!owner;
-  if(u&&!chosen){if(!d.open)d.showModal();}else if(d.open)d.close();
+  el('travel-preferences-link').hidden=!u||owner||admin;
   if(u)document.body.dataset.owner=owner?'yes':'no';else delete document.body.dataset.owner;
   if(u)document.body.dataset.admin=admin?'yes':'no';else delete document.body.dataset.admin;
   experience.setUser({id:u?.id??null,role:!u?'guest':admin?'admin':owner?'owner':'traveler',name:profile?.full_name||String(u?.user_metadata?.full_name||u?.email?.split('@')[0]||''),email:u?.email||''});
@@ -147,12 +156,16 @@ async function start() {
   if(next)await loadProfile();else notice('');
  }
  el('login').addEventListener('click',()=>void run(async()=>{
+  const purpose = purposeForPath(location.hash.slice(1));
+  if (purpose) sessionStorage.setItem('travelmate:entry-intent', purpose);
+  else sessionStorage.removeItem('travelmate:entry-intent');
   notice('Opening Google sign-in…');
   const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+'/',queryParams:{prompt:'select_account'}}});if(error)throw error;
  }));
  const val=(id:string)=>el<HTMLInputElement>(id).value;
  el('auth-form').addEventListener('submit',e=>{e.preventDefault();void run(async()=>{
-  const mode=location.hash.replace(/^#\/?/,''),email=val('auth-email').trim(),password=val('auth-password');
+  const purpose=purposeForPath(location.hash.slice(1));
+  const mode=purpose?'register':location.hash.replace(/^#\/?/,''),email=val('auth-email').trim(),password=val('auth-password');
   if(mode!=='reset'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('Enter a valid email address.');
   if(mode==='forgot'){
    notice('Sending reset link…');const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+'/'});if(error)throw error;
@@ -170,7 +183,7 @@ async function start() {
    const name=(val('reg-first').trim()+' '+val('reg-last').trim()).trim();
    if(!val('reg-first').trim())throw new Error('Enter your first name.');
    notice('Creating your account…');
-   const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:window.location.origin+'/'}});
+   const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,signup_account_type:purpose??'traveler'},emailRedirectTo:window.location.origin+'/'}});
    if(error)throw error;
    if(data.user&&data.user.identities?.length===0)throw new Error('That email is already registered. Log in instead.');
    if(!data.session){go('/login');notice('Account created. Check your email and confirm your address, then log in. Your profile is created once your email is confirmed.');}
@@ -181,21 +194,10 @@ async function start() {
  });});
  el('toggle-pw').addEventListener('click',()=>{const show=el<HTMLInputElement>('auth-password').type==='password';
   for(const id of ['auth-password','auth-confirm'])el<HTMLInputElement>(id).type=show?'text':'password';el('toggle-pw').textContent=show?'Hide':'Show';});
- el('top-logout').addEventListener('click',()=>el('logout').click());
+ el('top-logout').addEventListener('click',()=>window.dispatchEvent(new Event('travelmate:sign-out')));
  el('home-search-form').addEventListener('submit',e=>{e.preventDefault();el<HTMLInputElement>('search').value=val('home-search').trim();go('/explore');el<HTMLFormElement>('search-form').requestSubmit();});
  el<HTMLInputElement>('file').addEventListener('change',()=>{el('file-name').textContent=el<HTMLInputElement>('file').files?.[0]?.name??'No file chosen';controls();});
- el('role-dialog').addEventListener('cancel',e=>e.preventDefault());
- document.querySelectorAll<HTMLButtonElement>('.role-card').forEach(b=>b.addEventListener('click',()=>void run(async()=>{
-  const role=b.dataset.role!;el('role-error').hidden=true;
-  try{
-   const rpc=await api.rpc('set_my_account_type',{p_account_type:role});
-   if(rpc.error){if(/set_my_account_type|PGRST202/.test(rpc.error.message+rpc.error.code))throw new Error('The account-type function is not installed yet. Run database/05_account_type.sql in the Supabase SQL Editor, then try again.');throw rpc.error;}
-   const {data,error}=await supabase.auth.updateUser({data:{account_type:role}});if(error)throw error;
-   await displayUser(data.user);
-  }catch(e){el('role-error').textContent=explain(e);el('role-error').hidden=false;return;}
-  location.hash=role==='business_owner'?'#/owner':'#/home';
- })));
- el('logout').addEventListener('click',()=>void run(async()=>{
+ window.addEventListener('travelmate:sign-out',()=>void run(async()=>{
   const {error}=await supabase.auth.signOut({scope:'local'});if(error)throw error;await displayUser(null);
  }));
  el('refresh').addEventListener('click',()=>void run(loadProfile));

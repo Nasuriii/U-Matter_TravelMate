@@ -5,5 +5,5 @@ export const header = `<div class="workspace-bar" data-auth-only><a href="#/home
 export const footer = `<footer><span class="brand">TRAVEL<span>MATE</span></span><span>© 2026 TravelMate — a U-Matter platform</span></footer>`;
 export const dialogs = `<dialog id="listing-dialog"><button id="close-listing" type="button" class="quiet">Close</button><div id="listing-detail"></div></dialog>
 <dialog id="destination-dialog"><button id="close-detail" class="quiet">Close ×</button><p id="detail-province" class="eyebrow"></p><h2 id="detail-name"></h2><p id="detail-description"></p></dialog>
-<dialog id="role-dialog"><p class="eyebrow">ONE LAST STEP</p><h2>How will you use TravelMate?</h2><p>Choose your account type to continue.</p><div class="roles"><button type="button" class="role-card" data-role="traveler"><strong>I'm a Traveler</strong><span>Discover places, save favorites, plan trips and write reviews.</span></button><button type="button" class="role-card" data-role="business_owner"><strong>I'm a Business Owner</strong><span>List and manage your hotel, restaurant, attraction or transport service.</span></button></div><p id="role-error" class="error" role="alert" hidden></p></dialog>
+
 `;

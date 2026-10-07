@@ -9,7 +9,7 @@ export const tripsPage = `<section data-page="trips" class="journey-page" hidden
 <div class="field-pair"><label>Arrival time<input name="arrival_time" type="time" required value="09:00"></label><label>Departure time<input name="departure_time" type="time" required value="18:00"></label></div><p class="hint">Use the local time at your destination.</p>
 <div class="field-pair"><label>Total trip budget<input name="budget" type="number" min="0" max="9999999999" step="0.01" required placeholder="10000"></label><label>Currency<select name="budget_currency"><option>PHP</option><option>HKD</option><option>USD</option></select></label></div>
 <div class="field-pair"><label>Travelers<input name="party_size" type="number" min="1" max="20" value="1" required></label><label>Travel pace<select name="travel_pace"><option value="relaxed">Relaxed</option><option value="balanced" selected>Balanced</option><option value="active">Active</option></select></label></div>
-<label>Interests<select name="interests" multiple size="4"><option value="food">Food & local culture</option><option value="nature">Nature & scenery</option><option value="history">History & heritage</option><option value="shopping">Shopping</option></select></label><p class="hint">Choose one or more. On desktop, hold Ctrl or Cmd to select several.</p>
+<label>Interests<select name="interests" multiple size="4"><option value="beaches">Beaches</option><option value="mountains">Mountains</option><option value="food">Food & local culture</option><option value="nature">Nature & scenery</option><option value="history">History & heritage</option><option value="adventure">Adventure</option><option value="relaxation">Relaxation</option><option value="shopping">Shopping</option></select></label><p class="hint">Your saved preferences are starting points. Change them for this trip. On desktop, hold Ctrl or Cmd to select several.</p>
 <button class="primary trip-submit" type="submit">Review & save trip →</button></fieldset></form>
 <p id="trip-notice" role="status" aria-live="polite"></p></div>
 <aside><div class="journey-panel itinerary-note"><p class="eyebrow">MAKE ROOM FOR THE JOURNEY</p><h2>Your days,<br>your way.</h2><p>Save your travel details, then choose View itinerary on a saved trip. Generate a day-by-day proposal from approved places.</p><div class="timeline-sample"><span>Arrival</span><i></i><span>Time to explore</span><i></i><span>Departure</span></div><p class="hint">Recommendations use catalog information and estimated time allowances. They are not reservations.</p></div>
@@ -24,13 +24,18 @@ export function initTrips(client:SupabaseClient){
  const notice=document.querySelector<HTMLElement>('#trip-notice')!; const dialog=document.querySelector<HTMLDialogElement>('#trip-confirm')!;
  let user:string|null=null, editing:string|null=null, epoch=0, busy=false, editable=true; let destinations=new Map<string,string>();
  const field=(name:string)=>form.elements.namedItem(name) as HTMLInputElement|HTMLSelectElement;
+ let defaults:{interests:string[];travel_pace:string}|null=null,touched=false;
+ const applyDefaults=()=>{if(!defaults||editing||touched)return;field('travel_pace').value=defaults.travel_pace;for(const o of (field('interests') as HTMLSelectElement).options)o.selected=defaults.interests.includes(o.value);};
+ form.addEventListener('input',()=>{touched=true;});form.addEventListener('change',()=>{touched=true;});
+ window.addEventListener('travelmate:preferences',event=>{const value=(event as CustomEvent).detail;if(value.profile_id===user){defaults=value;applyDefaults();}});
  const say=(s:string,error=false)=>{notice.textContent=s;notice.classList.toggle('error',error);};
- const reset=()=>{editing=null;editable=true;form.reset();document.querySelector('#trip-form-title')!.textContent='Plan a trip';};
+ const reset=()=>{editing=null;editable=true;touched=false;form.reset();applyDefaults();document.querySelector('#trip-form-title')!.textContent='Plan a trip';};
  function lock(value:boolean){busy=value;fields.disabled=value||!user||!editable;document.querySelectorAll<HTMLButtonElement>('#trip-list button,#trip-new,#trip-reload').forEach(b=>b.disabled=value);}
  function failure(e:unknown){const message=e&&typeof e==='object'&&'message' in e?String(e.message):String(e);say(/column|schema cache/.test(message)?'Trip setup is not installed yet. Run database/16_trip_briefs.sql, then refresh.':message,true);}
  async function refresh(){if(!user)return;const id=user,ticket=epoch;lock(true);try{
- const [d,t]=await Promise.all([db.from('destinations').select('id,name,province').eq('is_active',1).order('name'),db.from('trips').select(columns).eq('profile_id',id).order('created_at',{ascending:false}).limit(100)]);
+ const [d,t,p]=await Promise.all([db.from('destinations').select('id,name,province').eq('is_active',1).order('name'),db.from('trips').select(columns).eq('profile_id',id).order('created_at',{ascending:false}).limit(100),db.from('traveler_settings').select('interests,travel_pace').eq('profile_id',id).maybeSingle()]);
  if(ticket!==epoch)return;if(d.error)throw d.error;if(t.error)throw t.error;
+ if(!p.error){defaults=p.data;applyDefaults();}
  const selected=field('destination_id').value;destinations=new Map((d.data??[]).map(x=>[x.id,`${x.name} · ${x.province}`]));
  const sel=field('destination_id') as HTMLSelectElement;sel.replaceChildren(new Option('Choose a destination',''));destinations.forEach((label,id)=>sel.add(new Option(label,id)));sel.value=selected;prefill();
  list.replaceChildren();if(!t.data?.length){list.textContent='No trips yet. Plan your first one here.';return;}
@@ -50,5 +55,5 @@ export function initTrips(client:SupabaseClient){
  const prefill=()=>{const destination=sessionStorage.getItem('travelmate:plan-destination');if(!destination)return;const select=field('destination_id') as HTMLSelectElement;if([...select.options].some(o=>o.value===destination)){select.value=destination;sessionStorage.removeItem('travelmate:plan-destination');say('Destination selected. Add your dates and travel style to continue.');}};
  window.addEventListener('travelmate:new-trip',()=>{reset();fields.disabled=!user;prefill();form.scrollIntoView({behavior:'smooth',block:'start'});});
  window.addEventListener('hashchange',()=>{if(location.hash==='#/trips')prefill();});
- return {setUser(id:string|null){itinerary.clear();epoch++;user=id;reset();if(dialog.open)dialog.close('cancel');list.replaceChildren();say('');lock(false);if(id)void refresh();else list.textContent='Sign in to load your trips.';}};
+ return {setUser(id:string|null){itinerary.clear();epoch++;defaults=null;user=id;reset();if(dialog.open)dialog.close('cancel');list.replaceChildren();say('');lock(false);if(id)void refresh();else list.textContent='Sign in to load your trips.';}};
 }

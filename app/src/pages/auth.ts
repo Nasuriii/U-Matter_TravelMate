@@ -11,10 +11,10 @@ export const authPage = `<section data-page="auth" class="auth" hidden>
 <div class="row2" data-for="register"><div><label for="reg-first">First name</label><input id="reg-first" maxlength="75" autocomplete="given-name" placeholder="Juan"></div><div><label for="reg-last">Last name</label><input id="reg-last" maxlength="75" autocomplete="family-name" placeholder="Dela Cruz"></div></div>
 <div data-for="login register forgot"><label for="auth-email">Email</label><input id="auth-email" type="email" autocomplete="email" placeholder="juan@email.com"></div>
 <div data-for="login register reset"><label for="auth-password">Password</label><div class="pw-wrap"><input id="auth-password" type="password" autocomplete="current-password" placeholder="At least 8 characters"><button id="toggle-pw" type="button">Show</button></div></div>
-<div data-for="register reset"><label for="auth-confirm">Confirm password</label><input id="auth-confirm" type="password" autocomplete="new-password"></div>
+<div data-for="register reset"><label for="auth-confirm">Confirm password</label><input id="auth-confirm" type="password" autocomplete="off" data-1p-ignore data-lpignore="true" placeholder="Re-enter your password"></div>
 <div class="auth-row" data-for="login"><a href="#/forgot">Forgot password?</a></div>
 <button id="auth-submit" class="primary" type="submit"><span data-for="login">Log in</span><span data-for="register">Create account</span><span data-for="forgot">Send reset link</span><span data-for="reset">Save new password</span></button></form>
 <p id="auth-notice" class="auth-notice" role="status" aria-live="polite"></p>
 <div data-for="login register"><p class="divider">or continue with</p><button id="login" type="button">Continue with Google</button></div>
-<p class="switch" data-for="login">Don't have an account? <a href="#/register">Sign up</a></p><p class="switch" data-for="register">Already have an account? <a href="#/login">Log in</a></p><p class="switch" data-for="forgot reset"><a href="#/login">Back to log in</a></p>
+<p class="switch" data-for="login">Don't have an account? <a href="#/register/traveler">Sign up</a></p><p class="switch" data-for="register">Already have an account? <a href="#/login">Log in</a></p><p class="switch" data-for="forgot reset"><a href="#/login">Back to log in</a></p>
 </div></div></section>`;

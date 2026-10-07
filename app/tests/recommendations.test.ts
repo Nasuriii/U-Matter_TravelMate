@@ -1,0 +1,17 @@
+import { strict as assert } from 'node:assert';
+import { recommendPlaces } from '../src/recommendations.ts';
+const towns = [{id:'coast',name:'Coastal town',province:'La Union',description:'Beaches and surfing.'},{id:'hill',name:'Hill town',province:'Benguet',description:'Mountain trails.'},{id:'plain',name:'Town center',province:'La Union',description:null}];
+const places = [{id:'a',destination_id:'coast',name:'Beach park',description:'Surfing and nature',listing_type:'attraction',status:'approved'}, {id:'b',destination_id:'plain',name:'Local kitchen',description:null,listing_type:'restaurant',status:'approved'}, {id:'c',destination_id:'plain',name:'Mountain beach resort',description:null,listing_type:'hotel',status:'pending'}, {id:'d',destination_id:'inactive',name:'Beach garden',description:null,listing_type:'attraction',status:'approved'}];
+const beaches = recommendPlaces(towns, places, ['beaches']);
+assert.deepEqual(beaches.destinations.map(x=>x.place.id),['coast']);
+assert.deepEqual(beaches.listings.map(x=>x.place.id),['a']);
+const food = recommendPlaces(towns, places, ['food']);
+assert.deepEqual(food.destinations.map(x=>x.place.id),['plain']);
+assert.deepEqual(food.listings[0].interests,['food']);
+assert.equal(food.destinations[0].source,'listings');
+assert.equal(recommendPlaces(towns, places, ['shopping']).destinations.length,0);
+assert.equal(recommendPlaces(towns, places, []).listings.length,0);
+assert.deepEqual(recommendPlaces(towns, places, ['beaches','beaches','unknown']).interests,['beaches']);
+assert.equal(recommendPlaces(towns, places, ['nature','adventure','beaches']).destinations[0].place.id,'coast');
+assert.equal(recommendPlaces([{id:'x',name:'Workshop',province:'X',description:null}], [], ['shopping']).destinations.length,0);
+console.log('10 recommendation assertions passed.');

@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { confirmAction } from './action-confirm';
+import { destinationPhoto } from './experience/destination-photos';
+import { destinationDescription } from './destination-copy';
 type Destination={id:string;name:string;province:string;description:string|null};
 const node=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 export function createExplorer(client:SupabaseClient){
@@ -19,20 +21,20 @@ export function createExplorer(client:SupabaseClient){
   const list=destinations.filter(d=>(!onlySaved||saved.has(d.id))&&(!province||province===d.province)&&(!q||(d.name+' '+d.province).toLocaleLowerCase().includes(q)));
   for(const d of list){
    const card=document.createElement('article');card.className='destination-card';
+   const open=document.createElement('a');open.className='destination-open';open.href='#/destination/'+d.id;open.setAttribute('aria-label','Explore '+d.name);
    const art=document.createElement('div');art.className='place-art';art.setAttribute('aria-hidden','true');art.textContent=d.province;
+   const photo=destinationPhoto(d.name,d.province);
+   if(photo){art.removeAttribute('aria-hidden');art.textContent='';art.classList.add('destination-photo-art');const image=document.createElement('img');image.src=photo.src;image.alt=photo.alt;image.loading='lazy';image.onerror=()=>{image.remove();art.textContent=d.name;};art.append(image);}
    const body=document.createElement('div');body.className='card-body';
    const region=document.createElement('p');region.className='eyebrow';region.textContent=d.province;
-   const title=document.createElement('h3');title.textContent=d.name;
-   const desc=document.createElement('p');desc.textContent=d.description||'Explore this destination and save it for later.';
-   const actions=document.createElement('div');actions.className='card-actions';
-   const details=document.createElement('button');details.className='quiet';details.textContent='View details ↗';
-   details.textContent='Explore stays, food & attractions ↗';
-   details.onclick=()=>{location.hash='#/destination/'+d.id;};
-   const button=document.createElement('button');button.textContent=saved.has(d.id)?'♥ Saved':uid?'♡ Save':'♡ Sign in to save';
+   const title=document.createElement('h3');title.textContent=d.name;const arrow=document.createElement('span');arrow.className='destination-open-arrow';arrow.textContent='↗';arrow.setAttribute('aria-hidden','true');title.append(arrow);
+   const desc=document.createElement('p');desc.className='destination-summary';desc.textContent=destinationDescription(d.description)||'Stays · Food · Attractions';
+   const button=document.createElement('button');button.type='button';button.className='destination-save';button.textContent=saved.has(d.id)?'♥ Saved':uid?'♡ Save destination':'♡ Sign in to save';
    button.setAttribute('aria-label',(saved.has(d.id)?'Remove saved destination ':'Save destination ')+d.name);
    button.setAttribute('aria-pressed',String(saved.has(d.id)));button.disabled=pending.has(d.id)||!!uid&&!savedReady;
    button.onclick=()=>void toggle(d.id);
-   actions.append(details,button);body.append(region,title,desc,actions);card.append(art,body);grid.append(card);
+   body.append(region,title,desc);open.append(art,body);card.append(open,button);grid.append(card);
+   if(photo?.source){const credit=document.createElement('p');credit.className='tm-recommendation-credit';const source=document.createElement('a');source.href=photo.source;source.target='_blank';source.rel='noreferrer';source.textContent=photo.author??'Photo source';credit.append(source,' · ');if(photo.licenseUrl){const license=document.createElement('a');license.href=photo.licenseUrl;license.target='_blank';license.rel='noreferrer';license.textContent=photo.license??'License';credit.append(license);}else credit.append(photo.license??'');credit.append(' · cropped');card.append(credit);}
   }
   if(!list.length){const empty=document.createElement('p');empty.className='empty';empty.textContent=onlySaved?'No saved destinations match. Explore places and select Save.':'No destinations match your search.';grid.append(empty);}
  }

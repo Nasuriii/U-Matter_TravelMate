@@ -1,0 +1,11 @@
+import { strict as assert } from 'node:assert';
+import { purposeForPath,workspaceAfterSignup } from '../src/signup-flow.ts';
+assert.equal(purposeForPath('/register/traveler'),'traveler');
+assert.equal(purposeForPath('/register/business'),'business_owner');
+assert.equal(purposeForPath('/register'),'traveler');
+assert.equal(purposeForPath('/login'),null);
+assert.equal(workspaceAfterSignup('business_owner',false),'/owner');
+assert.equal(workspaceAfterSignup('admin',false),'/home');
+assert.equal(workspaceAfterSignup('traveler',true),'/preferences');
+assert.equal(workspaceAfterSignup('traveler',false),'/trips');
+console.log('8 signup-flow assertions passed.');

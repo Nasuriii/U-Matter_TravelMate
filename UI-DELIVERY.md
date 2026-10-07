@@ -29,7 +29,7 @@ The current booking schema supports hotels and restaurants. Attractions display 
 ## Verification
 
 - `npm run build`: TypeScript and production build pass. Vite reports a large initial JavaScript bundle (about 205 KB compressed), a remaining optimization opportunity.
-- `node --experimental-strip-types tests/route-access.test.ts`: 11 assertions pass.
+- `node --experimental-strip-types tests/route-access.test.ts`: 15 assertions pass, including public destination discovery and staff isolation.
 - `SupaBase/tests/role_workspaces.sql`: 16 live database assertions pass inside a rolled-back fixture transaction.
 - Browser: guest/login load without errors; all three signed-in workspaces checked with local fixtures; destination groups and listing confirmation cancellation verified; traveler/admin mobile layouts checked at 390 px without horizontal overflow.
 - Local fixtures under ignored `app/.qa` do not ship in the production build and never write to Supabase.
@@ -37,3 +37,51 @@ The current booking schema supports hotels and restaurants. Attractions display 
 Supabase's existing advisor findings include legacy publicly executable security-definer functions and disabled leaked-password protection. New public functions use invoker security. The private events table intentionally has no direct client policy. See [function privilege guidance](https://supabase.com/docs/guides/database/database-linter?lint=0028_authenticated_security_definer_function_executable) and [password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
 
 Run the app with `cd app` and `npm run dev -- --host 127.0.0.1`. Source changes are local; no GitHub commit or pull request has been published.
+
+## Landing page remaster
+
+Replaced duplicate signup/login banners with an editorial travel hero, an example itinerary, searchable live destinations, a three-step explanation, and a separate business section. Create an itinerary opens traveler registration; List your business opens business registration. Signup now assigns the corresponding role once, replacing the post-registration role picker.
+
+Guests can browse approved destination and listing details using existing public read policies. Booking and personal itinerary actions require authentication; owner/admin workspaces retain their isolated navigation. No database permission changes were needed.
+
+San Juan Beach imagery is credited on the page to Ralff Nestor Nacor under CC BY-SA 4.0. The itinerary and business-dashboard previews are explicitly illustrative. Browser verification covered real guest discovery in Agoo, room details, destination filtering, both signup paths, cross-page section links, and the mobile landing at 390px.
+
+## Purpose-specific signup and traveler preferences
+
+Traveler registration leads to a skippable interests and pace screen, then the personalized homepage. Preferences can be changed through the account page and serve as editable defaults for each new trip. Business registration leads to the owner portal for listing setup. Shared login retains existing roles, including administrators; neither signup path changes a previously assigned account role.
+
+Applied `SupaBase/migrations/20261007120544_purpose_signup.sql` to Travelmate. Email-confirmed signup provisions the allowlisted role once; OAuth signup finalizes its initial enrollment after returning. Authorization continues to use database roles. Traveler settings are private to their account and save through a validated RPC; matching interests also update the existing preference catalog relationship. Existing users and trips are preserved.
+
+Validation: production build and 27 frontend assertions pass; 10 live database assertions pass in rolled-back fixtures, covering role assignment, existing-role preservation, preferences persistence, skip behavior, account isolation, and rejected owner/admin enrollment paths. Browser checks covered both landing signup buttons, confirmation cancellation with zero writes, successful preferences-to-trip defaults, and mobile business signup/preferences at 390px without horizontal overflow. UI previews use local fixtures, not real account creation.
+
+The new private signup-enrollment table intentionally has no direct client policy. The advisor reports this as [RLS enabled without policy](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy); access is restricted to the enrollment functions. Existing function and password-protection findings remain outside this change. Email confirmation delivery still requires fixing the previously identified Resend sender configuration; this change does not configure SMTP. The production bundle remains about 210 KB compressed.
+
+## Preference recommendations
+
+The traveler homepage now reads the signed-in traveler's settings and ranks active destinations and approved listings by the number of matching interests. Matching uses names and descriptions, with restaurant type supporting food interest. Each suggestion explains the match. Destination cards open the grouped catalog or start an itinerary with the destination selected; listing cards use existing details and reservation flows. Saved preferences still prefill new trips. No popularity, booking availability, or unsupported attributes are inferred.
+
+After saving or skipping preferences, travelers return to this homepage. No-interest and no-match states guide travelers to choose preferences or browse the general catalog. Recommendation errors have a retry action independent of the rest of the homepage. Catalog reads paginate rather than omit matches after a server row limit; only the top three destinations and places are displayed. Existing RLS and approved-photo access are used without changing database permissions or schema.
+
+Validation: 10 recommendation assertions cover ranking, restaurant matches, excluded pending/inactive places, unknown/duplicate interests, and empty/no-match results. Browser fixtures verify preferences → home → destination-prefilled itinerary, updated preferences replacing prior suggestions, and the 390px layout without horizontal overflow. Read-only live SQL verified current catalog fields; many entries still have generic demonstration descriptions, which limits matches until catalog details are improved. Full build and existing routing/signup/preference tests pass.
+
+Recommendation visual polish: added 28px between the description and cards, consistent card padding, equal photo areas, and aligned action buttons. Listing match reasons now sit inside their cards, with a separate, spaced heading for Places you might like. Added credited destination photographs for Agoo, San Juan, and Baguio; other destinations can use approved listing photos. Business cards keep their own approved photos, with an icon fallback when unavailable. No unrelated stock photographs represent businesses.
+
+Photo sources: [Agoo Basilica sanctuary](https://commons.wikimedia.org/wiki/File:Agoo_Basilica_sanctuary.jpg) by Judgefloro (public domain), [San Juan Beach](https://commons.wikimedia.org/wiki/File:San_Juan_Beach,_La_Union,_Jan_2024_(2).jpg) by Ralff Nestor Nacor (CC BY-SA 4.0), and [The Mansion, Baguio](https://commons.wikimedia.org/wiki/File:The_Mansion_in_Baguio_City.jpg) by Anna Mae B. Angana (CC BY-SA 3.0). Credits and license links accompany the cropped images. The images load remotely; unavailable images fall back to an icon without changing card dimensions. Build passes; browser verification confirmed loaded Agoo/San Juan images, a 28px introduction gap, matching card/button positions, and no horizontal overflow at 390px.
+
+Expanded photo coverage to all 16 active destinations: Agoo, Aringay, Bacnotan, Baguio, Bagulin, Balaoan, Bangar, Bauang, Burgos, Caba, Luna, Naguilian, Pugo, Rosario, San Fernando City, and San Juan. Each entry in `app/src/experience/destination-photos.ts` contains its verified Wikimedia Commons source, author, license, and image URL. Province checks prevent applying a La Union picture to a namesake town elsewhere. A shared cover/credit component now serves recommendations, homepage and landing cards, and destination detail heroes; Explore cards also show the corresponding photo and credits. Credit links are outside clickable destination buttons.
+
+Verification: all 16 images loaded in the browser; 19 coverage/location assertions and the production build pass. Read-only live catalog checks confirmed the destination list, homepage/Explore photos, and a loaded Bauang detail hero. The local photo gallery under ignored `.qa` is verification-only and does not ship. Existing booking and listing data were not modified.
+
+## Explore card polish
+
+Destination photos and card content now form native links into the grouped destination catalog. The repeated Explore stays, food and attractions buttons are removed. Pointer hover lifts the card, gently zooms its photo and moves its arrow; keyboard focus remains visible, and reduced-motion preferences disable transitions. Save destination is an always-visible, contrasting pill over each photo, outside the navigation link, with the existing confirmation and saved state preserved.
+
+Temporary sample/classroom description sentences are removed at display time on Explore cards and destination heroes while meaningful descriptions and database records are retained. Empty descriptions use concise destination context.
+
+Validation: production build and whitespace checks pass. Browser checks confirmed 16 card links, no old Explore buttons or sample sentence, keyboard navigation into Agoo, and Save cancellation without saving or navigating. At a 390px viewport the page has no horizontal overflow and the Save control remains within the card with a 42px touch height. Preview: `.tmp/ui-qa/explore-card-polish.png`.
+
+## Overview card cleanup
+
+Overview photo attribution is collapsed into a native Photo credits disclosure so author/license details remain accessible without long text under each card. Recommended listing cards omit the generic Discover this approved local listing sentence but retain real descriptions. Overview destination, recommendation and listing cards use the destination hover lift and image zoom, limited to hover-capable devices with no reduced-motion preference. Other catalog pages retain their existing descriptions and attribution presentation.
+
+Validation: production build passes. Live browser checks verified five initially collapsed credit controls, successful expand/collapse, and neither the generic sentence nor author text visible by default. Preview: `.tmp/ui-qa/overview-card-polish.png`.

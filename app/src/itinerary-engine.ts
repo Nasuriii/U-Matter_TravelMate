@@ -11,7 +11,7 @@ export function buildItinerary(trip:Brief,venues:Venue[]):Stop[]{
  const arrival=minutes(trip.arrival_time),departure=minutes(trip.departure_time);
  if(!Number.isFinite(arrival)||!Number.isFinite(departure)||(days===1&&departure<=arrival))throw Error('Complete valid arrival and departure times first.');
  const stops:Stop[]=[];const used=new Set<string>();const restaurants=venues.filter(v=>v.listing_type==='restaurant');
- const interests=trip.interests??[];const keywords:Record<string,RegExp>={nature:/beach|garden|nature|park|trail|mountain|falls|scenery/i,history:/history|historic|heritage|museum|church/i,shopping:/shop|market|mall|craft/i};
+ const interests=trip.interests??[];const keywords:Record<string,RegExp>={beaches:/beach|coast|shore|surf|seaside/i,mountains:/mountain|summit|highland|ridge|peak/i,adventure:/adventure|hike|trail|surf|zipline|trek/i,relaxation:/quiet|relax|garden|spa|peaceful|leisure/i,nature:/beach|garden|nature|park|trail|mountain|falls|scenery/i,history:/history|historic|heritage|museum|church/i,shopping:/shop|market|mall|craft/i};
  const matches=(v:Venue)=>interests.filter(i=>keywords[i]?.test(v.name+' '+(v.description??'')));
  const sights=venues.filter(v=>v.listing_type==='attraction').sort((a,b)=>matches(b).length-matches(a).length||a.name.localeCompare(b.name));
  const maxSights=trip.travel_pace==='relaxed'?1:trip.travel_pace==='active'?3:2;
