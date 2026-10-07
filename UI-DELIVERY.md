@@ -85,3 +85,23 @@ Validation: production build and whitespace checks pass. Browser checks confirme
 Overview photo attribution is collapsed into a native Photo credits disclosure so author/license details remain accessible without long text under each card. Recommended listing cards omit the generic Discover this approved local listing sentence but retain real descriptions. Overview destination, recommendation and listing cards use the destination hover lift and image zoom, limited to hover-capable devices with no reduced-motion preference. Other catalog pages retain their existing descriptions and attribution presentation.
 
 Validation: production build passes. Live browser checks verified five initially collapsed credit controls, successful expand/collapse, and neither the generic sentence nor author text visible by default. Preview: `.tmp/ui-qa/overview-card-polish.png`.
+
+## Account settings redesign
+
+Removed the oversized promotional intro and replaced it with a compact Account settings heading. Added a signed-in identity bar with separate Reload profile control, a personal details form, a profile photo panel and traveler-only preferences link. Kept all existing control IDs and database save/upload handlers. Scoped styles inherit the role palette and stack at tablet/phone widths with 44px controls. The mobile sidebar now begins below the toolbar, which stays above the drawer so the close toggle cannot hit a covered navigation link.
+
+Validation: production build and whitespace checks pass. Live desktop checks confirmed profile reload and the save confirmation, cancelled without writing. Browser layout checks at 320px and 390px found no horizontal overflow. Opening and closing mobile navigation retains the Account route. Previews: `.tmp/ui-qa/account-settings-desktop.png` and `.tmp/ui-qa/account-settings-mobile.png`. Local server is running on localhost:5173.
+
+## Admin and owner notifications
+
+Both notification panels now use role-themed message cards, readable 14px text with generous line spacing, distinct unread labels/dots, separate timestamps, and a clearly labeled count for unread items in the latest ten. Notification content remains intact and safely rendered as text. Replaced developer-facing SQL setup instructions with an actionable retry state. Mark all as read checks RPC errors and restores the button on failure; stale load responses cannot replace a newer notification view.
+
+Validation: build and whitespace checks pass. Browser previews of both themes confirmed multiline wrapping, unread/read display, successful marking in disposable fixtures and recoverable failed marking. A 390px admin preview has no horizontal overflow. Live owner checks confirmed the existing notifications render and their message color uses the role foreground rather than the older muted paragraph rule. No real notifications were marked during testing. Preview fixtures under app/.tmp are ignored and do not ship. Screenshots: `.tmp/ui-qa/notifications-live-owner.png`, `.tmp/ui-qa/notifications-admin.png`.
+
+## Scrollable notification inbox
+
+Admin and owner notifications now have a bounded, keyboard-focusable scrolling region, native SVG mail/bell/action icons, All/Unread/Trash filters, per-message mark read/unread, and confirmed deletion. Delete moves an own-account notification to Trash via dismissed_at; Restore returns it to the inbox. Full database unread totals and 25-record paging prevent filtering only the previous latest-ten preview. The confirmation helper accepts an optional cancel label so notification deletion shows Cancel while other flows retain Keep editing.
+
+Applied `SupaBase/migrations/20261007142543_notification_inbox.sql`. New public RPCs use security-invoker wrappers around private travelmate_ui functions, require an active profile and constrain every read/update to its profile ID. Anonymous/PUBLIC execution is revoked. Existing RLS remains enabled. Security advisor categories/counts are unchanged by this migration.
+
+Validation: rolled-back database fixtures verify unread filtering, deletion, Trash, restore, read/unread updates, foreign-account denial and anonymous permissions. An authenticated-role check verifies inbox access. Browser fixtures cover cancel with unchanged count, confirmed deletion and restoration; the live owner inbox loads the new RPC successfully. Desktop list height is capped at 460px and phone height at 440px; the 390px admin preview has no horizontal overflow. No existing real notification was deleted or marked during verification. Build and whitespace checks pass. Preview: `.tmp/ui-qa/notification-inbox-live.png`.
