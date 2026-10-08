@@ -442,3 +442,40 @@ body[data-view=auth][data-mode=register][data-signup=business] #auth-submit { ba
 [data-page="admin"] .a-header p:not(.eyebrow) { color:var(--muted-foreground); font-size:14px; line-height:1.7; }
 [data-page="admin"] #a-notice:empty { display:none; }
 [data-page="admin"] .a-problems { background:transparent; border:0; }
+/* Traveler experience reviews */
+.tm-reviews { margin-top:48px; scroll-margin-top:100px; }
+.tm-review-layout { display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,1fr);gap:24px;margin-top:24px;align-items:start; }
+.tm-review-feed { display:grid;gap:16px;min-width:0; }
+.tm-review-meta { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+.tm-review-meta time { font-size:11px;color:var(--muted-foreground); }
+.tm-review-stars,.tm-review-total { display:flex;align-items:center;gap:4px;color:#a46b1d;margin:12px 0; }
+.tm-review-total { gap:8px;font-weight:600; }
+.tm-review-total small { color:var(--muted-foreground);font-weight:400; }
+.tm-review-badge { display:inline-flex;align-items:center;gap:6px;font-size:10px;padding:5px 8px;border-radius:6px;background:var(--muted);color:var(--muted-foreground); }
+.tm-review-badge.verified { background:#e5f0e7;color:#276245; }
+.tm-review-text { white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.8;margin-top:14px;color:var(--foreground); }
+.tm-review-compose h3 { font-size:20px;margin:0 0 20px; }
+.tm-review-compose fieldset { border:0;padding:0;margin:0;min-width:0; }
+.tm-review-compose legend,.tm-review-compose label { font-size:12px;font-weight:600; }
+.tm-star-picker { display:flex;gap:6px;margin:10px 0; }
+.tm-star-picker button { background:transparent;border:1px solid var(--border);border-radius:8px;width:44px;height:44px;display:grid;place-items:center;color:#a46b1d; }
+.tm-star-picker button[aria-pressed=true] { border-color:#a46b1d;background:#a46b1d0a; }
+.tm-star-picker button:focus-visible { outline:2px solid var(--primary);outline-offset:3px; }
+.tm-review-rating-label { font-size:11px;color:var(--muted-foreground);margin:0 0 20px; }
+.tm-review-compose label { display:block; }
+.tm-review-compose textarea { display:block;resize:vertical;width:100%;margin-top:8px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--background);color:var(--foreground);font:inherit;min-height:130px;font-weight:400; }
+.tm-review-compose small { display:block;color:var(--muted-foreground);font-size:10px;margin:8px 0;line-height:1.6; }
+.tm-review-disclosure { display:flex;gap:6px;align-items:flex-start;font-size:11px;line-height:1.7;color:var(--muted-foreground);margin:18px 0; }
+.tm-review-disclosure svg { flex-shrink:0;margin-top:3px; }
+.tm-review-locked p,.tm-review-compose>div>p { color:var(--muted-foreground);font-size:13px;line-height:1.8; }
+.tm-review-locked svg { color:var(--muted-foreground); }
+.tm-review-empty { padding:35px;text-align:center;border:1px dashed var(--border);border-radius:14px;color:var(--muted-foreground); }
+.tm-review-empty svg { margin:auto; }
+.tm-review-empty h3 { color:var(--foreground);font-size:18px;margin:14px 0 8px; }
+.tm-review-empty p { font-size:13px; }
+.tm-review-success { border:1px solid #6c997780;padding:14px;border-radius:10px;color:#276245;background:#e5f0e7; }
+.tm-review-pagination { display:flex;gap:12px;align-items:center;justify-content:space-between;font-size:11px; }
+@media(max-width:900px) { .tm-review-layout { grid-template-columns:minmax(0,1fr); }.tm-review-compose { order:-1; } }
+@media(max-width:480px) { .tm-reviews .tm-section-title { flex-wrap:wrap; }.tm-review-meta { flex-wrap:wrap; }.tm-review-compose button[type=submit] { width:100%; } }
+.tm-react .tm-star-picker button { color:#a46b1d; padding:0; margin:0; flex:0 0 44px; min-width:44px; min-height:44px; line-height:1; }
+.tm-star-picker button svg { display:block; width:24px; height:24px; }
