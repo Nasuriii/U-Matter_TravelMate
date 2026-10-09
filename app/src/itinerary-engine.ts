@@ -22,10 +22,10 @@ export function buildItinerary(trip:Brief,venues:Venue[]):Stop[]{
   const upper=d===days-1?Math.max(departure-120,0):1200;
   const add=(from:number,to:number,title:string,venue:Venue|null,reason:string,notes:string)=>stops.push({planned_date:date,planned_time:clock(from),planned_end_time:clock(to),activity:title.slice(0,255),listing_id:venue?.id??null,recommendation_reason:reason,notes});
   if(d===0)add(arrival,arrival,'Arrive at destination',null,'Your saved arrival time.','Travel boundary, not a flight booking.');
-  let cursor=Math.max(480,lower),count=0;
+  let cursor=Math.max(480,lower),count=0,lunchAdded=false;
   while(cursor<upper){
-   if(cursor>=720&&cursor<840&&cursor+60<=upper){
-    const venue=restaurants.find(v=>!used.has(v.id));if(venue)used.add(venue.id);
+   if(!lunchAdded&&cursor>=720&&cursor<840&&cursor+60<=upper){
+    lunchAdded=true;const venue=restaurants.find(v=>!used.has(v.id));if(venue)used.add(venue.id);
     add(cursor,cursor+60,venue?`Lunch · ${venue.name}`:'Lunch break · choose a place',venue??null,venue?(interests.includes('food')?'An approved restaurant at your destination, supporting your food interest.':'An approved local restaurant for a meal break.'):'No unused restaurant suggestion is available in this catalog.','Allow 60 minutes for lunch. Opening hours, menu prices and availability need confirmation.');cursor+=90;continue;
    }
    const venue=sights.find(v=>!used.has(v.id));

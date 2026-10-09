@@ -4,7 +4,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { configureClient, setIdentity, useIdentity, track, type Identity } from './state';
 import { Navigation } from './navigation';
 import { Landing } from './landing';
-import { Preferences } from './preferences';
+import { Preferences, OnboardingGate } from './preferences';
+import { DayPlanner } from './planner';
+import { TripInspiration, TripTransport } from './trip-extras';
 import { Home, WorkspaceHome } from './home';
 import { DestinationPage, ListingPage } from './catalog';
 import { BookingPage, ReservationsPage } from './bookings';
@@ -32,7 +34,10 @@ export function mountExperience() {
   if (mounted) return; mounted = true;
   const landing = document.getElementById('react-landing'); if (landing) createRoot(landing).render(<Landing />);
   const nav = document.createElement('div'); nav.id = 'react-navigation'; nav.className = 'tm-react'; document.body.prepend(nav); createRoot(nav).render(<Navigation />);
+  const overlays = document.createElement('div'); document.body.append(overlays); createRoot(overlays).render(<><OnboardingGate/><DayPlanner/></>);
   const home = document.createElement('div'); home.id = 'react-home'; home.className = 'tm-react'; document.querySelector('[data-page="home"]')!.prepend(home); createRoot(home).render(<Home />);
+  createRoot(document.getElementById('react-trip-inspiration')!).render(<TripInspiration/>);
+  createRoot(document.getElementById('react-trip-transport')!).render(<TripTransport/>);
   for (const page of ['destination', 'listing', 'book', 'bookings', 'reservations', 'reports', 'preferences']) createRoot(document.getElementById('react-' + page)!).render(<RoutePage page={page} />);
 }
 export function initExperience(client: SupabaseClient) {

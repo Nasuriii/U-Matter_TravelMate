@@ -1,0 +1,12 @@
+import { strict as assert } from 'node:assert';
+import { buildItinerary, validateSchedule } from '../src/itinerary-engine.ts';
+const trip={id:'trip',name:'Weekend',destination_id:'place',start_date:'2027-01-10',end_date:'2027-01-11',arrival_time:'09:00',departure_time:'18:00',travel_pace:'balanced',interests:['food'],budget:1000,budget_currency:'PHP',updated_at:''};
+const places=[{id:'food',name:'Local Table',listing_type:'restaurant',description:null,address:null},{id:'walk',name:'Heritage Walk',listing_type:'attraction',description:null,address:null}];
+const plan=validateSchedule(trip,buildItinerary(trip,places));
+for(const day of [trip.start_date,trip.end_date]) assert.equal(plan.filter(s=>s.planned_date===day&&s.activity.startsWith('Lunch')).length,1,'Generate only one lunch break per day');
+const sample={planned_date:trip.start_date,planned_time:'12:00',planned_end_time:'13:00',activity:'My stop',listing_id:null,recommendation_reason:'Personal choice',notes:'Bring water'};
+assert.throws(()=>validateSchedule(trip,[sample,{...sample,planned_time:'12:30',activity:'Overlapping stop'}]),/overlaps/);
+assert.throws(()=>validateSchedule(trip,[{...sample,planned_time:'08:00',planned_end_time:'08:30'}]),/outside/);
+assert.throws(()=>buildItinerary({...trip,end_date:'2027-02-10'},places),/1–14/);
+assert.equal(validateSchedule(trip,[sample])[0].notes,'Bring water');
+console.log('Planner meal, overlap, trip-window and duration checks passed.');

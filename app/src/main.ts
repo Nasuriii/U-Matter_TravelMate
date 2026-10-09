@@ -127,6 +127,7 @@ async function start() {
   if(roleNames.includes('admin'))void adminTools.refresh();
   notice('Your profile is ready.');controls();
  }
+ window.addEventListener('travelmate:profile-updated', event=>{const value=(event as CustomEvent).detail;if(!user||!profile||value.profile_id!==user.id)return;profile.full_name=value.full_name;(el('name') as HTMLInputElement).value=value.full_name;experience.setUser({id:user.id,role:roleNames.includes('admin')?'admin':roleNames.includes('business_owner')?'owner':'traveler',name:value.full_name,email:user.email||''});});
  function applyRole(u:User|null){
   const owner=roleNames.includes('business_owner'),admin=roleNames.includes('admin');
   el('account-type').textContent=!u?'':admin?'Administrator':owner?'Business Owner':'Traveler';
@@ -257,3 +258,6 @@ import './overhaul.css';
 
 import './ui-overhaul.css';
 import './experience.css';
+
+import './interactive.css';
+import './travel-design.css';
