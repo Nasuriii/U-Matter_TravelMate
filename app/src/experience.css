@@ -60,9 +60,6 @@ body[data-auth=in] main>[data-page]:not([data-page=home]):not([data-page=destina
 .tm-nav-link.active { font-weight:700; }
 .tm-nav-dot { width:5px; height:5px; border-radius:50%; background:var(--primary); margin-left:auto; }
 .tm-sidebar-bottom { margin-top:auto; padding-top:25px; }
-.tm-workspace-note { display:flex; gap:10px; background:var(--muted); padding:14px 12px; border-radius:12px; color:var(--primary); margin-bottom:18px; }
-.tm-workspace-note p { font-size:10px; font-weight:600; line-height:1.7; }
-.tm-workspace-note small { display:block; font-size:9px; font-weight:400; color:var(--muted-foreground); }
 .tm-sidebar-footer { font-size:8px; letter-spacing:1.7px; color:var(--muted-foreground); padding:23px 13px 0; }
 .tm-topbar { position:fixed; top:0; left:256px; right:0; height:74px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 clamp(20px,3.7vw,56px); background:var(--background); border-bottom:1px solid var(--border); z-index:40; }
 .tm-topbar-workspace { display:flex; align-items:center; gap:9px; font-size:12px; color:var(--muted-foreground); }
