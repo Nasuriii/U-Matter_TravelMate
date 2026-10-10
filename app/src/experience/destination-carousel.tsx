@@ -1,3 +1,4 @@
+import {PhotoMosaic} from './photo-mosaic';
 import {useRef,useState} from 'react';
 import {ChevronLeft,ChevronRight,Images,MapPin} from 'lucide-react';
 import {destinationPhoto,type DestinationPhoto} from './destination-photos';
@@ -9,10 +10,11 @@ export function destinationGallery(name:string,province:string):DestinationPhoto
  const extra=/la union|benguet/i.test(province)?(galleries as Record<string,DestinationPhoto[]>)[key]??[]:[];
  return [cover,...extra].filter((p):p is DestinationPhoto=>!!p).filter((p,i,all)=>all.findIndex(x=>x.source===p.source)===i);
 }
-export function DestinationCarousel({name,province}:{name:string;province:string}){
+export function DestinationCarousel({name,province,mosaic=false}:{name:string;province:string;mosaic?:boolean}){
  const photos=destinationGallery(name,province),[index,setIndex]=useState(0),[failed,setFailed]=useState<string[]>([]),pointer=useRef<number|null>(null);
  const available=photos.filter(p=>!failed.includes(p.src)),active=Math.min(index,Math.max(available.length-1,0));
  const go=(delta:number)=>setIndex(i=>(Math.min(i,available.length-1)+delta+available.length)%available.length);
+ if(mosaic)return <><PhotoMosaic photos={photos} name={name}/>{photos.some(p=>p.source)&&<details className="travel-photo-credit"><summary aria-label="Photo information">ⓘ</summary>{photos.map(p=><p key={p.src}><a href={p.source} target="_blank" rel="noreferrer">{p.author||'Wikimedia Commons'}</a> · {p.license}</p>)}</details>}</>;
  return <section className="travel-carousel" aria-label={name+' destination photos'} aria-roledescription="carousel"><div className="travel-carousel-stage" tabIndex={available.length>1?0:undefined} onKeyDown={e=>{if(available.length>1&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();go(e.key==='ArrowRight'?1:-1);}}} onPointerDown={e=>{if((e.target as Element).closest('button'))return;pointer.current=e.clientX;e.currentTarget.setPointerCapture(e.pointerId);}} onPointerUp={e=>{if(pointer.current!==null&&available.length>1&&Math.abs(e.clientX-pointer.current)>45)go(e.clientX<pointer.current?1:-1);pointer.current=null;}} onPointerCancel={()=>{pointer.current=null;}}>
  <div className="travel-carousel-track" style={{transform:`translateX(-${active*100}%)`}}>{available.map((p,i)=><div className="travel-carousel-slide" key={p.src} role="group" aria-roledescription="slide" aria-label={`${i+1} of ${available.length}`} aria-hidden={i!==active}><img src={p.src} alt={p.alt} draggable={false} loading={i===0?'eager':'lazy'} onError={()=>setFailed(v=>[...v,p.src])}/></div>)}</div>
  {!available.length&&<div className="travel-photo-fallback"><MapPin size={48}/><strong>{name}</strong><span>Destination photos are unavailable.</span></div>}

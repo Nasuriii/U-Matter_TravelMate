@@ -14,16 +14,16 @@ export function configureClient(next: SupabaseClient) { client = next; }
 export function navigate(path: string) { location.hash = '#' + path; }
 export function errorMessage(e: unknown) { return e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String(e.message) : 'Something went wrong. Please try again.'; }
 export const money = (value: number | string | null) => value == null ? 'Not set' : new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 2 }).format(Number(value));
-export type Destination = { id: string; name: string; province: string; description: string | null };
-export type Listing = { id: string; name: string; listing_type: 'hotel' | 'restaurant' | 'attraction'; description: string | null; address: string | null; destination_id: string; image?: string; preview?: boolean; is_sample?:boolean };
-export async function photosFor(listings: Listing[]) {
+export type Destination = { id: string; name: string; province: string; description: string | null;address?:string|null;contact_phone?:string|null;contact_email?:string|null;contact_website?:string|null };
+export type Listing = { id: string; name: string; listing_type: 'hotel' | 'restaurant' | 'attraction'; description: string | null; address: string | null; destination_id: string; image?: string; gallery?:string[]; preview?: boolean; is_sample?:boolean;contact_phone?:string|null;contact_email?:string|null;contact_website?:string|null };
+export async function photosFor(listings: Listing[],fullGallery=false) {
   listings = listings.map(l => {const preview=l.is_sample || l.preview || isPreview(l.name);return {...l,preview,name:catalogLabel(l.name),image:l.image||(preview?samplePhoto(l.listing_type,l.id):undefined)};});
   if (!listings.length) return listings;
   const { data, error } = await client.from('photos').select('listing_id,bucket_id,object_path').in('listing_id', listings.map(x => x.id)).eq('status', 'approved').is('menu_item_id', null).order('sort_order');
   if (error) return listings;
-  const photos = new Map<string, { bucket_id: string; object_path: string }>();
-  for (const photo of data ?? []) if (!photos.has(photo.listing_id)) photos.set(photo.listing_id, photo);
-  return Promise.all(listings.map(async listing => { if(listing.preview)return listing; const photo = photos.get(listing.id); if (!photo) return listing; const result = await client.storage.from(photo.bucket_id || 'travelmate-listings').createSignedUrl(photo.object_path, 3600); return { ...listing, image: result.data?.signedUrl || listing.image }; }));
+  const photos = new Map<string, { bucket_id: string; object_path: string }[]>();
+  for (const photo of data ?? []) {const items=photos.get(photo.listing_id)??[];if(items.length<(fullGallery?12:1))items.push(photo);photos.set(photo.listing_id,items);}
+  return Promise.all(listings.map(async listing => { if(listing.preview)return listing; const items = photos.get(listing.id); if (!items?.length) return listing; const gallery=(await Promise.all(items.map(async photo=>{try{const result=await client.storage.from(photo.bucket_id || 'travelmate-listings').createSignedUrl(photo.object_path,3600);return result.data?.signedUrl;}catch{return undefined;}}))).filter((url):url is string=>!!url);return { ...listing, image:gallery[0]||listing.image,gallery }; }));
 }
 export async function track(kind: 'page_view' | 'listing_view' | 'api_timing', target: string, duration?: number) {
   if (!identity.id || identity.role === 'loading') return;

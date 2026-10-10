@@ -19,3 +19,19 @@ Restaurant stock interiors (illustrative, not the named businesses), downloaded 
 - restaurant-4: https://images.unsplash.com/photo-1555396273-367ea4eb4db5
 - restaurant-5: https://images.unsplash.com/photo-1559339352-11d035aa65de
 - restaurant-6: https://images.unsplash.com/photo-1514933651103-005eec06c04b
+
+Additional stock inspiration photographs (preview catalog only):
+
+- hotel-3.jpg — https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1100&q=82
+- hotel-4.jpg — https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1100&q=82
+- hotel-5.jpg — https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1100&q=82
+- hotel-6.jpg — https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1100&q=82
+- hotel-7.jpg — https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1100&q=82
+- hotel-8.jpg — https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1100&q=82
+- restaurant-7.jpg — https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1100&q=82
+- restaurant-8.jpg — https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1100&q=82
+- garden-3.jpg — https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=1100&q=82
+- garden-5.jpg — https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1100&q=82
+- garden-6.jpg — https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1100&q=82
+- garden-7.jpg — https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=1100&q=82
+- garden-8.jpg — https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1100&q=82

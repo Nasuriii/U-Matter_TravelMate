@@ -150,6 +150,7 @@ export function initOwner(client: SupabaseClient) {
     const typeName = l.listing_type === 'hotel' ? 'Hotel' : l.listing_type === 'restaurant' ? 'Restaurant' : 'Attraction';
     const subTitle = l.listing_type === 'hotel' ? 'Rooms' : l.listing_type === 'restaurant' ? 'Menu' : 'Operating schedule';
     if (l.listing_type === 'hotel') { const ck = h('div', 'o-sub'); box.append(ck); after = () => void checklist(ck, l); void checklist(ck, l); }
+    const contact=h('form','o-inline') as HTMLFormElement;contact.append(h('p','muted','These contact details will be visible to travelers.'));for(const [key,label,type] of [['contact_phone','Business phone','tel'],['contact_email','Public email','email'],['contact_website','Website','url']]){const wrap=h('label','',label),input=document.createElement('input');input.name=key;input.type=type;input.value=l[key]??'';wrap.append(input);contact.append(wrap);}const contactSave=h('button','primary','Save contact details') as HTMLButtonElement;contactSave.type='submit';contact.append(contactSave);contact.addEventListener('submit',async e=>{e.preventDefault();const get=(key:string)=>(contact.elements.namedItem(key) as HTMLInputElement).value.trim();if(!await confirmChange('Save public contact details?',l.name+'\nThese details will be reviewed before publication.','Save contact details'))return;contactSave.disabled=true;try{const r=await client.rpc('owner_set_listing_contact',{p_listing:l.id,p_phone:get('contact_phone')||null,p_email:get('contact_email')||null,p_website:get('contact_website')||null});if(r.error)throw r.error;say('Contact details saved for review.');await refresh();}catch(e){fail(e);}finally{contactSave.disabled=false;}});box.append(accordion('Contact details',contact));
     box.append(accordion('Basic information', f, { open: true }), accordion(typeName + ' details', dh), accordion(subTitle, sub, { count: '.o-items li:not(.muted)' }));
     if (l.listing_type === 'hotel') { const am = h('div', 'o-sub'); box.append(accordion('Amenities', am, { count: 'input:checked' })); void amenities(am, l); }
     if (l.listing_type === 'restaurant') { const cu = h('div', 'o-sub'); box.append(accordion('Cuisine type', cu, { count: 'input:checked' })); void cuisines(cu, l); }
@@ -269,22 +270,12 @@ export function initOwner(client: SupabaseClient) {
     }
     box.append(grid);
     if (rows.length >= MAX_PHOTOS) return;
-    const f = h('form', 'o-inline') as HTMLFormElement, pick = filePicker(), w = h('div', 'o-wide');
-    w.append(h('span', 'lbl', 'Add a photo'), pick.el); f.append(w);
-    const b = h('button', 'primary', 'Upload photo') as HTMLButtonElement; b.type = 'submit'; f.append(b);
-    f.addEventListener('submit', async e => {
-      e.preventDefault(); const file = pick.file();
-      if (!file) return say('Choose a photo first.', true);
-      if (!EXT[file.type]) return say('Use a JPEG, PNG or WebP image.', true);
-      if (file.size > 5 * 1024 * 1024) return say('That photo is larger than 5 MB.', true);
-      if(!await confirmChange('Upload this business photo?',`${l.name}\n${file.name}\nNew photos require administrator approval.`,'Upload photo'))return;
-      const uid = (await client.auth.getUser()).data.user?.id; if (!uid) return say('Please log in again.', true);
-      const path = `${uid}/${l.id}/${crypto.randomUUID()}.${EXT[file.type]}`; b.disabled = true; say('Uploading…');
-      const up = await client.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: false });
-      if (up.error) { b.disabled = false; return say('Upload failed: ' + up.error.message, true); }
-      const r = await client.rpc('owner_add_photo', { p_listing: l.id, p_path: path });
-      if (r.error) { await client.storage.from(BUCKET).remove([path]); b.disabled = false; return fail(r.error); }
-      say('Photo uploaded. It goes live when an administrator approves the listing.'); await photos(box, l); await refresh();
+    const f=h('form','o-inline') as HTMLFormElement,w=h('label','o-wide','Add gallery photos'),input=document.createElement('input'),previews=h('div','o-batch-photos');input.type='file';input.multiple=true;input.accept='image/jpeg,image/png,image/webp';w.append(input,previews);f.append(w);
+    const b=h('button','primary','Upload selected photos') as HTMLButtonElement;b.type='submit';f.append(b);let sending=false,urls:string[]=[];
+    const cleanup=()=>{urls.forEach(URL.revokeObjectURL);urls=[];};
+    input.addEventListener('change',()=>{cleanup();previews.replaceChildren();for(const file of Array.from(input.files??[]).slice(0,MAX_PHOTOS-rows.length)){const img=document.createElement('img');const url=URL.createObjectURL(file);urls.push(url);img.src=url;img.alt=file.name;previews.append(img);}});
+    f.addEventListener('submit',async e=>{e.preventDefault();if(sending)return;const files=Array.from(input.files??[]);if(!files.length)return say('Choose photos first.',true);if(files.length+rows.length>MAX_PHOTOS)return say('You can add '+(MAX_PHOTOS-rows.length)+' more photos to this gallery.',true);for(const file of files){if(!EXT[file.type]||file.size>5*1024*1024)return say('Use JPEG, PNG or WebP files up to 5 MB each.',true);}sending=true;b.disabled=true;const epoch=ownerEpoch,user=activeUser;let uploaded=0;
+      try{if(!await confirmChange('Upload these gallery photos?',l.name+'\n'+files.map(f=>f.name).join('\n')+'\nPhotos require administrator approval.','Upload photos'))return;const uid=(await client.auth.getUser()).data.user?.id;if(!uid||uid!==user)throw new Error('Please log in again.');for(const file of files){if(activeUser!==user||ownerEpoch!==epoch)throw new Error('Your account changed. Reopen your listing.');const path=uid+'/'+l.id+'/'+crypto.randomUUID()+'.'+EXT[file.type];say('Uploading '+(uploaded+1)+' of '+files.length+'…');const up=await client.storage.from(BUCKET).upload(path,file,{contentType:file.type,upsert:false});if(up.error)throw up.error;const row=await client.rpc('owner_add_photo',{p_listing:l.id,p_path:path});if(row.error){await client.storage.from(BUCKET).remove([path]);throw row.error;}uploaded++;}cleanup();say(uploaded+' photos saved for approval.');await photos(box,l);await refresh();}catch(e){if(activeUser===user){say(uploaded+' photos saved. '+((e as Error).message??String(e)),true);if(uploaded){cleanup();await photos(box,l);await refresh();}}}finally{sending=false;b.disabled=false;}
     });
     box.append(f);
   }
@@ -357,7 +348,7 @@ export function initOwner(client: SupabaseClient) {
       if (o.error || !o.data?.[0]) { say('No business owner record found for this account.', true); return; }
       ownerId = o.data[0].id;
     }
-    const cols = 'id,name,listing_type,status,updated_at,description,address,destinations(name,province)';
+    const cols = 'id,name,listing_type,status,updated_at,description,address,contact_phone,contact_email,contact_website,destinations(name,province)';
     let l: { data: any; error: any } = await db.from('business_listings').select(cols + ',rejection_reason').eq('owner_id', ownerId).order('created_at', { ascending: false });
     if (l.error && /rejection_reason/.test(String(l.error.message))) l = await db.from('business_listings').select(cols).eq('owner_id', ownerId).order('created_at', { ascending: false }); // 09 not run yet
     if (epoch !== ownerEpoch) return;

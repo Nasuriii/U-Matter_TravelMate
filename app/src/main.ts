@@ -201,6 +201,7 @@ async function start() {
  window.addEventListener('travelmate:sign-out',()=>void run(async()=>{
   const {error}=await supabase.auth.signOut({scope:'local'});if(error)throw error;await displayUser(null);
  }));
+ el('account-logout').addEventListener('click',()=>window.dispatchEvent(new Event('travelmate:sign-out')));
  el('refresh').addEventListener('click',()=>void run(loadProfile));
  el('profile-form').addEventListener('submit',event=>{event.preventDefault();void run(async()=>{
   if(!profile || !user)throw new Error('Sign in and load a profile first.');
@@ -263,3 +264,4 @@ import './interactive.css';
 import './travel-design.css';
 import './appearance.css';
 import './refinement.css';
+import './trip-place.css';

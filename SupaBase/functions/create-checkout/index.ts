@@ -27,8 +27,9 @@ Deno.serve(async req => {
     const profile = await admin.from('profiles').select('id').eq('id', auth.user.id).eq('account_status', 'active').maybeSingle();
     if (profile.error || !profile.data) return respond({ error: 'An active account is required.' }, 403);
     // A service key bypasses RLS. The explicit profile filter is mandatory.
-    const { data: booking, error } = await admin.from('bookings').select('id,profile_id,booking_type,guest_email,total_amount,status,payment_status,stripe_session_id,hold_expires_at').eq('id', bookingId).eq('profile_id', auth.user.id).maybeSingle();
+    const { data: booking, error } = await admin.from('bookings').select('id,is_test,profile_id,booking_type,guest_email,total_amount,status,payment_status,stripe_session_id,hold_expires_at').eq('id', bookingId).eq('profile_id', auth.user.id).maybeSingle();
     if (error || !booking) return respond({ error: 'Reservation not found.' }, 404);
+    if(booking.is_test)return respond({error:'Test reservations are saved without payment.'},409);
     if (booking.payment_status === 'paid' || booking.status !== 'pending') return respond({ error: 'This reservation does not need checkout.' }, 409);
     const expires = Math.floor(Date.parse(booking.hold_expires_at) / 1000);
     if (!Number.isFinite(expires) || expires <= Date.now() / 1000) return respond({ error: 'This reservation hold expired. Choose your dates and reserve again.' }, 409);

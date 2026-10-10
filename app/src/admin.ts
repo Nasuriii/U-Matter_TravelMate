@@ -83,8 +83,8 @@ export function initAdmin(client: SupabaseClient) {
     disclosure.append(h('summary', '', 'View listing details & photos'), content);
     if (l.description) content.append(h('p', 'a-description', l.description));
     details(content, l);
-    const photos = h('div'); content.append(photos); let photosLoaded = false;
-    disclosure.addEventListener('toggle', () => { if (disclosure.open && !photosLoaded) { photosLoaded = true; photos.replaceChildren(); void photoStrip(photos, l.id).then(result => { if (result === false) photosLoaded = false; }); } });
+    const contacts=h('div');content.append(contacts);const photos = h('div'); content.append(photos); let photosLoaded = false;
+    disclosure.addEventListener('toggle', () => { if (disclosure.open && !photosLoaded) { photosLoaded = true; contacts.replaceChildren(h('h4','','Public contact details'),h('p','muted','Loading contact details…'));void db.rpc('admin_listing_contact',{p_listing:l.id}).then(r=>{contacts.replaceChildren(h('h4','','Public contact details'));if(r.error){contacts.append(h('p','muted','Contact details could not be loaded. Refresh the queue before approving.'));return;}const values=r.data??{};for(const [key,label] of [['phone','Phone'],['email','Email'],['website','Website']])contacts.append(h('p','',label+': '+(values[key]||'Not provided')));});photos.replaceChildren(); void photoStrip(photos, l.id).then(result => { if (result === false) photosLoaded = false; }); } });
     c.append(disclosure);
     const reason = document.createElement('textarea'); reason.id = `a-reason-${l.id}`; reason.placeholder = 'Explain what the owner needs to fix…'; reason.maxLength = 300; reason.rows = 2;
     const reasonLabel = h('label', '', 'Reason for rejection'); reasonLabel.setAttribute('for', reason.id);

@@ -4,6 +4,7 @@ export const accountPage = `<section data-page="account" class="profile-page" hi
 <div id="notice" role="status" aria-live="polite">Checking configuration…</div>
 <div id="account" hidden>
   <div class="account-top"><div class="account-identity"><span class="account-identity-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></span><div><span class="account-email-label">Signed in as</span><p id="email"></p><span id="account-type" class="badge"></span></div></div><button id="refresh" class="quiet" type="button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1"/></svg>Reload profile</button></div>
+  <div class="account-session-actions"><button id="account-logout" class="quiet" type="button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5H4v14h5M10 12h10m-4-4 4 4-4 4"/></svg>Sign out</button></div>
   <p id="owner-note" class="owner-note" hidden>Manage your listings and reservations in your business workspace.</p><span id="uid" hidden></span><span id="profile-id" hidden></span>
   <div id="react-appearance" class="tm-react"></div>
   <div class="account-settings-grid">
