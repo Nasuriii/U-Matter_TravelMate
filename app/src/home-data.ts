@@ -1,3 +1,6 @@
+import {mountSavedHeart,isSaved} from './experience/favorites';
+import {samplePhoto} from './sample-photos';
+import { catalogLabel, isPreview } from './catalog-label';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { navigate } from './experience/state';
 type Row = Record<string, any>;
@@ -18,7 +21,7 @@ function menuList(items: Row[], urls: Map<string, string>) {
 }
 function mk(tag: string, cls: string, text?: string) { const e = document.createElement(tag); e.className = cls; if (text !== undefined) e.textContent = text; return e; }
 const BUCKET_FALLBACK = 'travelmate-listings';
-let wired = false;
+let wired = false;const browseCleanups=new Map<string,()=>void>();
 
 /** Landing page: live numbers + latest reviews (public read policies, works for guests). */
 export function loadLanding(client: SupabaseClient) {
@@ -31,7 +34,7 @@ export function loadLanding(client: SupabaseClient) {
     setStat('st-dest', d.count); setStat('st-stay', h.count); setStat('st-eat', r.count); setStat('hm-dest', d.count); setStat('hm-stay', h.count); setStat('hm-eat', r.count); $('stats').hidden = false;
   })();
   void (async () => {
-    const { data, error } = await db.from('reviews').select('rating,review_text,destinations(name),business_listings(name)').order('created_at', { ascending: false }).limit(100);
+    const { data, error } = await db.rpc('recent_traveler_reviews');
     if (error || !data?.length) return;
     const rows = data as Row[];
     $('st-rate').textContent = (rows.reduce((s, r) => s + r.rating, 0) / rows.length).toFixed(1) + '★'; $('hm-rate').textContent = (rows.reduce((s, r) => s + r.rating, 0) / rows.length).toFixed(1); $('stats').hidden = false;
@@ -115,29 +118,31 @@ export function loadBrowse(client: SupabaseClient) {
     }
   }
   async function listings(type: string, gridId: string, label: string) {
-    const grid = $(gridId);
-    const { data, error } = await db.from('business_listings').select('id,name,description,address,listing_type,destinations(name,province)').eq('status', 'approved').eq('listing_type', type).order('name').limit(200);
+    const grid = $(gridId);browseCleanups.get(gridId)?.();const disposers:(()=>void)[]=[];
+    const { data, error } = await db.from('business_listings').select('id,name,is_sample,description,address,listing_type,destinations(name,province)').eq('status', 'approved').eq('listing_type', type).order('name').limit(200);
     if (error) { grid.replaceChildren(mk('p', 'muted', 'Could not load listings: ' + error.message)); return; }
     if (!data?.length) { grid.replaceChildren(mk('p', 'muted', 'No approved listings yet.')); return; }
     const photos = await photoUrls((data as Row[]).map(l => l.id)); grid.replaceChildren();
     const cards: { node: HTMLElement; name: string; search: string }[] = [];
     for (const l of data as Row[]) {
-      const dest = one(l.destinations), card = mk('button', 'l-card l-click'); (card as HTMLButtonElement).type = 'button';
-      const art = mk('div', 'l-art', label), url = photos.get(l.id);
+      const dest = one(l.destinations), card = mk('article', 'l-card l-click');
+      const art = mk('div', 'l-art', label), url = (l.is_sample||isPreview(l.name))?samplePhoto(type,l.id):photos.get(l.id);
       if (url) { const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy'; img.src = url; img.onerror = () => img.remove(); art.append(img); }
       const b = mk('div', 'l-body');
-      b.append(mk('p', 'eyebrow', dest ? `${dest.name} · ${dest.province}` : label), mk('h3', '', l.name), mk('p', 'l-desc', l.description || l.address || 'Details coming soon.'), mk('span', 'l-more', 'View details →'));
-      card.append(art, b); card.addEventListener('click', () => navigate('/listing/'+l.id)); cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
+      b.append(mk('p', 'eyebrow', dest ? `${dest.name} · ${dest.province}` : label), mk('h3', '', catalogLabel(l.name)), mk('p', 'l-desc', l.description || l.address || 'Details coming soon.'), mk('span', 'l-more', 'View details →'));
+      if(isPreview(l.name))b.append(mk('span','tm-pill','Preview listing'));
+      const heart=mk('div','tm-react');art.append(heart);disposers.push(mountSavedHeart(heart,l.id,catalogLabel(l.name)));card.append(art,b);card.addEventListener('click',e=>{if(!(e.target as HTMLElement).closest('.tm-save-position'))navigate('/listing/'+l.id);});card.dataset.listing=l.id;card.dataset.destination=dest?.name??''; cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
     }
     const prefix = gridId.replace('-grid','');
     const search = $(prefix+'-search') as HTMLInputElement, sort = $(prefix+'-sort') as HTMLSelectElement;
+    const region=mk('select','tm-location-filter') as HTMLSelectElement;region.setAttribute('aria-label','Filter by destination');const all=mk('option','','All destinations') as HTMLOptionElement;all.value='';region.append(all);[...new Set(cards.map(c=>c.node.dataset.destination).filter(Boolean))].sort().forEach(name=>{const option=mk('option','',name) as HTMLOptionElement;option.value=name!;region.append(option);});const saved=mk('button','tm-saved-filter','♡ Saved only') as HTMLButtonElement;saved.type='button';saved.setAttribute('aria-pressed','false');const filters=mk('div','tm-browse-extra');filters.append(region,saved);grid.before(filters);let onlySaved=false;
     const render = () => {
-      const query=search.value.trim().toLowerCase(); const matched=cards.filter(c=>c.search.includes(query)).sort((a,b)=>a.name.localeCompare(b.name)*(sort.value==='za'?-1:1));
+      const query=search.value.trim().toLowerCase(); const matched=cards.filter(c=>c.search.includes(query)&&(!region.value||c.node.dataset.destination===region.value)&&(!onlySaved||isSaved(c.node.dataset.listing!))).sort((a,b)=>a.name.localeCompare(b.name)*(sort.value==='za'?-1:1));
       grid.replaceChildren(...matched.map(c=>c.node));
       if(!matched.length)grid.append(mk('p','empty','No places match. Try another name or destination.'));
       $(prefix+'-results').textContent=`${matched.length} matching places · ${cards.length} loaded${cards.length===200?' (first 200 by name)':''}`;
     };
-    search.oninput=render;sort.onchange=render;render();
+    search.oninput=render;sort.onchange=render;region.onchange=render;saved.onclick=()=>{onlySaved=!onlySaved;saved.setAttribute('aria-pressed',String(onlySaved));render();};window.addEventListener('travelmate:favorites',render);browseCleanups.set(gridId,()=>{window.removeEventListener('travelmate:favorites',render);filters.remove();disposers.forEach(fn=>fn());});render();
   }
   void listings('hotel', 'stay-grid', 'Hotel'); void listings('restaurant', 'eat-grid', 'Restaurant'); void listings('attraction', 'attr-grid', 'Attraction');
 }

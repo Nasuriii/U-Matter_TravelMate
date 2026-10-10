@@ -1,0 +1,5 @@
+begin;
+do $$ declare target uuid; begin select o.id into strict target from public.business_owners o join auth.users u on u.id=o.profile_id where lower(u.email)='rimnarwhal@gmail.com'; update public.business_listings set owner_id=target where is_sample; update public.transport_providers tp set owner_id=target from public.business_owners o join public.profiles p on p.id=o.profile_id where tp.owner_id=o.id and p.full_name like '%(Demo)%' and tp.company_name like '%(Demo)%'; end $$;
+insert into travelmate_ui.sample_business_metrics(listing_id,views,bookings,revenue) select id,450+row_number() over(order by id)*31,8+row_number() over(order by id)*2,(8+row_number() over(order by id)*2)*(case listing_type when 'hotel' then 2300 when 'restaurant' then 650 else 120 end) from public.business_listings where is_sample on conflict(listing_id) do update set views=excluded.views,bookings=excluded.bookings,revenue=excluded.revenue;
+update public.profiles set sample_avatar_url='/avatars/traveler-'||((abs(hashtext(id::text)::bigint)%6)+1)||'.svg' where full_name like '%(Demo)%';
+commit;

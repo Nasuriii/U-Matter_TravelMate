@@ -3,6 +3,7 @@ import { confirmAction } from './action-confirm';
 import { destinationPhoto } from './experience/destination-photos';
 import { destinationDescription } from './destination-copy';
 type Destination={id:string;name:string;province:string;description:string|null};
+const destinationIcon=(heart=false,filled=false)=>{const el=document.createElementNS('http://www.w3.org/2000/svg','svg');el.setAttribute('viewBox','0 0 24 24');el.setAttribute('width','18');el.setAttribute('height','18');el.setAttribute('fill',filled?'currentColor':'none');el.setAttribute('stroke','currentColor');el.setAttribute('stroke-width','1.8');el.setAttribute('aria-hidden','true');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',heart?'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z':'M7 17 17 7M7 7h10v10');el.append(path);return el;};
 const node=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 export function createExplorer(client:SupabaseClient){
  const db=client.schema('public');
@@ -11,7 +12,7 @@ export function createExplorer(client:SupabaseClient){
  const message=(s:string)=>{node('catalog-notice').textContent=s;};
  const errorText=(e:unknown)=>typeof e==='object' && e && 'message' in e?String(e.message):String(e);
  function render(){
-  node('saved-toggle').textContent=onlySaved?'Show all destinations':'♥ Show my saved';
+  node('saved-toggle').replaceChildren(destinationIcon(true,onlySaved),document.createTextNode(onlySaved?'Show all destinations':'Show my saved'));node('saved-toggle').setAttribute('aria-pressed',String(onlySaved));
   node('catalog-title').textContent=onlySaved?'Your saved destinations':'Explore destinations';
   const grid=node('destination-grid');grid.replaceChildren();
   if(onlySaved&&!uid){message('Sign in from Your account to see your saved destinations.');return;}
@@ -27,14 +28,14 @@ export function createExplorer(client:SupabaseClient){
    if(photo){art.removeAttribute('aria-hidden');art.textContent='';art.classList.add('destination-photo-art');const image=document.createElement('img');image.src=photo.src;image.alt=photo.alt;image.loading='lazy';image.onerror=()=>{image.remove();art.textContent=d.name;};art.append(image);}
    const body=document.createElement('div');body.className='card-body';
    const region=document.createElement('p');region.className='eyebrow';region.textContent=d.province;
-   const title=document.createElement('h3');title.textContent=d.name;const arrow=document.createElement('span');arrow.className='destination-open-arrow';arrow.textContent='↗';arrow.setAttribute('aria-hidden','true');title.append(arrow);
+   const title=document.createElement('h3');title.textContent=d.name;const arrow=document.createElement('span');arrow.className='destination-open-arrow';arrow.append(destinationIcon());arrow.setAttribute('aria-hidden','true');title.append(arrow);
    const desc=document.createElement('p');desc.className='destination-summary';desc.textContent=destinationDescription(d.description)||'Stays · Food · Attractions';
-   const button=document.createElement('button');button.type='button';button.className='destination-save';button.textContent=saved.has(d.id)?'♥ Saved':uid?'♡ Save destination':'♡ Sign in to save';
+   const button=document.createElement('button');button.type='button';button.className='destination-save';button.append(destinationIcon(true,saved.has(d.id)),document.createTextNode(saved.has(d.id)?'Saved':uid?'Save destination':'Sign in to save'));
    button.setAttribute('aria-label',(saved.has(d.id)?'Remove saved destination ':'Save destination ')+d.name);
    button.setAttribute('aria-pressed',String(saved.has(d.id)));button.disabled=pending.has(d.id)||!!uid&&!savedReady;
    button.onclick=()=>void toggle(d.id);
    body.append(region,title,desc);open.append(art,body);card.append(open,button);grid.append(card);
-   if(photo?.source){const credit=document.createElement('p');credit.className='tm-recommendation-credit';const source=document.createElement('a');source.href=photo.source;source.target='_blank';source.rel='noreferrer';source.textContent=photo.author??'Photo source';credit.append(source,' · ');if(photo.licenseUrl){const license=document.createElement('a');license.href=photo.licenseUrl;license.target='_blank';license.rel='noreferrer';license.textContent=photo.license??'License';credit.append(license);}else credit.append(photo.license??'');credit.append(' · cropped');card.append(credit);}
+   if(photo?.source){const credit=document.createElement('p');credit.className='tm-recommendation-credit';const source=document.createElement('a');source.href=photo.source;source.target='_blank';source.rel='noreferrer';source.textContent=photo.author??'Photo source';credit.append(source,' · ');if(photo.licenseUrl){const license=document.createElement('a');license.href=photo.licenseUrl;license.target='_blank';license.rel='noreferrer';license.textContent=photo.license??'License';credit.append(license);}else credit.append(photo.license??'');credit.append(' · cropped');const info=document.createElement('details'),summary=document.createElement('summary');summary.textContent='ⓘ';summary.setAttribute('aria-label','Photo information');info.className='tm-photo-credit-details';info.append(summary,credit);card.append(info);}
   }
   if(!list.length){const empty=document.createElement('p');empty.className='empty';empty.textContent=onlySaved?'No saved destinations match. Explore places and select Save.':'No destinations match your search.';grid.append(empty);}
  }

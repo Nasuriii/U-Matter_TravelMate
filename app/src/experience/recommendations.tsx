@@ -38,7 +38,7 @@ export function Recommendations() {
       if (!interests.length) { if (!cancelled) setPicks({destinations: [], listings: [], interests: []}); return; }
       const [destinations, listings] = await Promise.all([
         catalog<Destination>('destinations', 'id,name,province,description', 'is_active', 1),
-        catalog<ApprovedListing>('business_listings', 'id,name,description,address,listing_type,destination_id,status', 'status', 'approved'),
+        catalog<ApprovedListing>('business_listings', 'id,name,is_sample,description,address,listing_type,destination_id,status', 'status', 'approved'),
       ]);
       if (cancelled) return;
       const result = recommendPlaces(destinations, listings, interests);

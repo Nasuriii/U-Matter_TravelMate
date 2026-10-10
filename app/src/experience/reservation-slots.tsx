@@ -1,0 +1,10 @@
+import {useEffect,useState} from 'react';
+import {CalendarDays,Clock3,Check} from 'lucide-react';
+import type {Slot} from './catalog';
+const day=(value:string)=>[new Date(value).getFullYear(),String(new Date(value).getMonth()+1).padStart(2,'0'),String(new Date(value).getDate()).padStart(2,'0')].join('-');
+export function ReservationSlots({slots,value,guests,change}:{slots:Slot[];value:string;guests:number;change:(id:string)=>void}){
+ const dates=[...new Set(slots.map(s=>day(s.starts_at)))], [date,setDate]=useState(()=>day(slots.find(s=>s.id===value)?.starts_at||slots[0]?.starts_at||new Date().toISOString()));
+ useEffect(()=>{const chosen=slots.find(s=>s.id===value);if(chosen)setDate(day(chosen.starts_at));},[value,slots]);
+ const chooseDay=(next:string)=>{setDate(next);change('');};
+ return <div className="tm-reservation-picker"><label htmlFor="tm-reservation-date"><CalendarDays size={17}/>Choose a date<input id="tm-reservation-date" type="date" min={dates[0]} max={dates.at(-1)} value={date} onInput={e=>chooseDay(e.currentTarget.value)}/></label><div className="tm-slot-days" role="group" aria-label="Quick reservation dates">{dates.slice(0,7).map(d=><button key={d} type="button" aria-pressed={date===d} onClick={()=>chooseDay(d)}><small>{new Date(d+'T12:00').toLocaleDateString('en-PH',{weekday:'short'})}</small><strong>{new Date(d+'T12:00').getDate()}</strong><span>{new Date(d+'T12:00').toLocaleDateString('en-PH',{month:'short'})}</span></button>)}</div><p className="tm-field-label">Pick a time</p><div className="tm-slot-tiles" role="group" aria-label="Reservation times">{slots.filter(s=>day(s.starts_at)===date).map(s=><button type="button" key={s.id} aria-pressed={value===s.id} disabled={s.capacity<guests} onClick={()=>change(s.id)}><Clock3 size={20}/><strong>{new Date(s.starts_at).toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})}</strong><small>{s.capacity<guests?'Not enough seats':'Up to '+s.capacity+' guests'}</small>{value===s.id&&<Check size={17}/>}</button>)}</div>{!slots.some(s=>day(s.starts_at)===date)&&<p className="tm-muted">No reservation times on this date. Choose another day.</p>}</div>;
+}

@@ -1,3 +1,4 @@
+import {catalogLabel} from './catalog-label';
 import { confirmAction } from './action-confirm';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadNotifications } from './notifications';
@@ -133,7 +134,7 @@ export function initOwner(client: SupabaseClient) {
   const money = (s: string, what: string) => { const n = Number(s); if (s === '' || !Number.isFinite(n) || n < 0) throw new Error(`${what} must be 0 or more.`); return n; };
 
   function manage(l: Row) {
-    const box = $('o-manage'); box.hidden = false; box.replaceChildren(h('h2', '', 'Manage: ' + l.name), Object.assign(h('p', 'o-notice'), { id: 'o-manage-notice' }));
+    const box = $('o-manage'); box.hidden = false; box.replaceChildren(h('h2', '', 'Manage: ' + catalogLabel(l.name)), Object.assign(h('p', 'o-notice'), { id: 'o-manage-notice' }));
     const f = h('form', 'o-inline') as HTMLFormElement; f.noValidate = true;
     const fld = (n: string, label: string, v: string) => { const w = h('label', '', label), i = document.createElement('input'); i.name = n; i.value = v ?? ''; w.append(i); f.append(w); };
     fld('name', 'Name', l.name); fld('address', 'Address', l.address); fld('description', 'Description', l.description);
@@ -316,7 +317,7 @@ export function initOwner(client: SupabaseClient) {
     if (!filtered.length) box.append(h('p', 'muted', 'No listings match these filters.'));
     for (const l of filtered) {
       const row = h('div', 'o-row'), d = one(l.destinations), info = h('div');
-      info.append(h('strong', '', l.name), h('span', 'muted', ` ${l.listing_type} · ${d ? d.name : ''}`));
+      info.append(h('strong', '', catalogLabel(l.name)), h('span', 'muted', ` ${l.listing_type} · ${d ? d.name : ''}`));
       if (l.status === 'rejected' && l.rejection_reason) info.append(h('div', 'o-reason', 'Reason: ' + l.rejection_reason));
       const badge = h('span', 'status s-' + l.status, LABEL[l.status] ?? l.status), acts = h('div', 'o-acts');
       const m = h('button', 'quiet', 'Manage'); m.addEventListener('click', () => manage(l)); acts.append(m);

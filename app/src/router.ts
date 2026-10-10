@@ -11,6 +11,7 @@ const routes: Record<string, { page: string; access: Access }> = {
   '/preferences': { page: 'preferences', access: 'traveler' },
   '/forgot': { page: 'auth', access: 'out' },
   '/reset': { page: 'auth', access: 'any' },
+  '/saved': {page:'saved',access:'traveler'},
   '/trips': { page: 'trips', access: 'traveler' },
   '/home': { page: 'home', access: 'in' },
   '/explore': { page: 'explore', access: 'traveler' },
