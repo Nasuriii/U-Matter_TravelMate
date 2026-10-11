@@ -1,3 +1,4 @@
+import {toast as sonner} from 'sonner';
 /**
  * Shows a spinner on whichever button started a network request, so every action gives feedback
  * without each handler needing its own loading code. Buttons that make no request never flash.
@@ -33,15 +34,8 @@ export const tidy = (t: string) => String(t ?? '').replace(/([a-z0-9)”"'][.!?:
 
 /** Small pop-up message in the corner: visible wherever the user has scrolled to. */
 export function toast(message: string, error = false) {
-  let c = document.getElementById('toasts');
-  if (!c) { c = document.createElement('div'); c.id = 'toasts'; c.setAttribute('aria-live', 'polite'); document.body.append(c); }
-  const t = document.createElement('div'); t.className = 'toast' + (error ? ' bad' : ''); t.setAttribute('role', error ? 'alert' : 'status');
-  const i = document.createElement('span'); i.className = 'toast-ico'; i.textContent = error ? '!' : '✓';
-  const m = document.createElement('span'); m.className = 'toast-msg'; m.textContent = tidy(message);
-  const x = document.createElement('button'); x.type = 'button'; x.className = 'toast-x'; x.setAttribute('aria-label', 'Dismiss'); x.setAttribute('data-noload', ''); x.textContent = '×';
-  t.append(i, m, x); c.append(t);
-  const kill = () => t.remove(); x.addEventListener('click', kill); setTimeout(kill, error ? 9000 : 5000);
-  while (c.children.length > 3) c.firstElementChild!.remove();
+  if (!message.trim()) return;
+  (error ? sonner.error : sonner.success)(tidy(message), {duration:error?8000:4500});
 }
 
 export const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };

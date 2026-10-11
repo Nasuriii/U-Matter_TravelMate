@@ -11,7 +11,7 @@ const paths = {
 type Icon = keyof typeof paths;
 const Bell:Icon='bell', Mail:Icon='mail', MailOpen:Icon='open', Trash2:Icon='trash', RotateCcw:Icon='restore', CheckCheck:Icon='check', ChevronLeft:Icon='left', ChevronRight:Icon='right';
 import { confirmAction } from './action-confirm';
-import { tidy } from './ui';
+import { tidy, toast } from './ui';
 type Row = { id: string; message: string; created_at: string; read: boolean | number };
 type Filter = 'all' | 'unread' | 'trash';
 const views = new WeakMap<HTMLElement, {filter: Filter; offset: number}>();
@@ -37,7 +37,7 @@ export async function loadNotifications(client: SupabaseClient, box: HTMLElement
  const data=result.data as {items:Row[];total:number;unread:number}; const rows=data.items;
  if(!rows.length && state.offset>0){views.set(box,{...state,offset:Math.max(0,state.offset-25)});void loadNotifications(client,box);return;}
  header.append(h('span','tm-notification-count',`${data.unread} unread`));
- async function perform(b:HTMLButtonElement,operation:()=>PromiseLike<{error:unknown}>) { b.disabled=true;status.hidden=true;try{const r=await operation();if(r.error)throw r.error;if(loads.get(box)===version)await loadNotifications(client,box);}catch{if(loads.get(box)===version){status.textContent='Couldn’t update this notification. Please try again.';status.hidden=false;b.disabled=false;}} }
+ async function perform(b:HTMLButtonElement,operation:()=>PromiseLike<{error:unknown}>) { b.disabled=true;status.hidden=true;try{const r=await operation();if(r.error)throw r.error;toast(b.getAttribute('aria-label')?.includes('Delete')?'Notification deleted successfully.':b.getAttribute('aria-label')?.includes('Restore')?'Notification restored.':'Notification updated.');if(loads.get(box)===version)await loadNotifications(client,box);}catch{if(loads.get(box)===version){toast('Couldn’t update this notification. Please try again.',true);status.textContent='Couldn’t update this notification. Please try again.';status.hidden=false;b.disabled=false;}} }
  if(data.unread && state.filter!=='trash'){const all=button('Mark all as read',CheckCheck);all.onclick=()=>void perform(all,()=>client.schema('public').rpc('mark_my_notifications_read'));toolbar.append(all);}
  const viewport=h('div','tm-notification-scroll');viewport.tabIndex=0;viewport.setAttribute('role','region');viewport.setAttribute('aria-label',`${state.filter==='trash'?'Deleted':state.filter==='unread'?'Unread':'All'} notifications`);
  if(!rows.length){viewport.append(h('p','tm-notification-empty',state.filter==='unread'?'You’re all caught up. No unread notifications.':state.filter==='trash'?'Your trash is empty.':'No notifications yet. New updates will appear here.'));}

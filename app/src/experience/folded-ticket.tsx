@@ -1,0 +1,32 @@
+import {useId,useState,type ReactNode} from 'react';
+import {ChevronDown,Ticket} from 'lucide-react';
+import {Card} from '../components/ui/card';
+
+/** Details unfold independently of the always-visible reservation actions. */
+export function FoldedTicket({name,kind,status,dates,amount,payment,actions,children,preview=false}: {
+  name:string;kind:string;status:string;dates:string;amount:string;payment:string;
+  actions?:ReactNode;children:ReactNode;preview?:boolean;
+}) {
+  const [open,setOpen]=useState(false),id=useId();
+  return <Card className={'tm-booking-ticket tm-folded-ticket'+(open?' is-open':'')+(preview?' tm-preview-ticket':'')}>
+    <button type="button" className="tm-ticket-fold-toggle" aria-expanded={open} aria-controls={id}
+      aria-label={(open?'Fold ticket for ':'Unfold ticket for ')+name} onClick={()=>setOpen(value=>!value)}>
+      <span className="tm-ticket-fold-top"><span className="tm-ticket-kind"><Ticket size={17}/>{kind}</span><span className={'tm-status tm-status-'+status}>{status}</span></span>
+      <span className="tm-ticket-title">{name}</span>
+      <span className="tm-ticket-date-line">{dates}</span>
+      <span className="tm-ticket-fold-bottom"><span className="tm-ticket-amount">{amount}<small>{payment}</small></span><span className="tm-ticket-fold-cue">{open?'Fold ticket':'View details'}<ChevronDown size={19}/></span></span>
+    </button>
+    {actions&&<div className="tm-ticket-quick-actions">{actions}</div>}
+    <div className="tm-ticket-unfold" id={id} aria-hidden={!open} inert={!open}>
+      <div className="tm-ticket-unfold-inner"><div className="tm-ticket-unfold-content">{children}</div></div>
+    </div>
+  </Card>;
+}
+
+export function ticketDate(value:string|null,includeTime=false) {
+  if(!value)return 'Date not set';
+  const date=new Date(value.length===10?value+'T12:00:00':value);
+  return Number.isNaN(date.getTime())?'Date not set':date.toLocaleString('en-PH',{
+    month:'short',day:'numeric',year:'numeric',...(includeTime&&value.length>10?{hour:'numeric',minute:'2-digit'}:{})
+  });
+}

@@ -1,5 +1,5 @@
 import {mountSavedHeart,isSaved} from './experience/favorites';
-import {samplePhoto} from './sample-photos';
+import {sampleGallery} from './sample-photos';
 import { catalogLabel, isPreview } from './catalog-label';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { navigate } from './experience/state';
@@ -123,15 +123,27 @@ export function loadBrowse(client: SupabaseClient) {
     if (error) { grid.replaceChildren(mk('p', 'muted', 'Could not load listings: ' + error.message)); return; }
     if (!data?.length) { grid.replaceChildren(mk('p', 'muted', 'No approved listings yet.')); return; }
     const photos = await photoUrls((data as Row[]).map(l => l.id)); grid.replaceChildren();
-    const cards: { node: HTMLElement; name: string; search: string }[] = [];
+    const cards: { node: HTMLElement; name: string; search: string }[] = [], recentPhotos:string[]=[];
     for (const l of data as Row[]) {
       const dest = one(l.destinations), card = mk('article', 'l-card l-click');
-      const art = mk('div', 'l-art', label), url = (l.is_sample||isPreview(l.name))?samplePhoto(type,l.id):photos.get(l.id);
+      const preview=l.is_sample||isPreview(l.name), gallery=preview?sampleGallery(type,l.id):[];
+      const art = mk('div', 'l-art', label), url = preview?(gallery.find(photo=>!recentPhotos.includes(photo))||gallery[0]):photos.get(l.id);
+      if(url){recentPhotos.push(url);if(recentPhotos.length>2)recentPhotos.shift();}
       if (url) { const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy'; img.src = url; img.onerror = () => img.remove(); art.append(img); }
       const b = mk('div', 'l-body');
-      b.append(mk('p', 'eyebrow', dest ? `${dest.name} · ${dest.province}` : label), mk('h3', '', catalogLabel(l.name)), mk('p', 'l-desc', l.description || l.address || 'Details coming soon.'), mk('span', 'l-more', 'View details →'));
-      if(isPreview(l.name))b.append(mk('span','tm-pill','Preview listing'));
-      const heart=mk('div','tm-react');art.append(heart);disposers.push(mountSavedHeart(heart,l.id,catalogLabel(l.name)));card.append(art,b);card.addEventListener('click',e=>{if(!(e.target as HTMLElement).closest('.tm-save-position'))navigate('/listing/'+l.id);});card.dataset.listing=l.id;card.dataset.destination=dest?.name??''; cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
+      const location=mk('p','l-location');
+      location.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+      location.append(mk('span','',dest?`${dest.name} · ${dest.province}`:l.address||label));
+      const details = mk('a', 'l-more', type==='hotel'?'View rooms ':type==='restaurant'?'Explore menu ':'Explore place ') as HTMLAnchorElement;
+      details.href = '#/listing/' + l.id;
+      details.setAttribute('aria-label', 'View details for ' + catalogLabel(l.name));
+      const arrow = mk('span', 'l-more-arrow', '↗'); arrow.setAttribute('aria-hidden', 'true'); details.append(arrow);
+      const description=String(l.description||l.address||'Explore photos and details.').trim();
+      const brief=description.split(/(?<=[.!?])\s+/)[0];
+      b.append(location,mk('h3','',catalogLabel(l.name)),mk('p','l-desc',brief));
+      const footer=mk('div','l-card-footer');footer.append(details);b.append(footer);
+      if(preview)art.append(mk('span','l-preview-badge','Preview listing'));
+      const heart=mk('div','tm-react');art.append(heart);disposers.push(mountSavedHeart(heart,l.id,catalogLabel(l.name)));card.append(art,b);card.addEventListener('click',e=>{if(!(e.target as HTMLElement).closest('.tm-save-position,a'))navigate('/listing/'+l.id);});card.dataset.listing=l.id;card.dataset.destination=dest?.name??''; cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
     }
     const prefix = gridId.replace('-grid','');
     const search = $(prefix+'-search') as HTMLInputElement, sort = $(prefix+'-sort') as HTMLSelectElement;

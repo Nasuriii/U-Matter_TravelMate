@@ -1,7 +1,9 @@
 import { confirmAction } from './action-confirm';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadNotifications } from './notifications';
-import { tidy } from './ui';
+import { tidy, toast } from './ui';
+import { listingPage, listingRange } from './listing-pagination';
+import { renderListingPagination } from './listing-pagination-ui';
 type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
 const peso = (n: any) => (n == null ? '—' : '₱' + Number(n).toLocaleString());
@@ -17,8 +19,9 @@ function list(items: string[], empty: string) { const ul = h('ul', 'o-items'); f
  */
 export function initAdmin(client: SupabaseClient) {
   const db = client.schema('public');
+  let readiness='all', currentPage = 1;
   let queue: Row[] = [], filter = 'all', search = '', refreshVersion = 0;
-  const say = (m: string, err = false) => { const n = $('a-notice'); n.textContent = m; n.classList.toggle('error', err); };
+  const say = (m: string, err = false) => { const n = $('a-notice'); n.textContent = m; n.classList.toggle('error', err); if(m&&!m.endsWith('…'))toast(m,err); };
   const fail = (e: any) => say(/admin_review_queue|admin_reviewed_listings|admin_review_listing|PGRST202/i.test(String(e?.message) + String(e?.code))
     ? 'Listing reviews are temporarily unavailable. Please refresh or contact your administrator.'
     : (e?.message ?? String(e)), true);
@@ -76,16 +79,19 @@ export function initAdmin(client: SupabaseClient) {
     const c = h('article', 'a-card'), problems = (l.problems ?? []) as string[];
     const top = h('div', 'a-card-top');
     top.append(h('span', 'a-type', LABEL[l.type] ?? String(l.type)), h('span', problems.length ? 'a-readiness a-needs' : 'a-readiness a-ready', problems.length ? '! Needs attention' : '✓ Ready for approval'));
-    c.append(top, h('h3', '', l.name), h('p', 'a-location', `${l.destination} · ${l.address || 'No address'}`),
-      h('p', 'a-owner', `Submitted by ${l.owner ?? '—'}${l.owner_email ? ' · ' + l.owner_email : ''}`));
-    if (problems.length) { const panel = h('div', 'a-blockers'), w = h('ul', 'a-problems'); for (const p of problems) w.append(h('li', '', p)); panel.append(h('strong', '', 'Changes needed before approval'), w); c.append(panel); }
+    c.append(top, h('h3', '', l.name), h('p', 'a-location', l.destination || 'Destination not provided'));
+    const review = document.createElement('details'); review.className = 'a-review-expanded';
+    const reviewSummary = h('summary', '', 'Review listing'); reviewSummary.setAttribute('aria-label', 'Review ' + l.name); review.append(reviewSummary);
+    const reviewBody = h('div', 'a-review-body'); review.append(reviewBody);
+    reviewBody.append(h('p', '', l.address || 'No address'), h('p', 'a-owner', `Submitted by ${l.owner ?? '—'}${l.owner_email ? ' · ' + l.owner_email : ''}`));
+    if (problems.length) { const panel = h('div', 'a-blockers'), w = h('ul', 'a-problems'); for (const p of problems) w.append(h('li', '', p)); panel.append(h('strong', '', 'Changes needed before approval'), w); reviewBody.append(panel); }
     const disclosure = document.createElement('details'), content = h('div', 'a-detail-content'); disclosure.className = 'a-details';
     disclosure.append(h('summary', '', 'View listing details & photos'), content);
     if (l.description) content.append(h('p', 'a-description', l.description));
     details(content, l);
     const contacts=h('div');content.append(contacts);const photos = h('div'); content.append(photos); let photosLoaded = false;
     disclosure.addEventListener('toggle', () => { if (disclosure.open && !photosLoaded) { photosLoaded = true; contacts.replaceChildren(h('h4','','Public contact details'),h('p','muted','Loading contact details…'));void db.rpc('admin_listing_contact',{p_listing:l.id}).then(r=>{contacts.replaceChildren(h('h4','','Public contact details'));if(r.error){contacts.append(h('p','muted','Contact details could not be loaded. Refresh the queue before approving.'));return;}const values=r.data??{};for(const [key,label] of [['phone','Phone'],['email','Email'],['website','Website']])contacts.append(h('p','',label+': '+(values[key]||'Not provided')));});photos.replaceChildren(); void photoStrip(photos, l.id).then(result => { if (result === false) photosLoaded = false; }); } });
-    c.append(disclosure);
+    reviewBody.append(disclosure);
     const reason = document.createElement('textarea'); reason.id = `a-reason-${l.id}`; reason.placeholder = 'Explain what the owner needs to fix…'; reason.maxLength = 300; reason.rows = 2;
     const reasonLabel = h('label', '', 'Reason for rejection'); reasonLabel.setAttribute('for', reason.id);
     const rejectPanel = document.createElement('details'); rejectPanel.className = 'a-reject-panel'; rejectPanel.append(h('summary', '', 'Reject or request corrections'), reasonLabel, reason, h('small', '', 'Required to reject · up to 300 characters. The owner will receive this reason.'));
@@ -95,7 +101,7 @@ export function initAdmin(client: SupabaseClient) {
     no.addEventListener('click', () => { if (!reason.value.trim()) { reason.setAttribute('aria-invalid', 'true'); reason.focus(); } void decide(l, false, reason.value, [ok, no]); });
     reason.addEventListener('input', () => reason.removeAttribute('aria-invalid'));
     rejectPanel.append(no);
-    const acts = h('div', 'a-acts'); acts.append(h('small', '', problems.length ? 'Resolve the issues above before approving.' : 'Approval makes this listing visible to travelers.'), ok); c.append(acts, rejectPanel);
+    const acts = h('div', 'a-acts'); acts.append(h('small', '', problems.length ? 'Resolve the issues above before approving.' : 'Approval makes this listing visible to travelers.'), ok); reviewBody.append(acts, rejectPanel); c.append(review);
     return c;
   }
 
@@ -106,14 +112,17 @@ export function initAdmin(client: SupabaseClient) {
       b.textContent = count(t) ? `${base} (${count(t)})` : base;
       b.className = t === filter ? 'primary' : 'quiet'; b.setAttribute('aria-pressed', String(t === filter));
     });
-    const rows = queue.filter(l => (filter === 'all' || l.type === filter) && (!search || [l.name, l.destination, l.address, l.owner, l.owner_email].some(value => String(value ?? '').toLowerCase().includes(search))));
+    document.querySelectorAll<HTMLButtonElement>('[data-readiness]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.readiness===readiness)));
+    const rows = queue.filter(l => (readiness==='all'||(readiness==='ready'?!(l.problems??[]).length:(l.problems??[]).length>0)) && (filter === 'all' || l.type === filter) && (!search || [l.name, l.destination, l.address, l.owner, l.owner_email].some(value => String(value ?? '').toLowerCase().includes(search))));
     $('a-total').textContent = String(queue.length);
     $('a-ready').textContent = String(queue.filter(l => !(l.problems ?? []).length).length);
     $('a-blocked').textContent = String(queue.filter(l => (l.problems ?? []).length).length);
-    $('a-results').textContent = `${rows.length} ${rows.length === 1 ? 'listing' : 'listings'} shown`;
+    const page = listingPage(rows, currentPage); currentPage = page.page;
+    $('a-results').textContent = listingRange(page);
+    renderListingPagination($('a-pagination'), page, 'review queue', next => { currentPage = next; renderQueue(); });
     $('a-count').textContent = queue.length ? `(${queue.length})` : '';
     const empty = h('div', 'a-empty'); empty.append(h('strong', '', queue.length ? 'No matching listings' : 'You’re all caught up'), h('p', '', queue.length ? 'Try a different search or listing type.' : 'New submissions will appear here when owners send them for review.'));
-    $('a-list').replaceChildren(...(rows.length ? rows.map(card) : [empty]));
+    $('a-list').replaceChildren(...(rows.length ? page.items.map(card) : [empty]));
     const link = document.querySelector<HTMLElement>('a[data-admin-only]');
     const lbl = link?.querySelector('span'); if (lbl) lbl.textContent = queue.length ? `Review (${queue.length})` : 'Review';
   }
@@ -143,8 +152,9 @@ export function initAdmin(client: SupabaseClient) {
     } catch (e) { if (version === refreshVersion) fail(e); } finally { if (version === refreshVersion) { button.disabled = false; button.textContent = '↻ Refresh queue'; } }
   }
 
-  document.querySelectorAll<HTMLButtonElement>('#a-filter button').forEach(b => b.addEventListener('click', () => { filter = b.dataset.type!; renderQueue(); }));
-  $('a-search').addEventListener('input', e => { search = (e.target as HTMLInputElement).value.trim().toLowerCase(); renderQueue(); });
+  document.querySelectorAll<HTMLButtonElement>('#a-filter button').forEach(b => b.addEventListener('click', () => { filter = b.dataset.type!; currentPage = 1; renderQueue(); }));
+  document.querySelectorAll<HTMLButtonElement>('[data-readiness]').forEach(b=>b.addEventListener('click',()=>{readiness=b.dataset.readiness!;currentPage=1;renderQueue();$('a-list').scrollIntoView({behavior:'smooth',block:'start'});}));
+  $('a-search').addEventListener('input', e => { search = (e.target as HTMLInputElement).value.trim().toLowerCase(); currentPage = 1; renderQueue(); });
   $('a-refresh').addEventListener('click', () => void refresh());
   window.addEventListener('hashchange', () => { if (location.hash === '#/admin') void refresh(); });
   return { refresh };

@@ -1,3 +1,4 @@
+import {toast} from './ui';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { confirmAction } from './action-confirm';
 import { destinationPhoto } from './experience/destination-photos';
@@ -80,7 +81,7 @@ export function createExplorer(client:SupabaseClient){
    }
    if(uid!==owner||token!==generation)return;
    if(wasSaved)saved.delete(id);else saved.add(id);
-   render();message(wasSaved?'Destination removed from Saved.':'Destination saved.');
+   toast(wasSaved?'Destination removed from Saved.':'Destination saved.');render();message(wasSaved?'Destination removed from Saved.':'Destination saved.');
   }catch(e){if(uid===owner&&token===generation)message('Change not confirmed: '+errorText(e)+' Refresh before retrying.');}
   finally{pending.delete(id);render();}
  }

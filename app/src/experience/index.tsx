@@ -1,3 +1,5 @@
+import {ToastLayer} from './toasts';
+import {installInputLimits} from '../input-limits';
 import {SavedPage} from './saved';
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -34,10 +36,10 @@ function RoutePage({ page }: { page: string }) {
 }
 let mounted = false;
 export function mountExperience() {
-  if (mounted) return; mounted = true;
+  if (mounted) return; mounted = true; installInputLimits();
   const landing = document.getElementById('react-landing'); if (landing) createRoot(landing).render(<Landing />);
   const nav = document.createElement('div'); nav.id = 'react-navigation'; nav.className = 'tm-react'; document.body.prepend(nav); createRoot(nav).render(<Navigation />);
-  const overlays = document.createElement('div'); document.body.append(overlays); createRoot(overlays).render(<><AppearanceManager/><OnboardingGate/><DayPlanner/></>);
+  const overlays = document.createElement('div'); document.body.append(overlays); createRoot(overlays).render(<><ToastLayer/><AppearanceManager/><OnboardingGate/><DayPlanner/></>);
   const appearance = document.getElementById('react-appearance'); if(appearance) createRoot(appearance).render(<AppearanceSettings/>);
   const home = document.createElement('div'); home.id = 'react-home'; home.className = 'tm-react'; document.querySelector('[data-page="home"]')!.prepend(home); createRoot(home).render(<Home />);
   createRoot(document.getElementById('react-trip-inspiration')!).render(<TripInspiration/>);

@@ -3,6 +3,8 @@ import { confirmAction } from './action-confirm';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadNotifications } from './notifications';
 import { accordion, checkImage, filePicker, tidy, toast, IMAGE_TYPES } from './ui';
+import { listingPage, listingRange } from './listing-pagination';
+import { renderListingPagination } from './listing-pagination-ui';
 type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
 const val = (id: string) => ($(id) as HTMLInputElement).value.trim();
@@ -34,7 +36,9 @@ function timeGuide(): HTMLElement {
 <p class="muted">If your hotel works differently (for example check-in 7:00 AM and check-out 7:00 PM the next day), tell your administrator. This rule does not allow it yet.</p>`;
   return d;
 }
-const LABEL: Record<string, string> = { pending: 'Awaiting review', approved: 'Live', rejected: 'Rejected', inactive: 'Inactive' };
+const LABEL: Record<string, string> = { pending: 'Awaiting review', approved: 'Live', rejected: 'Needs changes', inactive: 'Inactive' };
+const TYPES: Record<string, string> = { hotel: 'Hotel', restaurant: 'Restaurant', attraction: 'Attraction' };
+const TYPE_PATHS: Record<string, string> = { hotel: '<path d="M3 18v-7h18v7M3 15h18M5 11V6h14v5M7 8h3M14 8h3M3 18v3M21 18v3"/>', restaurant: '<path d="M5 3v7a3 3 0 0 0 6 0V3M8 3v18M19 3c-3 2-4 5-4 9h4M19 3v18"/>', attraction: '<circle cx="12" cy="12" r="9"/><path d="m16 8-3 5-5 3 3-5 5-3Z"/>' };
 
 /** Business-owner dashboard. All writes go through RLS (database/06_owner_listings.sql). */
 export function initOwner(client: SupabaseClient) {
@@ -294,32 +298,39 @@ export function initOwner(client: SupabaseClient) {
       $('o-manage').hidden = true; say(msg); await refresh();
     } catch (e) { fail(e); } finally { changingStatus = false; }
   }
-  let displayedRows: Row[] = [];
+  let displayedRows: Row[] = [], currentPage = 1;
   function render(rows: Row[]) {
     displayedRows = rows;
     $('o-total').textContent = String(rows.length);
     $('o-active').textContent = String(rows.filter(r => r.status === 'approved').length);
     $('o-pending').textContent = String(rows.filter(r => r.status === 'pending').length);
     const box = $('o-list'); box.replaceChildren();
-    if (!rows.length) { box.append(h('p', 'muted', 'No listings yet. Use the form to add your first one.')); return; }
     const query = ($('o-search') as HTMLInputElement).value.toLowerCase().trim();
     const status = ($('o-status') as HTMLSelectElement).value;
-    const filtered = rows.filter(l => String(l.name).toLowerCase().includes(query) && (status === 'all' || l.status === status));
-    if (!filtered.length) box.append(h('p', 'muted', 'No listings match these filters.'));
-    for (const l of filtered) {
-      const row = h('div', 'o-row'), d = one(l.destinations), info = h('div');
-      info.append(h('strong', '', catalogLabel(l.name)), h('span', 'muted', ` ${l.listing_type} · ${d ? d.name : ''}`));
-      if (l.status === 'rejected' && l.rejection_reason) info.append(h('div', 'o-reason', 'Reason: ' + l.rejection_reason));
+    const type = ($('o-type') as HTMLSelectElement).value;
+    const filtered = rows.filter(l => [catalogLabel(l.name), one(l.destinations)?.name].some(value => String(value ?? '').toLowerCase().includes(query)) && (status === 'all' || l.status === status) && (type === 'all' || l.listing_type === type));
+    const page = listingPage(filtered, currentPage); currentPage = page.page;
+    $('o-results').textContent = listingRange(page);
+    document.querySelectorAll<HTMLButtonElement>('[data-listing-status]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.listingStatus === status)));
+    renderListingPagination($('o-pagination'), page, 'my listings', next => { currentPage = next; render(displayedRows); });
+    if (!filtered.length) box.append(h('p', 'o-listing-empty', rows.length ? 'No matching listings. Try another search or filter.' : 'Your first listing belongs here. Select Add a listing to get started.'));
+    for (const l of page.items) {
+      const row = h('article', 'o-row o-listing-row'), d = one(l.destinations), info = h('div', 'o-listing-info'), icon = h('span', 'o-listing-icon type-' + l.listing_type);
+      icon.setAttribute('aria-hidden', 'true'); icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${TYPE_PATHS[l.listing_type] ?? TYPE_PATHS.attraction}</svg>`;
+      info.append(h('strong', '', catalogLabel(l.name)), h('span', 'o-listing-meta', `${TYPES[l.listing_type] ?? l.listing_type} · ${d?.name ?? 'Destination not set'}`));
+      if (l.status === 'rejected' && l.rejection_reason) { const reason = document.createElement('details'); reason.className = 'o-listing-reason'; reason.append(h('summary', '', 'View requested changes'), h('p', '', l.rejection_reason)); info.append(reason); }
       const badge = h('span', 'status s-' + l.status, LABEL[l.status] ?? l.status), acts = h('div', 'o-acts');
-      const m = h('button', 'quiet', 'Manage'); m.addEventListener('click', () => manage(l)); acts.append(m);
-      if (l.status === 'inactive' || l.status === 'rejected') { const b = h('button', 'quiet', 'Resubmit'); b.addEventListener('click', () => void setStatus(l, 'pending', 'Resubmitted for review.')); acts.append(b); }
-      else if (l.status === 'approved' || l.status === 'pending') { const b = h('button', 'quiet', 'Deactivate'); b.addEventListener('click', () => void setStatus(l, 'inactive', 'Listing deactivated.')); acts.append(b); }
+      const m = h('button', 'quiet o-manage-button', 'Manage'); m.setAttribute('aria-label', 'Manage ' + catalogLabel(l.name)); m.addEventListener('click', () => manage(l)); acts.append(m);
+      const more = document.createElement('details'); more.className = 'o-listing-actions'; const actionList = h('div', 'o-listing-action-list'); more.append(h('summary', '', 'More'), actionList);
+      if (l.status === 'inactive' || l.status === 'rejected') { const b = h('button', 'quiet', 'Resubmit'); b.addEventListener('click', () => void setStatus(l, 'pending', 'Resubmitted for review.')); actionList.append(b); }
+      else if (l.status === 'approved' || l.status === 'pending') { const b = h('button', 'quiet', 'Deactivate'); b.addEventListener('click', () => void setStatus(l, 'inactive', 'Listing deactivated.')); actionList.append(b); }
       if (l.status !== 'approved') {
-        const d = h('button', 'quiet danger', 'Delete'); d.addEventListener('click', async () => { if (await confirmChange('Delete this listing permanently?',`${l.name}\nIts rooms, menu, schedules and photos are removed too. This cannot be undone.`,'Delete listing')) void removeListing(l); }); acts.append(d);
+        const d = h('button', 'quiet danger', 'Delete'); d.addEventListener('click', async () => { if (await confirmChange('Delete this listing permanently?',`${l.name}\nIts rooms, menu, schedules and photos are removed too. This cannot be undone.`,'Delete listing')) void removeListing(l); }); actionList.append(d);
       }
       const help: Record<string, string> = { pending: 'Awaiting administrator review. Hidden from travelers.', approved: 'Live: travelers can discover this listing.', rejected: 'Changes requested. Edit your details, then resubmit.', inactive: 'Hidden from travelers. Resubmit when ready to reopen.' };
-      info.append(h('p', 'muted', help[l.status] ?? 'Unknown status. Contact an administrator.'));
-      row.append(info, badge, acts); box.append(row);
+      badge.title = help[l.status] ?? 'Unknown status. Contact an administrator.';
+      if (actionList.childElementCount) acts.append(more);
+      const main = h('div', 'o-listing-main'); main.append(icon, info); row.append(main, badge, acts); box.append(row);
     }
   }
   async function loadDests() {
@@ -356,8 +367,11 @@ export function initOwner(client: SupabaseClient) {
     render((l.data ?? []) as Row[]);
     void loadNotifications(client, $('o-notes'));
   }
-  $('o-search').addEventListener('input', () => render(displayedRows));
-  $('o-status').addEventListener('change', () => render(displayedRows));
+  document.querySelectorAll<HTMLButtonElement>('[data-listing-status]').forEach(b=>b.addEventListener('click',()=>{($('o-status') as HTMLSelectElement).value=b.dataset.listingStatus!;($('o-search') as HTMLInputElement).value='';($('o-type') as HTMLSelectElement).value='all';currentPage=1;render(displayedRows);$('o-list').scrollIntoView({behavior:'smooth',block:'start'});}));
+  const filterListings = () => { currentPage = 1; render(displayedRows); };
+  $('o-search').addEventListener('input', filterListings);
+  $('o-status').addEventListener('change', filterListings);
+  $('o-type').addEventListener('change', filterListings);
   function wire() {
     if (wired) return; wired = true;
     const typeSel = $('ol-type') as HTMLSelectElement;
@@ -382,11 +396,11 @@ export function initOwner(client: SupabaseClient) {
           p_check_in: val('ol-checkin') || null, p_check_out: val('ol-checkout') || null, p_operating_hours: val('ol-hours') || null, p_reservation_fee: resfee,
           p_entrance_fee: type === 'attraction' ? fee : null, p_schedule_day: val('ol-day') || null, p_schedule_text: val('ol-slot') || null });
         if (x.error) throw x.error;
-        ($('ol-form') as HTMLFormElement).reset(); sync(); say('Listing submitted. It will appear to travelers once an administrator approves it.'); await refresh();
+        ($('ol-form') as HTMLFormElement).reset(); ($('o-create-listing') as HTMLDetailsElement).open = false; currentPage = 1; sync(); say('Listing submitted. It will appear to travelers once an administrator approves it.'); await refresh();
       } catch (err) { fail(err); } finally { submitting = false; }
     });
     window.addEventListener('hashchange', () => { if (location.hash === '#/owner') void refresh(); });
   }
   void loadDests();
-  return { setUser(id: string | null) { if (activeUser === id) return; activeUser = id; ownerEpoch++; ownerId = null; inflight = null; displayedRows = []; $('o-list').replaceChildren(); $('o-manage').hidden = true; $('o-notes').replaceChildren(); }, refresh: () => { wire(); return refresh(); } };
+  return { setUser(id: string | null) { if (activeUser === id) return; activeUser = id; ownerEpoch++; ownerId = null; inflight = null; displayedRows = []; currentPage = 1; $('o-list').replaceChildren(); $('o-pagination').replaceChildren(); $('o-results').textContent = ''; $('o-manage').hidden = true; $('o-notes').replaceChildren(); }, refresh: () => { wire(); return refresh(); } };
 }

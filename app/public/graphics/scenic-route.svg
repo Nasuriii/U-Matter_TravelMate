@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" fill="none">
+ <rect width="640" height="320" rx="28" fill="#e3e8d6"/>
+ <circle cx="507" cy="80" r="48" fill="#ddbc7a"/>
+ <path d="M0 210C112 148 177 135 256 160C358 197 395 102 640 151V320H0V210Z" fill="#8a9e7b"/>
+ <path d="M0 260C137 197 259 291 393 210C490 151 551 205 640 197V320H0V260Z" fill="#527760"/>
+ <path d="M0 286C162 245 197 356 369 269C498 207 560 267 640 247V320H0V286Z" fill="#284f42"/>
+ <path d="M83 320C130 242 171 281 228 235C267 203 244 183 326 175" stroke="#f6edd8" stroke-width="16" stroke-linecap="round"/>
+ <path d="M83 320C130 242 171 281 228 235C267 203 244 183 326 175" stroke="#af7250" stroke-width="2" stroke-dasharray="5 9"/>
+ <path d="M63 213L80 171L97 213H63Z" fill="#315947"/><path d="M80 208V230" stroke="#315947" stroke-width="5"/>
+ <path d="M400 221L420 171L440 221H400Z" fill="#244d3d"/><path d="M420 216V242" stroke="#244d3d" stroke-width="5"/>
+ <path d="M548 266L565 224L582 266H548Z" fill="#193e31"/><path d="M565 261V283" stroke="#193e31" stroke-width="5"/>
+ <g transform="translate(318 127)"><path d="M0 17C0-6 34-6 34 17C34 30 17 45 17 45S0 30 0 17Z" fill="#ac4c2e"/><circle cx="17" cy="16" r="6" fill="#fff9ed"/></g>
+ <g stroke="#fff9ed" stroke-width="2" stroke-linecap="round"><path d="M105 68L111 63L117 68M142 88L148 83L154 88"/></g>
+</svg>

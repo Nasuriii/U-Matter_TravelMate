@@ -1,0 +1,35 @@
+/* Destination and listing cards share one interaction across every catalog. */
+body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card) {
+  min-width:0;
+  cursor:pointer;
+  transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
+}
+body :is(#destination-grid .place-art,.l-grid .l-art,.tm-react .tm-place-cover) img {
+  transition:transform .35s ease;
+}
+body .l-grid .l-more {display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--primary);text-decoration:none}
+body .l-grid .l-more-arrow {font-size:20px;line-height:1;transition:transform .22s ease}
+body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card):focus-within {
+  border-color:var(--primary);
+  outline:2px solid var(--primary);
+  outline-offset:3px;
+}
+body :is(#stay-grid,#eat-grid,#attr-grid) {grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:1100px) {body :is(#stay-grid,#eat-grid,#attr-grid) {grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px) {body :is(#stay-grid,#eat-grid,#attr-grid) {grid-template-columns:minmax(0,1fr)}}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference) {
+  body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card):is(:hover,:focus-within) {
+    transform:translateY(-4px);
+    box-shadow:0 12px 26px #173e3014;
+    border-color:var(--primary);
+  }
+  body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card):is(:hover,:focus-within) :is(.place-art,.l-art,.tm-place-cover) img {transform:scale(1.045)}
+  body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card):is(:hover,:focus-within) :is(.destination-open-arrow,.l-more-arrow,.tm-place-card button[data-slot=button]>svg:last-child) {transform:translate(2px,-2px)}
+}
+@media(hover:none),(pointer:coarse),(prefers-reduced-motion:reduce) {
+  body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card):is(:hover,:focus-within) {transform:none;box-shadow:none}
+  body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card) :is(.place-art,.l-art,.tm-place-cover) img {transform:none}
+  body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card) :is(.destination-open-arrow,.l-more-arrow,.tm-place-card button[data-slot=button]>svg:last-child) {transform:none}
+}
+.tm-react .tm-ticket-delete {color:var(--destructive,#b73d29);border-color:color-mix(in srgb,var(--destructive,#b73d29) 30%,var(--border))}
+.tm-react .tm-ticket-delete:hover {background:color-mix(in srgb,var(--destructive,#b73d29) 9%,var(--card));color:var(--destructive,#b73d29)}
