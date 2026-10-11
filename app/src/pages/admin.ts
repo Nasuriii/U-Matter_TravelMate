@@ -1,3 +1,4 @@
+import { searchControl } from '../search-control';
 // Administrator review page (Business Processes 3, 4 and 5: approve or reject hotel, restaurant and attraction listings).
 export const adminPage = `<section data-page="admin" class="owner" hidden>
 <div class="o-head a-header"><div><p class="eyebrow">ADMIN CONSOLE / LISTING REVIEWS</p><h1>Listing reviews</h1><p>Review local businesses before they appear in travelers’ plans.</p></div><button id="a-refresh" type="button" class="quiet">↻ Refresh queue</button></div>
@@ -6,7 +7,7 @@ export const adminPage = `<section data-page="admin" class="owner" hidden>
 <div class="a-grid">
 <div>
 <div class="o-card a-queue"><div class="a-section-head"><div><h2>Review queue <span id="a-count"></span></h2><p>Check the details, then approve or explain what needs fixing.</p></div></div>
-<label class="a-search" for="a-search">Search listings<input id="a-search" type="search" placeholder="Business, destination or owner…" autocomplete="off"></label>
+<label class="a-search" for="a-search">Search listings${searchControl('<input id="a-search" type="search" placeholder="Business, destination or owner…" autocomplete="off">')}</label>
 <div id="a-filter" class="a-chips" role="group" aria-label="Filter by listing type">
 <button type="button" data-type="all">All</button><button type="button" data-type="hotel">Hotels</button><button type="button" data-type="restaurant">Restaurants</button><button type="button" data-type="attraction">Attractions</button>
 </div>

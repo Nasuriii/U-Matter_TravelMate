@@ -111,7 +111,7 @@ export function ReservationsPage({ owner = false }: { owner?: boolean }) {
     if(!owner&&b.can_cancel)quickActions.push(<Button key="cancel" className="tm-ticket-action-danger" variant="outline" disabled={busy!==null} onClick={()=>void cancel(b)}><CircleX/>Cancel reservation</Button>);
     if(!owner&&!b.is_test&&status==='pending'&&b.payment_status!=='paid')quickActions.push(<Button key="pay" disabled={busy!==null} onClick={()=>void pay(b)}>Pay securely<ArrowUpRight/></Button>);
     if(owner&&b.status==='confirmed')quickActions.push(<Button key="complete" disabled={busy!==null} onClick={()=>void complete(b)}><CheckCircle2/>Mark completed</Button>);
-    return <FoldedTicket key={b.id} name={b.listing_name||'Your reservation'} kind={hotel?'Stay ticket':'Table reservation'} status={status} dates={dates} amount={money(b.total_amount)} payment={payment} actions={quickActions.length?quickActions:null}>
+    return <FoldedTicket key={b.id} reference={b.id.slice(0,8).toUpperCase()} name={b.listing_name||'Your reservation'} kind={hotel?'Stay ticket':'Table reservation'} status={status} dates={dates} amount={money(b.total_amount)} payment={payment} actions={quickActions.length?quickActions:null}>
       <dl className="tm-ticket-fields">
         <div><dt><Ticket size={16}/>Reference</dt><dd>{b.id.slice(0,8).toUpperCase()}</dd></div>
         <div><dt><Users size={16}/>Guests</dt><dd>{b.guest_count} {b.guest_count===1?'guest':'guests'} · {b.guest_name}</dd></div>

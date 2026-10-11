@@ -2,6 +2,7 @@ import {toast} from './ui';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { confirmAction } from './action-confirm';
 import { destinationPhoto } from './experience/destination-photos';
+import { showInlinePhotoCredits } from './experience/destination-picture';
 import { destinationDescription } from './destination-copy';
 type Destination={id:string;name:string;province:string;description:string|null};
 const destinationIcon=(heart=false,filled=false)=>{const el=document.createElementNS('http://www.w3.org/2000/svg','svg');el.setAttribute('viewBox','0 0 24 24');el.setAttribute('width','18');el.setAttribute('height','18');el.setAttribute('fill',filled?'currentColor':'none');el.setAttribute('stroke','currentColor');el.setAttribute('stroke-width','1.8');el.setAttribute('aria-hidden','true');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',heart?'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z':'M7 17 17 7M7 7h10v10');el.append(path);return el;};
@@ -36,7 +37,7 @@ export function createExplorer(client:SupabaseClient){
    button.setAttribute('aria-pressed',String(saved.has(d.id)));button.disabled=pending.has(d.id)||!!uid&&!savedReady;
    button.onclick=()=>void toggle(d.id);
    body.append(region,title,desc);open.append(art,body);card.append(open,button);grid.append(card);
-   if(photo?.source){const credit=document.createElement('p');credit.className='tm-recommendation-credit';const source=document.createElement('a');source.href=photo.source;source.target='_blank';source.rel='noreferrer';source.textContent=photo.author??'Photo source';credit.append(source,' · ');if(photo.licenseUrl){const license=document.createElement('a');license.href=photo.licenseUrl;license.target='_blank';license.rel='noreferrer';license.textContent=photo.license??'License';credit.append(license);}else credit.append(photo.license??'');credit.append(' · cropped');const info=document.createElement('details'),summary=document.createElement('summary');summary.textContent='ⓘ';summary.setAttribute('aria-label','Photo information');info.className='tm-photo-credit-details';info.append(summary,credit);card.append(info);}
+   if(showInlinePhotoCredits&&photo?.source){const credit=document.createElement('p');credit.className='tm-recommendation-credit';const source=document.createElement('a');source.href=photo.source;source.target='_blank';source.rel='noreferrer';source.textContent=photo.author??'Photo source';credit.append(source,' · ');if(photo.licenseUrl){const license=document.createElement('a');license.href=photo.licenseUrl;license.target='_blank';license.rel='noreferrer';license.textContent=photo.license??'License';credit.append(license);}else credit.append(photo.license??'');credit.append(' · cropped');const info=document.createElement('details'),summary=document.createElement('summary');summary.textContent='ⓘ';summary.setAttribute('aria-label','Photo information');info.className='tm-photo-credit-details';info.append(summary,credit);card.append(info);}
   }
   if(!list.length){const empty=document.createElement('p');empty.className='empty';empty.textContent=onlySaved?'No saved destinations match. Explore places and select Save.':'No destinations match your search.';grid.append(empty);}
  }

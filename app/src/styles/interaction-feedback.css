@@ -1,0 +1,25 @@
+/* Search affordances stay inside the field without replacing its native behavior. */
+body .tm-search-control { display: block; position: relative; min-width: 0; width: 100%; }
+body .tm-search-control>svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--muted-foreground); pointer-events: none; z-index: 1; }
+body .tm-search-control:focus-within>svg { color: var(--primary); }
+body .tm-search-control>input[type=search] { display: block; width: 100%; min-width: 0; min-height: 48px; margin: 0; padding: 11px 14px 11px 46px !important; font-size: 16px; line-height: 1.5; }
+.tm-browse-extra>.tm-search-control { flex: 1; }
+.browse-toolbar .tm-search-control, .search-row .tm-search-control, .a-search .tm-search-control { margin-top: 7px; }
+
+/* Animate the red warning surface while Sonner handles placement and dismissal. */
+body [data-sonner-toast].tm-review-error-toast { display: grid; grid-template-columns: 22px 1fr; gap: 10px 12px; background: #fff0ed !important; border: 1.5px solid #d5483e !important; color: #862b23 !important; box-shadow: 0 8px 28px #ad33272b; animation: tm-review-warning-pulse .8s ease-out; }
+body .tm-review-error-toast [data-icon] { grid-column: 1; grid-row: 1; align-self: start; margin-top: 3px; color: #c1372e; }
+body .tm-review-error-toast [data-content] { grid-column: 2; grid-row: 1; }
+body .tm-review-error-toast [data-title] { font-size: 16px; font-weight: 700; }
+body .tm-review-error-toast [data-description] { color: #862b23 !important; font-size: 14px; line-height: 1.55; }
+body .tm-review-error-toast [data-button] { grid-column: 2; justify-self: start; margin: 0; background: #a83229 !important; color: #fff !important; min-height: 36px; font-weight: 650; }
+body[data-theme=dark] [data-sonner-toast].tm-review-error-toast { background: #421f25 !important; border-color: #ed8073 !important; color: #ffe4df !important; }
+body[data-theme=dark] .tm-review-error-toast :is([data-icon],[data-description]) { color: #ffe4df !important; }
+@keyframes tm-review-warning-pulse {
+  0% { box-shadow: 0 0 0 0 #d5483e70; }
+  55% { box-shadow: 0 0 0 7px #d5483e25, 0 8px 28px #ad33272b; }
+  100% { box-shadow: 0 0 0 12px #d5483e00, 0 8px 28px #ad33272b; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body [data-sonner-toast].tm-review-error-toast { animation: none; }
+}

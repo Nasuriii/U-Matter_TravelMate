@@ -47,7 +47,7 @@ export function route() {
   const signupCopy = document.querySelector<HTMLElement>('.auth-box .sub[data-for="register"]');
   const businessSignup = signup === 'business_owner';
   if (signupTitle) signupTitle.textContent = businessSignup ? 'Create your business account' : 'Create your traveler account';
-  if (signupCopy) signupCopy.textContent = businessSignup ? 'Your business portal starts here. Add your first listing after signing up.' : 'Next: choose your travel style, then create your first itinerary.';
+  if (signupCopy) signupCopy.textContent = businessSignup ? 'Showcase your local business. Add your first listing after signing up.' : 'Save your favorites and plan a trip that feels like you.';
   document.body.dataset.signup = businessSignup ? 'business' : 'traveler';
   const signupAside = document.querySelector<HTMLElement>('.auth-copy h2[data-for="register"]');
   const signupAsideCopy = document.querySelector<HTMLElement>('.auth-copy p[data-for="register"]');

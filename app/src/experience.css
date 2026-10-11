@@ -190,10 +190,6 @@ body[data-auth=out] main { margin-left:0!important; }
 @media(prefers-reduced-motion:reduce) { .lp-destination { transition:none!important; }.lp-destination:hover { transform:none; } }
 .tm-react .lp-actions button.lp-text-link { background:transparent!important; border:0!important; box-shadow:none; }
 /* Purpose-specific registration and traveler personalization. */
-body[data-view=auth][data-mode=register][data-signup=business] { --background:#eef5f0; --foreground:#183f30; --primary:#23734d; --muted:#e5f0e7; }
-body[data-view=auth][data-mode=register][data-signup=business] .auth-photo { background:linear-gradient(145deg,#143f31,#2a7450)!important; }
-body[data-view=auth][data-mode=register][data-signup=business] .auth-panel { background:#eef5f0; }
-body[data-view=auth][data-mode=register][data-signup=business] #auth-submit { background:#23734d!important; color:white; }
 #travel-preferences-link { display:inline-block; font-size:12px; margin-top:18px; color:var(--primary); text-decoration:underline; text-underline-offset:4px; }
 #travel-preferences-link[hidden] { display:none; }
 .tm-preferences { max-width:1300px; }

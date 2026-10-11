@@ -1,30 +1,38 @@
-/* A compact ticket cover; actions stay visible while extra details unfold. */
+/* A perforated ticket cover with a hinged paper flap for the extra details. */
 .tm-react .tm-ticket-grid {align-items:start;gap:18px;grid-template-columns:repeat(2,minmax(0,1fr))}
-.tm-react .tm-folded-ticket {border:1.5px solid color-mix(in srgb,var(--foreground) 22%,var(--border));border-radius:18px;overflow:hidden;min-width:0;box-shadow:0 3px 12px #173e3006;transition:border-color .2s,box-shadow .2s}
+.tm-react .tm-folded-ticket {position:relative;border:1.5px solid color-mix(in srgb,var(--foreground) 30%,var(--border));border-radius:18px;overflow:hidden;min-width:0;background:var(--card);box-shadow:0 3px 12px #173e3006;transition:border-color .2s,box-shadow .2s}
 .tm-react .tm-folded-ticket:hover {transform:none;box-shadow:0 6px 18px #173e300a}
 .tm-react .tm-folded-ticket.is-open {border-color:var(--primary)}
 .tm-react .tm-ticket-fold-toggle {display:flex;flex-direction:column;gap:12px;width:100%;height:auto;min-height:0;text-align:left;padding:20px;border:0;border-radius:0;background:transparent;color:var(--foreground);white-space:normal;cursor:pointer;box-shadow:none}
 .tm-react .tm-ticket-fold-toggle:hover {background:color-mix(in srgb,var(--muted) 45%,var(--card));transform:none;box-shadow:none}
 .tm-ticket-fold-top {display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
-.tm-ticket-kind {display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--primary)}
+.tm-ticket-kind {display:flex;align-items:center;gap:7px;font-size:12px;font-weight:650;letter-spacing:1px;text-transform:uppercase;color:var(--tm-accent,var(--primary))}
 .tm-react .tm-folded-ticket .tm-status {font-size:12px;padding:3px 9px;white-space:nowrap}
 .tm-ticket-title {font-family:Fraunces,Georgia,serif;font-size:24px;line-height:1.2;font-weight:500;overflow-wrap:anywhere}
 .tm-ticket-date-line {font-size:14px;font-weight:400;line-height:1.5;color:var(--muted-foreground)}
+.tm-react .tm-folded-ticket .tm-ticket-reference {font-size:12px;line-height:1.4;font-weight:400;letter-spacing:1px;text-transform:uppercase;margin:0!important;color:var(--muted-foreground)}
 .tm-ticket-fold-bottom {display:flex;justify-content:space-between;align-items:end;gap:12px;width:100%;padding-top:2px}
 .tm-ticket-amount {display:flex;flex-direction:column;gap:3px;font-size:21px;font-weight:650;line-height:1.25}
 .tm-ticket-amount small {font-size:12px!important;font-weight:400;color:var(--muted-foreground)}
 .tm-ticket-fold-cue {display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--primary);white-space:nowrap}
 .tm-ticket-fold-cue svg {transition:transform .25s}
 .tm-react .is-open .tm-ticket-fold-cue svg {transform:rotate(180deg)}
-.tm-ticket-quick-actions {display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px dashed color-mix(in srgb,var(--foreground) 25%,var(--border));padding:12px 20px;background:color-mix(in srgb,var(--muted) 30%,var(--card))}
+.tm-ticket-crease {display:block;position:relative;height:0;margin:0 20px;border-top:1px dashed color-mix(in srgb,var(--foreground) 40%,var(--border));z-index:2;pointer-events:none}
+.tm-ticket-crease::before,.tm-ticket-crease::after {content:'';position:absolute;top:-11px;width:20px;height:20px;border:1px solid color-mix(in srgb,var(--foreground) 30%,var(--border));border-radius:50%;background:var(--background)}
+.tm-ticket-crease::before {left:-31px}
+.tm-ticket-crease::after {right:-31px}
+.tm-ticket-quick-actions {display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;background:color-mix(in srgb,var(--muted) 30%,var(--card))}
 .tm-react .tm-ticket-quick-actions [data-slot=button] {min-height:42px;font-size:14px}
 .tm-react .tm-ticket-quick-actions [data-slot=button].tm-ticket-action-danger {color:#a43525;border:1px solid #d69d91;background:color-mix(in srgb,#c04f36 7%,var(--card));font-weight:650}
 .tm-react .tm-ticket-quick-actions [data-slot=button].tm-ticket-action-danger:hover {background:color-mix(in srgb,#c04f36 15%,var(--card));color:#92301f}
 body[data-theme=dark] .tm-react .tm-ticket-quick-actions [data-slot=button].tm-ticket-action-danger {color:#ffb3a6;border-color:#b97669;background:color-mix(in srgb,#bd624d 12%,var(--card))}
-.tm-ticket-unfold {display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s ease}
-.tm-folded-ticket.is-open .tm-ticket-unfold {grid-template-rows:1fr}
-.tm-ticket-unfold-inner {min-height:0;overflow:hidden}
-.tm-ticket-unfold-content {padding:18px 20px 20px;border-top:1px dashed color-mix(in srgb,var(--foreground) 25%,var(--border))}
+.tm-ticket-unfold {display:grid;grid-template-rows:0fr;perspective:1100px;transition:grid-template-rows .5s cubic-bezier(.22,.68,.25,1) .08s}
+.tm-folded-ticket.is-open .tm-ticket-unfold {grid-template-rows:1fr;transition-delay:0s}
+.tm-ticket-unfold-inner {min-height:0;overflow:hidden;perspective:1100px}
+.tm-ticket-unfold-content {position:relative;padding:22px 20px 20px;border-top:1px dashed color-mix(in srgb,var(--foreground) 35%,var(--border));background:var(--card);transform-origin:center top;transform:rotateX(-100deg);backface-visibility:hidden;opacity:0;box-shadow:inset 0 14px 22px -18px #173e3066;transition:transform .55s cubic-bezier(.22,.68,.25,1),opacity .15s ease .35s}
+.tm-folded-ticket.is-open .tm-ticket-unfold-content {transform:rotateX(0deg);opacity:1;transition:transform .55s cubic-bezier(.22,.68,.25,1),opacity .15s ease}
+.tm-ticket-unfold-content::after {content:'';position:absolute;inset:0;background:linear-gradient(180deg,#173e3040,transparent 75%);pointer-events:none;opacity:1;transition:opacity .55s ease}
+.tm-folded-ticket.is-open .tm-ticket-unfold-content::after {opacity:0}
 .tm-ticket-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0}
 .tm-ticket-fields>div {min-width:0}
 .tm-ticket-fields dt {display:flex;gap:6px;align-items:center;color:var(--muted-foreground);font-size:13px;margin-bottom:5px}
@@ -48,4 +56,4 @@ body .l-grid .l-more:hover {background:var(--primary);color:var(--primary-foregr
 .l-preview-badge {position:absolute;left:14px;top:14px;font-size:11px;letter-spacing:0;text-transform:none;font-weight:500;border-radius:99px;padding:4px 9px;background:#fffdf4eb;color:#334b40;box-shadow:0 2px 8px #172b4d10}
 @media(max-width:760px) {.tm-react .tm-ticket-grid {grid-template-columns:1fr}.tm-react .tm-ticket-fold-toggle{padding:18px}.tm-ticket-title{font-size:23px}.tm-ticket-quick-actions{padding:12px 18px}.tm-ticket-unfold-content{padding:18px}.tm-ticket-date-line{font-size:14px}}
 @media(max-width:440px) {.tm-ticket-fields{grid-template-columns:1fr}.tm-ticket-fold-cue{font-size:12px}.tm-ticket-secondary-actions>[data-slot=button]{flex:1;white-space:normal}}
-@media(prefers-reduced-motion:reduce) {.tm-ticket-unfold,.tm-ticket-fold-cue svg{transition:none}}
+@media(prefers-reduced-motion:reduce) {.tm-ticket-unfold,.tm-ticket-fold-cue svg,.tm-ticket-unfold-content,.tm-folded-ticket.is-open .tm-ticket-unfold-content,.tm-ticket-unfold-content::after{transition:none}.tm-ticket-unfold-content{transform:none}.tm-ticket-unfold-content::after{display:none}}

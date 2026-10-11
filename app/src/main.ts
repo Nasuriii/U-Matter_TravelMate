@@ -19,13 +19,16 @@ import { authPage } from './pages/auth';
 import { explorePage } from './pages/explore';
 import { accountPage } from './pages/account';
 import { route, go } from './router';
-import { installButtonLoading } from './ui';
+import { installButtonLoading, toast } from './ui';
 import { homePage } from './pages/home';
 import { purposeForPath, workspaceAfterSignup } from './signup-flow';
+import { installAuthFeedback, validateAuthForm } from './auth-feedback';
+import type { AuthMode } from './auth-validation';
 
 // Static markup only. User/database content is inserted through textContent/value.
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = header + `<main id="main-content" tabindex="-1">${landingPage}${homePage}${authPage}${explorePage}${stayPage}${eatPage}${attractionsPage}${ownerPage}${adminPage}${accountPage}${tripsPage}${experiencePages}</main>` + dialogs + footer;
 mountExperience();
+installAuthFeedback();
 const menu = document.querySelector<HTMLButtonElement>('#mobile-menu')!;
 const closeMenu = () => { document.body.classList.remove('nav-open'); menu.setAttribute('aria-expanded','false'); };
 menu.addEventListener('click', () => { const open = document.body.classList.toggle('nav-open'); menu.setAttribute('aria-expanded',String(open)); });
@@ -34,7 +37,7 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') closeMenu(); 
 document.querySelector('#main-navigation')!.addEventListener('click', e => { if ((e.target as HTMLElement).closest('a,button')) closeMenu(); });
 window.addEventListener('hashchange',route); route();
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const notice = (message: string, error = false) => { for (const id of ['notice', 'auth-notice']) { const n = el(id); n.textContent = message; n.classList.toggle('error', error); } };
+const notice = (message: string, error = false) => { for (const id of ['notice', 'auth-notice']) { const n = el(id); n.textContent = message; n.classList.toggle('error', error); } if (error && document.body.dataset.view === 'auth') toast(message, true); };
 const rawError = (e: unknown): string => e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String(e.message) : String(e);
 function explain(e: unknown) {
  const message = rawError(e);
@@ -76,6 +79,7 @@ async function start() {
  function controls() {
   for(const id of ['login','refresh','save','upload','auth-submit']) el<HTMLButtonElement>(id).disabled=busy || (['save','upload'].includes(id) && !profile) || (id==='upload' && !el<HTMLInputElement>('file').files?.length);
   el<HTMLFieldSetElement>('fields').disabled=busy || !profile;
+  el('auth-form').setAttribute('aria-busy', String(busy));
   el<HTMLInputElement>('file').disabled=busy || !profile;
  }
  function clearAvatar() {
@@ -164,13 +168,17 @@ async function start() {
   const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+'/',queryParams:{prompt:'select_account'}}});if(error)throw error;
  }));
  const val=(id:string)=>el<HTMLInputElement>(id).value;
- el('auth-form').addEventListener('submit',e=>{e.preventDefault();void run(async()=>{
+ el('auth-form').addEventListener('submit',e=>{e.preventDefault();
+  if(busy)return;
+  const authMode=(purposeForPath(location.hash.slice(1))?'register':location.hash.replace(/^#\/?/,'')) as AuthMode;
+  const issues=validateAuthForm(authMode);if(issues.length){notice('Check the highlighted fields, then try again.',true);return;}
+  void run(async()=>{
   const purpose=purposeForPath(location.hash.slice(1));
   const mode=purpose?'register':location.hash.replace(/^#\/?/,''),email=val('auth-email').trim(),password=val('auth-password');
   if(mode!=='reset'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('Enter a valid email address.');
   if(mode==='forgot'){
    notice('Sending reset link…');const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+'/'});if(error)throw error;
-   notice('If that email has an account, a reset link is on its way. Check your inbox.');return;
+   notice('If that email has an account, a reset link is on its way. Check your inbox.');toast('Check your inbox for a reset link.');return;
   }
   if(mode==='reset'||mode==='register'){
    if(password.length<8)throw new Error('Use a password of at least 8 characters.');
@@ -178,7 +186,7 @@ async function start() {
   }
   if(mode==='reset'){
    notice('Saving your new password…');const {error}=await supabase.auth.updateUser({password});if(error)throw error;
-   notice('Password updated.');go('/home');return;
+   notice('Password updated.');toast('Password updated.');go('/home');return;
   }
   if(mode==='register'){
    const name=(val('reg-first').trim()+' '+val('reg-last').trim()).trim();
@@ -187,14 +195,13 @@ async function start() {
    const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,signup_account_type:purpose??'traveler'},emailRedirectTo:window.location.origin+'/'}});
    if(error)throw error;
    if(data.user&&data.user.identities?.length===0)throw new Error('That email is already registered. Log in instead.');
+   toast(data.session?'Account created. Welcome to TravelMate.':'Account created. Check your email to confirm your address.');
    if(!data.session){go('/login');notice('Account created. Check your email and confirm your address, then log in. Your profile is created once your email is confirmed.');}
    return;
   }
   if(!password)throw new Error('Enter your password.');
   notice('Logging in…');const {error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;
  });});
- el('toggle-pw').addEventListener('click',()=>{const show=el<HTMLInputElement>('auth-password').type==='password';
-  for(const id of ['auth-password','auth-confirm'])el<HTMLInputElement>(id).type=show?'text':'password';el('toggle-pw').textContent=show?'Hide':'Show';});
  el('top-logout').addEventListener('click',()=>window.dispatchEvent(new Event('travelmate:sign-out')));
  el('home-search-form').addEventListener('submit',e=>{e.preventDefault();el<HTMLInputElement>('search').value=val('home-search').trim();go('/explore');el<HTMLFormElement>('search-form').requestSubmit();});
  el<HTMLInputElement>('file').addEventListener('change',()=>{el('file-name').textContent=el<HTMLInputElement>('file').files?.[0]?.name??'No file chosen';controls();});
@@ -275,3 +282,6 @@ import './card-interactions.css';
 import './booking-catalog.css';
 import './trip-pickers.css';
 import './listing-workspace.css';
+import './styles/public-pages.css';
+import './styles/home-page.css';
+import './styles/interaction-feedback.css';

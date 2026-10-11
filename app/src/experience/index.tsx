@@ -3,6 +3,8 @@ import {installInputLimits} from '../input-limits';
 import {SavedPage} from './saved';
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
+import { AuthExperience } from './auth';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { configureClient, setIdentity, useIdentity, track, type Identity } from './state';
 import { Navigation } from './navigation';
@@ -37,6 +39,7 @@ function RoutePage({ page }: { page: string }) {
 let mounted = false;
 export function mountExperience() {
   if (mounted) return; mounted = true; installInputLimits();
+  const auth = document.getElementById('react-auth'); if (auth) flushSync(() => createRoot(auth).render(<AuthExperience />));
   const landing = document.getElementById('react-landing'); if (landing) createRoot(landing).render(<Landing />);
   const nav = document.createElement('div'); nav.id = 'react-navigation'; nav.className = 'tm-react'; document.body.prepend(nav); createRoot(nav).render(<Navigation />);
   const overlays = document.createElement('div'); document.body.append(overlays); createRoot(overlays).render(<><ToastLayer/><AppearanceManager/><OnboardingGate/><DayPlanner/></>);
