@@ -1,4 +1,5 @@
 import { confirmAction } from './action-confirm';
+import {labelAction,actionIcon} from './listing-action-menu';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadNotifications } from './notifications';
 import { tidy, toast } from './ui';
@@ -78,15 +79,16 @@ export function initAdmin(client: SupabaseClient) {
   function card(l: Row) {
     const c = h('article', 'a-card'), problems = (l.problems ?? []) as string[];
     const top = h('div', 'a-card-top');
-    top.append(h('span', 'a-type', LABEL[l.type] ?? String(l.type)), h('span', problems.length ? 'a-readiness a-needs' : 'a-readiness a-ready', problems.length ? '! Needs attention' : '✓ Ready for approval'));
+    const readinessBadge=h('span',problems.length?'a-readiness a-needs':'a-readiness a-ready');labelAction(readinessBadge,problems.length?'alert':'check',problems.length?'Needs attention':'Ready for approval');top.append(h('span','a-type',LABEL[l.type]??String(l.type)),readinessBadge);
     c.append(top, h('h3', '', l.name), h('p', 'a-location', l.destination || 'Destination not provided'));
     const review = document.createElement('details'); review.className = 'a-review-expanded';
     const reviewSummary = h('summary', '', 'Review listing'); reviewSummary.setAttribute('aria-label', 'Review ' + l.name); review.append(reviewSummary);
+    labelAction(reviewSummary,'eye','Review listing');reviewSummary.append(actionIcon('more'));
     const reviewBody = h('div', 'a-review-body'); review.append(reviewBody);
     reviewBody.append(h('p', '', l.address || 'No address'), h('p', 'a-owner', `Submitted by ${l.owner ?? '—'}${l.owner_email ? ' · ' + l.owner_email : ''}`));
     if (problems.length) { const panel = h('div', 'a-blockers'), w = h('ul', 'a-problems'); for (const p of problems) w.append(h('li', '', p)); panel.append(h('strong', '', 'Changes needed before approval'), w); reviewBody.append(panel); }
     const disclosure = document.createElement('details'), content = h('div', 'a-detail-content'); disclosure.className = 'a-details';
-    disclosure.append(h('summary', '', 'View listing details & photos'), content);
+    const detailSummary=h('summary');labelAction(detailSummary,'eye','View listing details & photos');detailSummary.append(actionIcon('more'));disclosure.append(detailSummary, content);
     if (l.description) content.append(h('p', 'a-description', l.description));
     details(content, l);
     const contacts=h('div');content.append(contacts);const photos = h('div'); content.append(photos); let photosLoaded = false;
@@ -94,8 +96,9 @@ export function initAdmin(client: SupabaseClient) {
     reviewBody.append(disclosure);
     const reason = document.createElement('textarea'); reason.id = `a-reason-${l.id}`; reason.placeholder = 'Explain what the owner needs to fix…'; reason.maxLength = 300; reason.rows = 2;
     const reasonLabel = h('label', '', 'Reason for rejection'); reasonLabel.setAttribute('for', reason.id);
-    const rejectPanel = document.createElement('details'); rejectPanel.className = 'a-reject-panel'; rejectPanel.append(h('summary', '', 'Reject or request corrections'), reasonLabel, reason, h('small', '', 'Required to reject · up to 300 characters. The owner will receive this reason.'));
+    const rejectPanel = document.createElement('details'); rejectPanel.className = 'a-reject-panel';const rejectSummary=h('summary');labelAction(rejectSummary,'alert','Request corrections');rejectSummary.append(actionIcon('more'));rejectPanel.append(rejectSummary, reasonLabel, reason, h('small', '', 'Required to reject · up to 300 characters. The owner will receive this reason.'));
     const ok = h('button', 'primary', 'Approve listing') as HTMLButtonElement, no = h('button', 'quiet a-reject-button', 'Reject listing') as HTMLButtonElement; ok.type = no.type = 'button';
+    labelAction(ok,'check','Approve listing');labelAction(no,'alert','Reject listing');
     ok.disabled = problems.length > 0; ok.title = problems.length ? 'Fix the listed problems first, or reject with a reason.' : '';
     ok.addEventListener('click', () => void decide(l, true, '', [ok, no]));
     no.addEventListener('click', () => { if (!reason.value.trim()) { reason.setAttribute('aria-invalid', 'true'); reason.focus(); } void decide(l, false, reason.value, [ok, no]); });
@@ -142,6 +145,7 @@ export function initAdmin(client: SupabaseClient) {
   }
 
   async function refresh() {
+    if(location.hash.split('?')[0]==='#/admin'){const query=new URLSearchParams(location.hash.split('?')[1]).get('search');if(query!==null){search=query.slice(0,120).trim().toLowerCase();($('a-search') as HTMLInputElement).value=query.slice(0,120);filter='all';readiness='all';currentPage=1;}}
     const version = ++refreshVersion, button = $('a-refresh') as HTMLButtonElement; button.disabled = true; button.textContent = 'Refreshing…';
     try {
       const [x, y] = await Promise.all([db.rpc('admin_review_queue'), db.rpc('admin_reviewed_listings', { p_limit: 15 })]);
@@ -149,13 +153,13 @@ export function initAdmin(client: SupabaseClient) {
       if (x.error) { fail(x.error); $('a-list').replaceChildren(h('p', 'muted', 'Could not load the review queue. Use Refresh queue to try again.')); } else { queue = (x.data ?? []) as Row[]; renderQueue(); }
       if (y.error) $('a-history').replaceChildren(h('p', 'muted', 'Recent decisions could not be loaded. Please refresh to try again.')); else renderHistory((y.data ?? []) as Row[]);
       void loadNotifications(client, $('a-notes'));
-    } catch (e) { if (version === refreshVersion) fail(e); } finally { if (version === refreshVersion) { button.disabled = false; button.textContent = '↻ Refresh queue'; } }
+    } catch (e) { if (version === refreshVersion) fail(e); } finally { if (version === refreshVersion) { button.disabled = false; labelAction(button,'refresh','Refresh queue'); } }
   }
 
   document.querySelectorAll<HTMLButtonElement>('#a-filter button').forEach(b => b.addEventListener('click', () => { filter = b.dataset.type!; currentPage = 1; renderQueue(); }));
   document.querySelectorAll<HTMLButtonElement>('[data-readiness]').forEach(b=>b.addEventListener('click',()=>{readiness=b.dataset.readiness!;currentPage=1;renderQueue();$('a-list').scrollIntoView({behavior:'smooth',block:'start'});}));
   $('a-search').addEventListener('input', e => { search = (e.target as HTMLInputElement).value.trim().toLowerCase(); currentPage = 1; renderQueue(); });
   $('a-refresh').addEventListener('click', () => void refresh());
-  window.addEventListener('hashchange', () => { if (location.hash === '#/admin') void refresh(); });
+  window.addEventListener('hashchange', () => { if (location.hash.split('?')[0] === '#/admin') void refresh(); });
   return { refresh };
 }

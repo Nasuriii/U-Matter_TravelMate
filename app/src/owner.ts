@@ -1,4 +1,5 @@
 import {catalogLabel} from './catalog-label';
+import {listingActionMenu,labelAction,type ActionIcon} from './listing-action-menu';
 import { confirmAction } from './action-confirm';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadNotifications } from './notifications';
@@ -299,7 +300,9 @@ export function initOwner(client: SupabaseClient) {
     } catch (e) { fail(e); } finally { changingStatus = false; }
   }
   let displayedRows: Row[] = [], currentPage = 1;
+  let menuCleanups: (()=>void)[]=[];
   function render(rows: Row[]) {
+    menuCleanups.forEach(cleanup=>cleanup());menuCleanups=[];
     displayedRows = rows;
     $('o-total').textContent = String(rows.length);
     $('o-active').textContent = String(rows.filter(r => r.status === 'approved').length);
@@ -321,15 +324,16 @@ export function initOwner(client: SupabaseClient) {
       if (l.status === 'rejected' && l.rejection_reason) { const reason = document.createElement('details'); reason.className = 'o-listing-reason'; reason.append(h('summary', '', 'View requested changes'), h('p', '', l.rejection_reason)); info.append(reason); }
       const badge = h('span', 'status s-' + l.status, LABEL[l.status] ?? l.status), acts = h('div', 'o-acts');
       const m = h('button', 'quiet o-manage-button', 'Manage'); m.setAttribute('aria-label', 'Manage ' + catalogLabel(l.name)); m.addEventListener('click', () => manage(l)); acts.append(m);
-      const more = document.createElement('details'); more.className = 'o-listing-actions'; const actionList = h('div', 'o-listing-action-list'); more.append(h('summary', '', 'More'), actionList);
-      if (l.status === 'inactive' || l.status === 'rejected') { const b = h('button', 'quiet', 'Resubmit'); b.addEventListener('click', () => void setStatus(l, 'pending', 'Resubmitted for review.')); actionList.append(b); }
-      else if (l.status === 'approved' || l.status === 'pending') { const b = h('button', 'quiet', 'Deactivate'); b.addEventListener('click', () => void setStatus(l, 'inactive', 'Listing deactivated.')); actionList.append(b); }
+      labelAction(m,'edit','Manage');
+      const actions: {label:string;icon:ActionIcon;danger?:boolean;run:()=>void}[]=[];
+      if (l.status === 'inactive' || l.status === 'rejected') actions.push({label:'Resubmit for review',icon:'send',run:()=>void setStatus(l,'pending','Resubmitted for review.')});
+      else if (l.status === 'approved' || l.status === 'pending') actions.push({label:'Deactivate listing',icon:'power',run:()=>void setStatus(l,'inactive','Listing deactivated.')});
       if (l.status !== 'approved') {
-        const d = h('button', 'quiet danger', 'Delete'); d.addEventListener('click', async () => { if (await confirmChange('Delete this listing permanently?',`${l.name}\nIts rooms, menu, schedules and photos are removed too. This cannot be undone.`,'Delete listing')) void removeListing(l); }); actionList.append(d);
+        actions.push({label:'Delete listing',icon:'trash',danger:true,run:()=>{void (async()=>{if(await confirmChange('Delete this listing permanently?',`${l.name}\nIts rooms, menu, schedules and photos are removed too. This cannot be undone.`,'Delete listing'))void removeListing(l);})();}});
       }
       const help: Record<string, string> = { pending: 'Awaiting administrator review. Hidden from travelers.', approved: 'Live: travelers can discover this listing.', rejected: 'Changes requested. Edit your details, then resubmit.', inactive: 'Hidden from travelers. Resubmit when ready to reopen.' };
       badge.title = help[l.status] ?? 'Unknown status. Contact an administrator.';
-      if (actionList.childElementCount) acts.append(more);
+      if (actions.length) menuCleanups.push(listingActionMenu(acts,catalogLabel(l.name),actions));
       const main = h('div', 'o-listing-main'); main.append(icon, info); row.append(main, badge, acts); box.append(row);
     }
   }
@@ -369,6 +373,7 @@ export function initOwner(client: SupabaseClient) {
   }
   document.querySelectorAll<HTMLButtonElement>('[data-listing-status]').forEach(b=>b.addEventListener('click',()=>{($('o-status') as HTMLSelectElement).value=b.dataset.listingStatus!;($('o-search') as HTMLInputElement).value='';($('o-type') as HTMLSelectElement).value='all';currentPage=1;render(displayedRows);$('o-list').scrollIntoView({behavior:'smooth',block:'start'});}));
   const filterListings = () => { currentPage = 1; render(displayedRows); };
+  const incomingFilters=()=>{if(location.hash.split('?')[0]!=='#/owner')return;const params=new URLSearchParams(location.hash.split('?')[1]);if(params.has('search')){($('o-search') as HTMLInputElement).value=(params.get('search')||'').slice(0,120);($('o-status') as HTMLSelectElement).value='all';($('o-type') as HTMLSelectElement).value='all';}if(['all','approved','pending','rejected','inactive'].includes(params.get('status')||''))($('o-status') as HTMLSelectElement).value=params.get('status')!;currentPage=1;};
   $('o-search').addEventListener('input', filterListings);
   $('o-status').addEventListener('change', filterListings);
   $('o-type').addEventListener('change', filterListings);
@@ -399,8 +404,8 @@ export function initOwner(client: SupabaseClient) {
         ($('ol-form') as HTMLFormElement).reset(); ($('o-create-listing') as HTMLDetailsElement).open = false; currentPage = 1; sync(); say('Listing submitted. It will appear to travelers once an administrator approves it.'); await refresh();
       } catch (err) { fail(err); } finally { submitting = false; }
     });
-    window.addEventListener('hashchange', () => { if (location.hash === '#/owner') void refresh(); });
+    window.addEventListener('hashchange', () => { if (location.hash.split('?')[0] === '#/owner') {incomingFilters();void refresh();} });
   }
   void loadDests();
-  return { setUser(id: string | null) { if (activeUser === id) return; activeUser = id; ownerEpoch++; ownerId = null; inflight = null; displayedRows = []; currentPage = 1; $('o-list').replaceChildren(); $('o-pagination').replaceChildren(); $('o-results').textContent = ''; $('o-manage').hidden = true; $('o-notes').replaceChildren(); }, refresh: () => { wire(); return refresh(); } };
+  return { setUser(id: string | null) { if (activeUser === id) return; menuCleanups.forEach(cleanup=>cleanup());menuCleanups=[];activeUser = id; ownerEpoch++; ownerId = null; inflight = null; displayedRows = []; currentPage = 1; $('o-list').replaceChildren(); $('o-pagination').replaceChildren(); $('o-results').textContent = ''; $('o-manage').hidden = true; $('o-notes').replaceChildren(); }, refresh: () => { wire();incomingFilters();return refresh(); } };
 }

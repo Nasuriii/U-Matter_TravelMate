@@ -23,6 +23,7 @@ const routes: Record<string, { page: string; access: Access }> = {
   '/reports': { page: 'reports', access: 'staff' },
   '/owner': { page: 'owner', access: 'owner' },
   '/admin': { page: 'admin', access: 'admin' },
+  '/users': { page: 'users', access: 'admin' },
   '/account': { page: 'account', access: 'in' },
 };
 export const go = (path: string) => { location.hash = '#' + path; };

@@ -285,3 +285,4 @@ import './listing-workspace.css';
 import './styles/public-pages.css';
 import './styles/home-page.css';
 import './styles/interaction-feedback.css';
+import './styles/business-workspace.css';
