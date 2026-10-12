@@ -2,6 +2,7 @@
 setlocal EnableExtensions
 title TravelMate - Local App
 rem Fresh Git clones use app/.env.example to set up the shared catalog automatically.
+rem Each launch syncs npm dependencies after git pull and runs npm run check.
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\run-app.ps1" %*
 set "TRAVELMATE_EXIT=%ERRORLEVEL%"
 if not "%TRAVELMATE_EXIT%"=="0" (

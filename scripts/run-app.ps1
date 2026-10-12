@@ -113,22 +113,33 @@ try {
     if ($serverState -eq 'occupied') {
         throw 'Port 5173 is used by another app. Close that app or its dev server, then retry.'
     }
+    Write-Host '[CHECK] Checking npm and app dependencies.'
+    & $npmCommand.Source --version
+    if ($LASTEXITCODE -ne 0) { throw 'npm could not run. Repair your Node.js installation, then reopen the launcher.' }
     if ($Check) {
-        Write-Host "[READY] Runtime and configuration are valid. Server: $serverState."
+        # Diagnostics must also catch packages added by a pull, such as Sonner.
+        & $npmCommand.Source ls --depth=0 --include=dev
+        if ($LASTEXITCODE -ne 0) { throw 'App dependencies are missing or outdated. Run run-app.bat without -Check to repair them.' }
+    } else {
+        # Reconcile every launch with the pulled package.json and package-lock.json.
+        # Existing Vite/TypeScript binaries do not prove that new packages are installed.
+        Write-Host '[SETUP] Syncing app dependencies with the current Git checkout.'
+        # Avoid removing native files that an existing Windows dev server may have locked.
+        $installCommand = if (Test-Path -LiteralPath 'node_modules') { 'install' } else { 'ci' }
+        & $npmCommand.Source $installCommand --include=dev --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed. Check the npm message and your internet connection, then retry.' }
+    }
+    Write-Host '[CHECK] Running npm run check.'
+    & $npmCommand.Source run check
+    if ($LASTEXITCODE -ne 0) { throw 'The app check failed. Fix the errors above before starting TravelMate.' }
+    if ($Check) {
+        Write-Host "[READY] Runtime and configuration are valid. Dependencies and app check passed. Server: $serverState."
         exit 0
     }
     if ($serverState -eq 'travelmate') {
         Write-Host "[READY] TravelMate is already running at $appUrl"
         if (-not $NoBrowser) { Start-Process $appUrl }
         exit 0
-    }
-
-    if (-not (Test-Path -LiteralPath 'node_modules/.bin/vite.cmd') -or -not (Test-Path -LiteralPath 'node_modules/.bin/tsc.cmd')) {
-        Write-Host '[SETUP] Installing missing app dependencies.'
-        # Repair an existing install without removing native files that Windows may have locked.
-        $installCommand = if (Test-Path -LiteralPath 'node_modules') { 'install' } else { 'ci' }
-        & $npmCommand.Source $installCommand --no-audit --no-fund
-        if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed. Check the npm message and your internet connection, then retry.' }
     }
 
     if (-not $NoBrowser) {
