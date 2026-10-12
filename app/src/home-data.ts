@@ -3,6 +3,7 @@ import {sampleGallery} from './sample-photos';
 import { catalogLabel, isPreview } from './catalog-label';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { navigate } from './experience/state';
+import {mountDestinationFilter} from './experience/filter-select';
 type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
 const one = (v: any) => (Array.isArray(v) ? v[0] : v);
@@ -56,7 +57,7 @@ export function loadLanding(client: SupabaseClient) {
   })();
 }
 
-/** Stay / Eat pages (signed-in): approved listings with photos and a details popup. */
+/** Public stay, eat and attraction catalogs: approved listings with photos. */
 export function loadBrowse(client: SupabaseClient) {
   const db = client.schema('public');
   const dlg = $('listing-dialog') as HTMLDialogElement, body = $('listing-detail');
@@ -154,6 +155,7 @@ export function loadBrowse(client: SupabaseClient) {
       if(!matched.length)grid.append(mk('p','empty','No places match. Try another name or destination.'));
       $(prefix+'-results').textContent=`${matched.length} matching places · ${cards.length} loaded${cards.length===200?' (first 200 by name)':''}`;
     };
+    const regionHost=mk('div','tm-react tm-browse-destination-filter');region.hidden=true;filters.prepend(regionHost);disposers.push(mountDestinationFilter(regionHost,Array.from(region.options,option=>({value:option.value,label:option.text})),value=>{region.value=value;render();}));
     search.oninput=render;sort.onchange=render;region.onchange=render;saved.onclick=()=>{onlySaved=!onlySaved;saved.setAttribute('aria-pressed',String(onlySaved));render();};window.addEventListener('travelmate:favorites',render);browseCleanups.set(gridId,()=>{window.removeEventListener('travelmate:favorites',render);filters.remove();disposers.forEach(fn=>fn());});render();
   }
   void listings('hotel', 'stay-grid', 'Hotel'); void listings('restaurant', 'eat-grid', 'Restaurant'); void listings('attraction', 'attr-grid', 'Attraction');

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, Compass, MapPin, Plus, Sparkles } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { recommendPlaces, interestLabels } from '../recommendations';
@@ -20,7 +20,7 @@ async function catalog<T>(table: string, columns: string, key: string, value: st
     if (r.data.length < 500) return rows;
   }
 }
-export function Recommendations() {
+export function Recommendations({fallbackDestinations = []}: {fallbackDestinations?: Destination[]}) {
   const identity = useIdentity(); const [picks, setPicks] = useState<Picks | null>(null);
   const [covers, setCovers] = useState<Record<string, DestinationPhoto>>({});
   const [error, setError] = useState(''); const [version, setVersion] = useState(0);
@@ -59,15 +59,13 @@ export function Recommendations() {
     } catch (e) { if (!cancelled) setError(errorMessage(e)); } })();
     return () => {cancelled = true;};
   }, [identity.id, version]);
+  const destinations = picks?.destinations.length ? picks.destinations : fallbackDestinations.slice(0, 3).map(place => ({place, interests: [] as string[]}));
   return <section className="tm-recommendations" aria-labelledby="tm-recommendations-title">
-    <div className="tm-section-title"><div><p className="tm-eyebrow"><Sparkles size={14}/>YOUR KIND OF GETAWAY</p><h2 id="tm-recommendations-title">Recommended for you</h2></div><Button variant="ghost" onClick={() => navigate('/preferences')}>Change preferences<ArrowUpRight/></Button></div>
-    {error ? <ErrorState message={error} retry={() => setVersion(v => v + 1)}/> : !picks ? <LoadingCards/> : !picks.interests.length ?
-      <EmptyState title="What does your kind of trip look like?" action={<Button variant="outline" onClick={() => navigate('/preferences')}>Choose your interests<ArrowUpRight/></Button>}>Choose beaches, mountains, food, or whatever you love to get personal suggestions. You can also explore destinations below.</EmptyState> : <>
-      <div className="tm-recommendation-interests">{picks.interests.map(i => <span className="tm-pill" key={i}>{interestLabels[i]}</span>)}</div>
-      <p className="tm-recommendation-intro tm-muted">Matched to your interests using destination and approved business details.</p>
-      {!picks.destinations.length && <EmptyState title="Your next match is still on its way">We haven’t found catalog matches for these interests yet. Explore destinations below or change your preferences.</EmptyState>}
-      <div className="tm-card-grid tm-recommendation-grid">{picks.destinations.map(({place, interests}) => <Card className="tm-recommended-destination" key={place.id}><DestinationCover key={covers[place.id]?.src ?? place.id} photo={covers[place.id]}/><CardContent className="tm-recommended-content"><small>{place.province}</small><h3>{place.name}</h3><p className="tm-match-reason">Matches your interests: {interests.map(i => interestLabels[i]).join(', ')}.</p><div className="tm-recommendation-actions"><Button variant="outline" onClick={() => navigate('/destination/' + place.id)}>Explore places<ArrowUpRight/></Button><Button onClick={() => planDestination(place.id)}>Plan a trip here<ArrowUpRight/></Button></div><PhotoCredit photo={covers[place.id]} compact/></CardContent></Card>)}</div>
-      {!!picks.listings.length && <><div className="tm-recommended-places-heading"><h3>Places you might like</h3><p className="tm-muted">A few local stops to make the trip your own.</p></div><div className="tm-card-grid tm-recommended-listings">{picks.listings.map(({place, interests}) => <ListingCard key={place.id} listing={place} compact reason={'Matches: ' + interests.map(i => interestLabels[i]).join(', ')}/>)}</div></>}
+    <div className="tm-section-title"><div><p className="tm-eyebrow"><Sparkles size={14} aria-hidden="true"/>A LITTLE INSPIRATION</p><h2 id="tm-recommendations-title">Places to fall for.</h2></div><Button variant="ghost" onClick={() => navigate('/explore')}>All destinations<ArrowUpRight aria-hidden="true"/></Button></div>
+    <div className="tm-home-recommendation-note"><p>{picks?.destinations.length ? 'A few destinations matched to your interests.' : picks?.interests.length ? 'Explore these destinations while we look for your next match.' : 'Start somewhere lovely. Add your interests for personal picks.'}</p><Button variant="ghost" size="sm" onClick={() => navigate('/preferences')}>{picks?.interests.length ? 'Edit interests' : 'Choose interests'}<ArrowUpRight aria-hidden="true"/></Button></div>
+    {error ? <ErrorState message={error} retry={() => setVersion(v => v + 1)}/> : !picks ? <LoadingCards/> : !destinations.length ? <EmptyState title="More places are on their way">Explore all destinations or try again later.</EmptyState> : <>
+      <div className="tm-card-grid tm-recommendation-grid">{destinations.map(({place, interests}) => <Card className="tm-recommended-destination" key={place.id}><DestinationCover key={covers[place.id]?.src ?? place.id} photo={covers[place.id] ?? destinationPhoto(place.name, place.province)}/><CardContent className="tm-recommended-content"><small><MapPin size={14} aria-hidden="true"/>{place.province.replace(/\s*\(geographic location\)/i,'')}</small><h3>{place.name}</h3><p className="tm-match-reason">{interests.length ? interests.map(i => interestLabels[i]).join(' · ') : 'Stays, local food & little detours.'}</p><div className="tm-recommendation-actions"><Button variant="outline" onClick={() => navigate('/destination/' + place.id)}>Explore places<ArrowUpRight aria-hidden="true"/></Button><Button variant="outline" size="icon" aria-label={'Plan a trip to '+place.name} title={'Plan a trip to '+place.name} onClick={() => planDestination(place.id)}><Plus aria-hidden="true"/></Button></div><PhotoCredit photo={covers[place.id]} compact/></CardContent></Card>)}</div>
+      {!!picks.listings.length && <details className="tm-home-local-picks"><summary><Compass size={21} aria-hidden="true"/><span>Places you might like<small>{picks.listings.length} local stops matched to your interests</small></span><ChevronDown size={18} aria-hidden="true"/></summary><div className="tm-card-grid tm-recommended-listings">{picks.listings.map(({place, interests}) => <ListingCard key={place.id} listing={place} compact reason={'Matches: ' + interests.map(i => interestLabels[i]).join(', ')}/>)}</div></details>}
     </>}
   </section>;
 }

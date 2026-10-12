@@ -5,6 +5,24 @@ $browserJob = $null
 $appDirectory = Join-Path (Split-Path -Parent $PSScriptRoot) 'app'
 $appUrl = 'http://localhost:5173'
 
+function Read-BrowserConfiguration([string[]]$files) {
+    $values = @{}
+    foreach ($file in $files) {
+        if (Test-Path -LiteralPath $file) {
+            foreach ($line in Get-Content -LiteralPath $file) {
+                if ($line -match '^\s*(VITE_SUPABASE_URL|VITE_SUPABASE_PUBLISHABLE_KEY)\s*=\s*(.*?)\s*$') {
+                    $values[$Matches[1]] = $Matches[2].Trim('"', "'")
+                }
+            }
+        }
+    }
+    return $values
+}
+
+function Test-SetupPlaceholder([string]$value) {
+    return -not $value -or $value -match 'YOUR_PROJECT_REF|YOUR_(SUPABASE_)?PUBLISHABLE_KEY'
+}
+
 function Get-LocalServerState([string]$url) {
     $endpoint = [uri]$url
     try {
@@ -39,23 +57,56 @@ try {
     Write-Host "TravelMate | Node $nodeVersion"
     Set-Location -LiteralPath $appDirectory
 
-    $configuration = @{}
-    foreach ($file in @('.env', '.env.local')) {
-        if (Test-Path -LiteralPath $file) {
-            foreach ($line in Get-Content -LiteralPath $file) {
-                if ($line -match '^\s*(VITE_SUPABASE_URL|VITE_SUPABASE_PUBLISHABLE_KEY)\s*=\s*(.*?)\s*$') {
-                    $configuration[$Matches[1]] = $Matches[2].Trim('"', "'")
-                }
+    # Git includes the shared browser configuration, while personal overrides stay local.
+    if (-not (Test-Path -LiteralPath '.env.local') -and -not (Test-Path -LiteralPath '.env') -and (Test-Path -LiteralPath '.env.example')) {
+        Copy-Item -LiteralPath '.env.example' -Destination '.env.local'
+        Write-Host '[SETUP] Created app/.env.local from the shared catalog configuration.'
+    }
+    $configuration = Read-BrowserConfiguration @('.env', '.env.local')
+    $sharedConfiguration = Read-BrowserConfiguration @('.env.example')
+    # Repair an older placeholder setup after git pull, without mixing projects.
+    $updates = @{}
+    if ((Test-SetupPlaceholder $configuration['VITE_SUPABASE_URL']) -or $configuration['VITE_SUPABASE_URL'] -eq $sharedConfiguration['VITE_SUPABASE_URL']) {
+        foreach ($name in @('VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY')) {
+            if ((Test-SetupPlaceholder $configuration[$name]) -and -not (Test-SetupPlaceholder $sharedConfiguration[$name])) {
+                $configuration[$name] = $sharedConfiguration[$name]
+                $updates[$name] = $configuration[$name]
             }
         }
     }
     foreach ($name in @('VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY')) {
-        if (-not $configuration[$name] -or $configuration[$name] -match 'YOUR_PROJECT_REF|YOUR_PUBLISHABLE_KEY') {
+        if (Test-SetupPlaceholder $configuration[$name]) {
             throw "Set $name in app/.env.local using app/.env.example as a guide."
         }
     }
-    if ($configuration['VITE_SUPABASE_URL'] -notmatch '^https?://') {
-        throw 'VITE_SUPABASE_URL must be an http or https URL.'
+    $projectUrl = $null
+    if (-not [uri]::TryCreate($configuration['VITE_SUPABASE_URL'], [UriKind]::Absolute, [ref]$projectUrl) -or $projectUrl.Scheme -ne 'https') {
+        throw 'VITE_SUPABASE_URL must be an HTTPS project URL.'
+    }
+    $browserKey = $configuration['VITE_SUPABASE_PUBLISHABLE_KEY']
+    if (-not $browserKey.StartsWith('sb_publishable_')) {
+        $validAnonymousKey = $false
+        try {
+            $parts = $browserKey.Split('.')
+            if ($parts.Count -eq 3) {
+                $payload = $parts[1].Replace('-', '+').Replace('_', '/')
+                $payload = $payload.PadRight($payload.Length + (4 - $payload.Length % 4) % 4, '=')
+                $claims = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)) | ConvertFrom-Json
+                $validAnonymousKey = $claims.role -eq 'anon'
+            }
+        } catch { }
+        if (-not $validAnonymousKey) { throw 'Use a Supabase publishable or legacy anon browser key. Secret and service-role keys cannot be used in the app.' }
+    }
+    if ($updates.Count) {
+        $localLines = if (Test-Path -LiteralPath '.env.local') { @(Get-Content -LiteralPath '.env.local') } else { @() }
+        foreach ($name in $updates.Keys) {
+            $pattern = '^\s*' + [regex]::Escape($name) + '\s*='
+            $found = $false
+            $localLines = @($localLines | ForEach-Object { if ($_ -match $pattern) { $found = $true; "$name=$($updates[$name])" } else { $_ } })
+            if (-not $found) { $localLines += "$name=$($updates[$name])" }
+        }
+        [System.IO.File]::WriteAllLines((Join-Path $appDirectory '.env.local'), $localLines, (New-Object System.Text.UTF8Encoding $false))
+        Write-Host '[SETUP] Updated placeholder values from the shared catalog configuration.'
     }
 
     $serverState = Get-LocalServerState $appUrl

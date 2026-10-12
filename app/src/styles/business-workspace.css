@@ -47,11 +47,11 @@ body .tm-filter-trigger[aria-expanded=true] {border-color:var(--primary);box-sha
 .tm-filter-trigger[aria-expanded=true]>svg:last-child {transform:rotate(180deg)}
 .tm-filter-options {position:fixed;inset:auto;margin:0;padding:8px;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--foreground);box-shadow:0 12px 32px #142c2426;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;font-family:var(--font-sans,'DM Sans',sans-serif)}
 .tm-filter-options:popover-open {display:flex;flex-direction:column;animation:tm-menu-enter .16s ease-out}
-body .tm-filter-options>button {display:flex;align-items:center;gap:10px;flex-shrink:0;min-height:46px;padding:10px 12px;margin:0;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;font-size:16px;font-weight:500;line-height:1.4;text-align:left;box-shadow:none;cursor:pointer}
-.tm-filter-options>button>span:nth-child(2) {flex:1}
-.tm-filter-options>button small {font-size:13px;background:var(--muted);color:var(--muted-foreground);padding:2px 7px;border-radius:6px}
-body .tm-filter-options>button:is(:hover,:focus-visible,[aria-selected=true]) {background:var(--muted);color:var(--foreground);outline:2px solid var(--primary);outline-offset:-2px;transform:none;box-shadow:none}
-.tm-filter-options>button>svg {color:var(--primary)}
+body .tm-filter-option-list>button {display:flex;align-items:center;gap:10px;flex-shrink:0;min-height:46px;padding:10px 12px;margin:0;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;font-size:16px;font-weight:500;line-height:1.4;text-align:left;box-shadow:none;cursor:pointer}
+.tm-filter-option-list>button>span:nth-child(2) {flex:1}
+.tm-filter-option-list>button small {font-size:13px;background:var(--muted);color:var(--muted-foreground);padding:2px 7px;border-radius:6px}
+body .tm-filter-option-list>button:is(:hover,:focus-visible,[aria-selected=true]) {background:var(--muted);color:var(--foreground);outline:2px solid var(--primary);outline-offset:-2px;transform:none;box-shadow:none}
+.tm-filter-option-list>button>svg {color:var(--primary)}
 .tm-filter-option-dot {width:9px;height:9px;border-radius:50%;background:var(--muted-foreground);flex-shrink:0}
 .tm-filter-option-dot:is([data-value=confirmed],[data-value=active],[data-value=completed]) {background:#278661}
 .tm-filter-option-dot[data-value=pending] {background:#bf7a1c}

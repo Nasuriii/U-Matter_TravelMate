@@ -1,4 +1,5 @@
 import { initExperience, mountExperience, experiencePages } from './experience';
+import { markClientUnavailable } from './experience/state';
 import { confirmAction } from './action-confirm';
 import './utilities.css';
 import { tripsPage, initTrips } from './trips';
@@ -61,7 +62,7 @@ function validConfig() {
  }
 }
 installButtonLoading();
-try { validConfig(); await start(); } catch(e) { notice(explain(e),true); el('catalog-notice').textContent=explain(e);document.body.dataset.auth='out';route();
+try { validConfig(); await start(); } catch(e) { markClientUnavailable(explain(e)); notice(explain(e),true); el('catalog-notice').textContent=explain(e);document.body.dataset.auth='out';route();
  document.querySelectorAll<HTMLButtonElement>('#search-form button,#auth-form button,#login').forEach(b=>{b.disabled=true;b.title='Needs Supabase setup (.env.local)';}); }
 async function start() {
  const supabase = createClient(url!, key!, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true } });
@@ -147,7 +148,7 @@ async function start() {
   experience.setUser({id:u?.id??null,role:!u?'guest':admin?'admin':owner?'owner':'traveler',name:profile?.full_name||String(u?.user_metadata?.full_name||u?.email?.split('@')[0]||''),email:u?.email||''});
   const traveler=!!u&&!admin&&!owner;
   explorer.setUser(traveler?u!.id:null);trips.setUser(traveler?u!.id:null);
-  if(traveler)loadBrowse(supabase);
+  if(traveler||!u)loadBrowse(supabase);
   route();
  }
  async function displayUser(next:User|null){
@@ -284,5 +285,7 @@ import './trip-pickers.css';
 import './listing-workspace.css';
 import './styles/public-pages.css';
 import './styles/home-page.css';
+import './styles/place-search.css';
 import './styles/interaction-feedback.css';
 import './styles/business-workspace.css';
+import './styles/trip-page.css';

@@ -10,7 +10,11 @@ export function setIdentity(next: Identity) { identity = next; listeners.forEach
 export function useIdentity() { return useSyncExternalStore(fn => { listeners.add(fn); return () => { listeners.delete(fn); }; }, () => identity); }
 export function currentIdentity() { return identity; }
 export let client: SupabaseClient;
-export function configureClient(next: SupabaseClient) { client = next; }
+const clientListeners = new Set<() => void>();
+let clientSnapshot: { client: SupabaseClient | null; error: string } = { client: null, error: '' };
+export function configureClient(next: SupabaseClient) { client = next; clientSnapshot = { client: next, error: '' }; clientListeners.forEach(fn => fn()); }
+export function markClientUnavailable(error: string) { if (client) return; clientSnapshot = { client: null, error }; clientListeners.forEach(fn => fn()); }
+export function useClient() { return useSyncExternalStore(fn => { clientListeners.add(fn); return () => { clientListeners.delete(fn); }; }, () => clientSnapshot); }
 export function navigate(path: string) { location.hash = '#' + path; }
 export function errorMessage(e: unknown) { return e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String(e.message) : 'Something went wrong. Please try again.'; }
 export const money = (value: number | string | null) => value == null ? 'Not set' : new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 2 }).format(Number(value));
