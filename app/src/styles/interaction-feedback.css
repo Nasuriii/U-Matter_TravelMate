@@ -7,6 +7,9 @@ body .tm-search-control>input[type=search] { display: block; width: 100%; min-wi
 .browse-toolbar .tm-search-control, .search-row .tm-search-control, .a-search .tm-search-control { margin-top: 7px; }
 
 /* Animate the red warning surface while Sonner handles placement and dismissal. */
+/* Global form button minimum heights must not stretch Sonner's close control. */
+body [data-sonner-toast] button[data-close-button] { display:grid!important; place-items:center; width:24px!important; height:24px!important; min-width:24px!important; min-height:24px!important; max-width:24px!important; max-height:24px!important; padding:0!important; margin:0!important; border-radius:50%!important; line-height:1!important; box-sizing:border-box; flex:0 0 24px; }
+body [data-sonner-toast] button[data-close-button]>svg { display:block; width:14px!important; height:14px!important; margin:0!important; flex-shrink:0; }
 body [data-sonner-toast].tm-review-error-toast { display: grid; grid-template-columns: 22px 1fr; gap: 10px 12px; background: #fff0ed !important; border: 1.5px solid #d5483e !important; color: #862b23 !important; box-shadow: 0 8px 28px #ad33272b; animation: tm-review-warning-pulse .8s ease-out; }
 body .tm-review-error-toast [data-icon] { grid-column: 1; grid-row: 1; align-self: start; margin-top: 3px; color: #c1372e; }
 body .tm-review-error-toast [data-content] { grid-column: 2; grid-row: 1; }
