@@ -11,6 +11,7 @@ export function FilterSelect({label,value,options,onChange,disabled=false,search
 }){
  const id=useId(),trigger=useRef<HTMLButtonElement>(null),panel=useRef<HTMLDivElement>(null),items=useRef<(HTMLButtonElement|null)[]>([]);
  const [open,setOpen]=useState(false);
+ const openAtPointerDown=useRef(false);
  const [query,setQuery]=useState('');
  const visible=options.filter(option=>!query||!option.value||option.label.toLowerCase().includes(query.trim().toLowerCase()));
  const selected=options.findIndex(option=>option.value===value);
@@ -45,7 +46,8 @@ export function FilterSelect({label,value,options,onChange,disabled=false,search
  return <div className="tm-filter-select">
   <span id={id+'-label'} className="tm-filter-label">{label}</span>
   <button ref={trigger} type="button" className="tm-filter-trigger" role="combobox" aria-labelledby={id+'-label '+id+'-value'} aria-expanded={open} aria-controls={id} aria-haspopup="listbox" disabled={disabled}
-   onClick={()=>open?close():show()} onKeyDown={event=>{if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();show(event.key==='ArrowUp'?options.length-1:Math.max(0,selected));}}}>
+   onPointerDown={()=>{openAtPointerDown.current=!!panel.current?.matches(':popover-open');}} onPointerCancel={()=>{openAtPointerDown.current=false;}}
+   onClick={()=>{const wasOpen=openAtPointerDown.current||panel.current?.matches(':popover-open');openAtPointerDown.current=false;wasOpen?close():show();}} onKeyDown={event=>{if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();show(event.key==='ArrowUp'?options.length-1:Math.max(0,selected));}}}>
    <ListFilter size={18} aria-hidden="true"/><span id={id+'-value'}>{options[selected]?.label||'Choose a filter'}</span><ChevronDown size={18} aria-hidden="true"/>
   </button>
   <div ref={panel} id={id+'-panel'} popover="auto" aria-labelledby={id+'-label'} className="tm-filter-options" onKeyDown={keys} onToggle={event=>{const shown=event.currentTarget.matches(':popover-open');setOpen(shown);if(!shown)setQuery('');}}>

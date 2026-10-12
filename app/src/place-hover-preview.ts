@@ -55,5 +55,5 @@ export function installPlacePreviews(){
   document.addEventListener('pointerout',event=>{if(anchor&&(!(event.relatedTarget instanceof Node)||!anchor.contains(event.relatedTarget)))clear();});
   document.addEventListener('focusin',event=>{const node=(event.target as Element)?.closest<HTMLElement>('[data-place-preview]');node?show(node):clear();});
   document.addEventListener('pointerdown',clear,true);document.addEventListener('keydown',event=>{if(event.key==='Escape')clear();},true);
-  document.addEventListener('scroll',clear,true);window.addEventListener('resize',clear);window.addEventListener('hashchange',clear);window.addEventListener('travelmate:identity',()=>{cache.clear();clear();});window.addEventListener('travelmate:preview-clear',clear);
+  document.addEventListener('scroll',clear,true);window.addEventListener('resize',clear);window.addEventListener('hashchange',clear);window.addEventListener('travelmate:owner-workspace-close',clear);window.addEventListener('travelmate:identity',()=>{cache.clear();clear();});window.addEventListener('travelmate:preview-clear',clear);
 }

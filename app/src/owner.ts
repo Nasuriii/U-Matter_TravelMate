@@ -422,7 +422,7 @@ export function initOwner(client: SupabaseClient) {
         await draft?.save(client,createdListingId,user!,()=>epoch===ownerEpoch&&user===activeUser);if(epoch!==ownerEpoch||user!==activeUser)return;
         const id=createdListingId,newListing={id,name:val('ol-name'),listing_type:type,destination_id:val('ol-dest'),description:val('ol-desc'),address:val('ol-address'),status:'pending'};
         unlock();form.reset();draft?.reset();createdListingId=null;submit.textContent='Create listing';currentPage=1;sync();createWorkspace?.markSaved(content);createWorkspace?.hide();say('Listing and details saved for review.');await refresh();manage(displayedRows.find(listing=>listing.id===id)??newListing);
-      } catch (err) { if(epoch===ownerEpoch&&user===activeUser){fail(err);if(createdListingId){say('Your listing was created. Retry Finish listing to save remaining rooms or photos; the listing will not be created twice.',true);void refresh();}} } finally { submitting = false;draft?.setBusy(false);if(!createdListingId)unlock();form.dispatchEvent(new Event('input',{bubbles:true}));createWorkspace?.setBusy(false); }
+      } catch (err) { if(epoch===ownerEpoch&&user===activeUser){fail(err);if(createdListingId){say('Your listing was created. Retry Finish listing to save remaining details and photos; the listing will not be created twice.',true);void refresh();}} } finally { submitting = false;draft?.setBusy(false);if(!createdListingId)unlock();form.dispatchEvent(new Event('input',{bubbles:true}));createWorkspace?.setBusy(false); }
     });
     window.addEventListener('hashchange', () => { if (location.hash.split('?')[0] === '#/owner') {incomingFilters();void refresh();} });
   }
