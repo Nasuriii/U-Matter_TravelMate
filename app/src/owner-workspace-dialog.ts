@@ -36,7 +36,7 @@ export function ownerWorkspaceDialog(content:HTMLElement, title:string) {
     hide,markSaved:remember,setBusy(value:boolean){busy=value;closeButton.disabled=value;footer.querySelectorAll<HTMLButtonElement>('button').forEach(button=>button.disabled=value);},
     sections(sections:{label:string;content:HTMLElement}[],initial='Basic information'){
       nav.replaceChildren();const panels=sections.map(section=>section.content);content.replaceChildren(...panels);
-      const choose=(index:number)=>{panels.forEach((panel,i)=>panel.hidden=i!==index);Array.from(nav.children).forEach((node,i)=>{node.setAttribute('aria-selected',String(i===index));(node as HTMLButtonElement).tabIndex=i===index?0:-1;});};
+      const choose=(index:number)=>{content.scrollTop=0;panels.forEach((panel,i)=>panel.hidden=i!==index);Array.from(nav.children).forEach((node,i)=>{node.setAttribute('aria-selected',String(i===index));(node as HTMLButtonElement).tabIndex=i===index?0:-1;});};
       sections.forEach((section,index)=>{const button=document.createElement('button');button.type='button';button.textContent=section.label;button.setAttribute('role','tab');button.id=heading.id+'-tab-'+index;section.content.id=heading.id+'-panel-'+index;button.setAttribute('aria-controls',section.content.id);section.content.setAttribute('role','tabpanel');section.content.setAttribute('aria-labelledby',button.id);button.onclick=()=>choose(index);button.onkeydown=event=>{if(['ArrowDown','ArrowUp','ArrowRight','ArrowLeft','Home','End'].includes(event.key)){event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?sections.length-1:(index+(['ArrowDown','ArrowRight'].includes(event.key)?1:-1)+sections.length)%sections.length;choose(next);(nav.children[next] as HTMLElement).focus();}};nav.append(button);});
       choose(Math.max(0,sections.findIndex(section=>section.label===initial)));remember(content);
     },
@@ -44,7 +44,7 @@ export function ownerWorkspaceDialog(content:HTMLElement, title:string) {
       const sections=Array.from(content.querySelectorAll<HTMLDetailsElement>(':scope>details.acc')).map(details=>({label:details.querySelector('.acc-title')?.textContent??'Details',content:details.querySelector<HTMLElement>('.acc-body')!}));
       const extras=Array.from(content.children).filter(node=>!(node instanceof HTMLDetailsElement)&&node.tagName!=='H2');
       const basic=sections.find(section=>section.label==='Basic information');if(basic)basic.content.prepend(...extras);
-      api.sections(sections,'Basic information');
+      sections.sort((a,b)=>Number(b.label==='Basic information')-Number(a.label==='Basic information'));api.sections(sections,'Basic information');
     }
   };
   workspaces.set(backdrop,api);return api;

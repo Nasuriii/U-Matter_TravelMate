@@ -1,3 +1,4 @@
+import {placePreviewAttributes} from './place-hover-preview';
 import { confirmAction } from './action-confirm';
 import {labelAction,actionIcon} from './listing-action-menu';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -78,6 +79,7 @@ export function initAdmin(client: SupabaseClient) {
   }
   function card(l: Row) {
     const c = h('article', 'a-card'), problems = (l.problems ?? []) as string[];
+    placePreviewAttributes(c,'listing',l.id,l.name,l.destination??'');
     const top = h('div', 'a-card-top');
     const readinessBadge=h('span',problems.length?'a-readiness a-needs':'a-readiness a-ready');labelAction(readinessBadge,problems.length?'alert':'check',problems.length?'Needs attention':'Ready for approval');top.append(h('span','a-type',LABEL[l.type]??String(l.type)),readinessBadge);
     c.append(top, h('h3', '', l.name), h('p', 'a-location', l.destination || 'Destination not provided'));

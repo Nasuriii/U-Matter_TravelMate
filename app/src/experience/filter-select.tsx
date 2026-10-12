@@ -3,7 +3,7 @@ import {Check,ChevronDown,ListFilter,Search} from 'lucide-react';
 import {placePreviewAttributes} from '../place-hover-preview';
 import {createRoot} from 'react-dom/client';
 
-type Option={value:string;label:string;count?:number};
+type Option={value:string;label:string;count?:number;previewId?:string;area?:string};
 
 /** A themed, keyboard-accessible filter that stays above scrolling content. */
 export function FilterSelect({label,value,options,onChange,disabled=false,searchable=false}:{
@@ -51,7 +51,7 @@ export function FilterSelect({label,value,options,onChange,disabled=false,search
   <div ref={panel} id={id+'-panel'} popover="auto" aria-labelledby={id+'-label'} className="tm-filter-options" onKeyDown={keys} onToggle={event=>{const shown=event.currentTarget.matches(':popover-open');setOpen(shown);if(!shown)setQuery('');}}>
    {searchable&&<label className="tm-filter-search"><Search size={18}/><input type="search" aria-label="Find a destination" placeholder="Find a destination" maxLength={120} value={query} onChange={event=>setQuery(event.target.value)}/></label>}
    <div id={id} role="listbox" aria-labelledby={id+'-label'} className="tm-filter-option-list">
-   {visible.map((option,index)=><button key={option.value} ref={node=>{items.current[index]=node;if(node&&searchable&&option.value){const parts=option.label.split(/ · |, /);placePreviewAttributes(node,'destination',option.value,parts[0],parts.slice(1).join(', '));}}} type="button" role="option" aria-selected={value===option.value} tabIndex={-1}
+   {visible.map((option,index)=><button key={option.value} ref={node=>{items.current[index]=node;if(node&&searchable&&option.value){const parts=option.label.split(/ · |, /);placePreviewAttributes(node,'destination',option.previewId??option.value,parts[0],option.area??parts.slice(1).join(', '));}}} type="button" role="option" aria-selected={value===option.value} tabIndex={-1}
     onClick={()=>{close();trigger.current?.focus();if(value!==option.value)onChange(option.value);}}>
     <span className="tm-filter-option-dot" data-value={option.value} aria-hidden="true"/><span>{option.label}</span>{option.count!==undefined&&<small>{option.count}</small>}{value===option.value&&<Check size={17} aria-hidden="true"/>}
    </button>)}

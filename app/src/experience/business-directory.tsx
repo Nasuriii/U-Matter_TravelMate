@@ -29,7 +29,7 @@ export function BusinessDirectory({ businesses, admin, status, setStatus, open, 
     {result.items.length ? <><div className="tm-business-columns" aria-hidden="true"><span>Business</span><span>Status</span><span>Views · 30 days</span><span>Bookings</span></div>
       <ul className="tm-business-list">{result.items.map(b => {
         const kind = types[b.listing_type as keyof typeof types] || types.attraction, Icon = kind.icon;
-        return <li key={b.id}>
+        return <li key={b.id} data-place-preview="listing" data-place-id={b.id} data-place-name={catalogLabel(b.name)}>
           <button type="button" className="tm-business-name" onClick={() => open(b.id)} aria-label={'View performance for ' + catalogLabel(b.name)}><span className={'o-listing-icon type-' + b.listing_type}><Icon size={21}/></span><span><strong>{catalogLabel(b.name)}</strong><small>{kind.label}</small></span><ArrowUpRight size={17}/></button>
           <span className={'tm-status tm-status-' + b.status}>{statusLabel[b.status] || b.status}</span>
           <div className="tm-business-value"><span>Views · 30 days</span><strong>{b.views.toLocaleString()}</strong></div>

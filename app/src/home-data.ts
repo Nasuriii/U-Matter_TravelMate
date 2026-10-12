@@ -3,6 +3,7 @@ import {sampleGallery} from './sample-photos';
 import { catalogLabel, isPreview } from './catalog-label';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { navigate } from './experience/state';
+import {placePreviewAttributes} from './place-hover-preview';
 import {mountDestinationFilter} from './experience/filter-select';
 type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
@@ -120,7 +121,7 @@ export function loadBrowse(client: SupabaseClient) {
   }
   async function listings(type: string, gridId: string, label: string) {
     const grid = $(gridId);browseCleanups.get(gridId)?.();const disposers:(()=>void)[]=[];
-    const { data, error } = await db.from('business_listings').select('id,name,is_sample,description,address,listing_type,destinations(name,province)').eq('status', 'approved').eq('listing_type', type).order('name').limit(200);
+    const { data, error } = await db.from('business_listings').select('id,name,is_sample,description,address,listing_type,destination_id,destinations(name,province)').eq('status', 'approved').eq('listing_type', type).order('name').limit(200);
     if (error) { grid.replaceChildren(mk('p', 'muted', 'Could not load listings: ' + error.message)); return; }
     if (!data?.length) { grid.replaceChildren(mk('p', 'muted', 'No approved listings yet.')); return; }
     const photos = await photoUrls((data as Row[]).map(l => l.id)); grid.replaceChildren();
@@ -144,7 +145,7 @@ export function loadBrowse(client: SupabaseClient) {
       b.append(location,mk('h3','',catalogLabel(l.name)),mk('p','l-desc',brief));
       const footer=mk('div','l-card-footer');footer.append(details);b.append(footer);
       if(preview)art.append(mk('span','l-preview-badge','Preview listing'));
-      const heart=mk('div','tm-react');art.append(heart);disposers.push(mountSavedHeart(heart,l.id,catalogLabel(l.name)));card.append(art,b);card.addEventListener('click',e=>{if(!(e.target as HTMLElement).closest('.tm-save-position,a'))navigate('/listing/'+l.id);});card.dataset.listing=l.id;card.dataset.destination=dest?.name??''; cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
+      const heart=mk('div','tm-react');art.append(heart);disposers.push(mountSavedHeart(heart,l.id,catalogLabel(l.name)));card.append(art,b);card.addEventListener('click',e=>{if(!(e.target as HTMLElement).closest('.tm-save-position,a'))navigate('/listing/'+l.id);});placePreviewAttributes(card,'listing',l.id,catalogLabel(l.name),dest?[dest.name,dest.province].join(', '):l.address??'');if(url)card.dataset.placeImage=url;card.dataset.listing=l.id;card.dataset.destination=dest?.name??''; cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
     }
     const prefix = gridId.replace('-grid','');
     const search = $(prefix+'-search') as HTMLInputElement, sort = $(prefix+'-sort') as HTMLSelectElement;
@@ -155,7 +156,7 @@ export function loadBrowse(client: SupabaseClient) {
       if(!matched.length)grid.append(mk('p','empty','No places match. Try another name or destination.'));
       $(prefix+'-results').textContent=`${matched.length} matching places · ${cards.length} loaded${cards.length===200?' (first 200 by name)':''}`;
     };
-    const regionHost=mk('div','tm-react tm-browse-destination-filter');region.hidden=true;filters.prepend(regionHost);disposers.push(mountDestinationFilter(regionHost,Array.from(region.options,option=>({value:option.value,label:option.text})),value=>{region.value=value;render();}));
+    const regionHost=mk('div','tm-react tm-browse-destination-filter');region.hidden=true;filters.prepend(regionHost);disposers.push(mountDestinationFilter(regionHost,Array.from(region.options,option=>{const listing=(data as Row[]).find(row=>one(row.destinations)?.name===option.value);return {value:option.value,label:option.text,previewId:listing?.destination_id,area:one(listing?.destinations)?.province};}),value=>{region.value=value;render();}));
     search.oninput=render;sort.onchange=render;region.onchange=render;saved.onclick=()=>{onlySaved=!onlySaved;saved.setAttribute('aria-pressed',String(onlySaved));render();};window.addEventListener('travelmate:favorites',render);browseCleanups.set(gridId,()=>{window.removeEventListener('travelmate:favorites',render);filters.remove();disposers.forEach(fn=>fn());});render();
   }
   void listings('hotel', 'stay-grid', 'Hotel'); void listings('restaurant', 'eat-grid', 'Restaurant'); void listings('attraction', 'attr-grid', 'Attraction');

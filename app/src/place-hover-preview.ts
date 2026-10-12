@@ -24,8 +24,9 @@ async function load(node:HTMLElement):Promise<Preview>{
   if(result.error||!result.data)return {name,area,kind:'Listing'};
   const row=result.data as unknown as Listing;const image=(await photosFor([row]))[0];
   const preview:Preview={name:image.name,area,kind:label(row.listing_type),image:image.image};
-  if(!preview.image&&currentIdentity().role==='owner'){
-    const response=await client.rpc('owner_list_photos',{p_listing:id});const first=response.data?.[0];
+  const role=currentIdentity().role;
+  if(!preview.image&&(role==='owner'||role==='admin')){
+    const response=await client.rpc(role==='admin'?'admin_listing_photos':'owner_list_photos',{p_listing:id});const first=response.data?.[0];
     if(!response.error&&first?.object_path){const photo=await client.storage.from('travelmate-listings').createSignedUrl(first.object_path,3600);preview.image=photo.data?.signedUrl;}
   }
   return preview;
@@ -44,7 +45,7 @@ export function installPlacePreviews(){
   }
   function show(node:HTMLElement){
     if(anchor===node)return;clear();anchor=node;const token=revision;timer=window.setTimeout(()=>{
-      if(anchor!==node||!node.isConnected)return;const name=node.dataset.placeName??'',area=node.dataset.placeArea??'',isDestination=node.dataset.placePreview==='destination';render({name,area,kind:isDestination?'Destination':'Listing',image:isDestination?destinationPhoto(name,area)?.src:undefined});card.showPopover();position();node.setAttribute('aria-describedby',((node.getAttribute('aria-describedby')??'')+' '+card.id).trim());
+      if(anchor!==node||!node.isConnected)return;const name=node.dataset.placeName??'',area=node.dataset.placeArea??'',isDestination=node.dataset.placePreview==='destination';render({name,area,kind:isDestination?'Destination':'Listing',image:isDestination?destinationPhoto(name,area)?.src:node.dataset.placeImage});card.showPopover();position();node.setAttribute('aria-describedby',((node.getAttribute('aria-describedby')??'')+' '+card.id).trim());
       const identity=currentIdentity(),key=[identity.id??'guest',node.dataset.placePreview,node.dataset.placeId,name].join(':');let entry=cache.get(key);
       if(!entry||entry.expires<Date.now()){if(cache.size>=48)cache.delete(cache.keys().next().value!);entry={expires:Date.now()+240000,promise:load(node).catch(()=>({name,area,kind:isDestination?'Destination':'Listing'}))};cache.set(key,entry);}
       void entry.promise.then(preview=>{if(token===revision&&anchor===node&&node.isConnected)render(preview);});

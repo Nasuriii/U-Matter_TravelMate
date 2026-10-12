@@ -51,6 +51,7 @@ body .o-create-listing>#o-create-listing:hover {background:var(--muted);transfor
 .tm-owner-dialog .tm-owner-draft-error {color:var(--destructive);font-size:14px;line-height:1.5}
 .tm-owner-draft-error:empty {display:none}
 .tm-owner-dialog [type=file] {padding:14px;border-style:dashed;background:var(--background);font-size:14px}
+.tm-owner-dialog [type=file]::file-selector-button {border:1px solid var(--border);border-radius:8px;background:var(--muted);color:var(--foreground);font:inherit;font-weight:600;padding:8px 12px;margin-right:12px;cursor:pointer}
 .tm-owner-dialog .time-guide {font-size:14px}
 .tm-owner-dialog :is(button,input,textarea,select):focus-visible {outline:2px solid var(--primary);outline-offset:3px}
 /* Non-interactive photo peeks remain above native chooser dialogs. */
