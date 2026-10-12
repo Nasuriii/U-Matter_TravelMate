@@ -1,9 +1,10 @@
 import {useEffect,useRef,useState,type ReactNode,type KeyboardEvent} from 'react';
 import {createRoot} from 'react-dom/client';
 import {createPortal} from 'react-dom';
-import {CalendarDays,Check,ChevronDown,ChevronLeft,ChevronRight,MapPin,Search,X,ArrowRight,Clock3,Sun,Moon} from 'lucide-react';
+import {CalendarDays,Check,ChevronDown,ChevronLeft,ChevronRight,MapPin,Search,X,ArrowRight,Clock3,Sun,Moon,BedDouble,Utensils,Compass} from 'lucide-react';
 import {calendarDate,dateKey,monthCells,tripDays} from './trip-calendar';
-import {clockLabel,clockParts,clockValue,tripTimesValid} from './trip-clock';
+import {placePreviewAttributes} from './place-hover-preview';
+import {clockLabel,clockMinutes,clockParts,clockValue,tripTimesValid} from './trip-clock';
 
 const dateLabel=(value:string)=>calendarDate(value)?.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})??'Choose date';
 function PickerDialog({title,children,onClose,className=''}:{title:string;children:ReactNode;onClose:()=>void;className?:string}) {
@@ -79,12 +80,12 @@ function DateCalendar({start,end,phase:initialPhase,onApply,onClose}:{start:stri
   </PickerDialog>;
 }
 
-function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClose}:{arrival:string;departure:string;phase:'arrivalTime'|'departureTime';sameDay:boolean;onApply:(arrival:string,departure:string)=>void;onClose:()=>void}) {
+function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClose,hotel=false}:{arrival:string;departure:string;phase:'arrivalTime'|'departureTime';sameDay:boolean;onApply:(arrival:string,departure:string)=>void;onClose:()=>void;hotel?:boolean}) {
   const [draft,setDraft]=useState({arrivalTime:arrival,departureTime:departure});
   const [phase,setPhase]=useState(initialPhase),[part,setPart]=useState<'hour'|'minute'>('hour');
   const parts=clockParts(draft[phase])??{hour:9,minute:0,period:'AM' as const};
   const [focusIndex,setFocusIndex]=useState(parts.hour-1),options=useRef<HTMLDivElement>(null);
-  const valid=tripTimesValid('start',sameDay?'start':'end',draft.arrivalTime,draft.departureTime);
+  const valid=tripTimesValid('start',sameDay?'start':'end',draft.arrivalTime,draft.departureTime) && (!hotel || clockMinutes(draft.departureTime)! < clockMinutes(draft.arrivalTime)!);
   function update(key:'hour'|'minute'|'period',value:number|'AM'|'PM') {
     const next={...parts,[key]:value};
     setDraft(previous=>({...previous,[phase]:clockValue(next.hour,next.minute,next.period)}));
@@ -100,10 +101,10 @@ function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClos
     if(next===null)return;event.preventDefault();setFocusIndex(next);
     requestAnimationFrame(()=>options.current?.querySelector<HTMLButtonElement>(`[data-time-option="${next}"]`)?.focus());
   }
-  return <PickerDialog title="Choose your trip times" onClose={onClose} className="tm-time-dialog">
-    <div className="tm-calendar-range" role="group" aria-label="Time to choose">{(['arrivalTime','departureTime'] as const).map(key=><button key={key} type="button" aria-pressed={phase===key} onClick={()=>setPhase(key)}><small>{key==='arrivalTime'?'Arrival':'Departure'}</small><strong>{clockLabel(draft[key])}</strong></button>)}</div>
+  return <PickerDialog title={hotel?'Choose check-in & check-out times':'Choose your trip times'} onClose={onClose} className="tm-time-dialog">
+    <div className="tm-calendar-range" role="group" aria-label="Time to choose">{(['arrivalTime','departureTime'] as const).map(key=><button key={key} type="button" aria-pressed={phase===key} onClick={()=>setPhase(key)}><small>{hotel?(key==='arrivalTime'?'Check-in':'Check-out'):(key==='arrivalTime'?'Arrival':'Departure')}</small><strong>{clockLabel(draft[key])}</strong></button>)}</div>
     <p className="tm-time-instruction"><Clock3 size={17}/>Local time at your destination</p>
-    <div className="tm-clock-face" role="group" aria-label={phase==='arrivalTime'?'Arrival time controls':'Departure time controls'}>
+    <div className="tm-clock-face" role="group" aria-label={hotel?(phase==='arrivalTime'?'Check-in time controls':'Check-out time controls'):(phase==='arrivalTime'?'Arrival time controls':'Departure time controls')}>
       <button type="button" className="tm-clock-digit" aria-label="Choose hour" aria-pressed={part==='hour'} onClick={()=>setPart('hour')}><strong>{String(parts.hour).padStart(2,'0')}</strong><small>Hour</small></button><span aria-hidden="true">:</span>
       <button type="button" className="tm-clock-digit" aria-label="Choose minutes" aria-pressed={part==='minute'} onClick={()=>setPart('minute')}><strong>{String(parts.minute).padStart(2,'0')}</strong><small>Minute</small></button>
       <div className="tm-clock-period" role="group" aria-label="AM or PM">{(['AM','PM'] as const).map(period=><button key={period} type="button" aria-pressed={parts.period===period} onClick={()=>update('period',period)}>{period==='AM'?<Sun size={17}/>:<Moon size={17}/>} {period}</button>)}</div>
@@ -115,7 +116,7 @@ function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClos
         return <button type="button" key={part+index} data-time-option={index} tabIndex={focusIndex===index?0:-1} aria-label={part==='hour'?`${value} ${value===1?'hour':'hours'}`:`${value} ${value===1?'minute':'minutes'}`} aria-pressed={selected} onKeyDown={event=>keyboard(event,index)} onFocus={()=>setFocusIndex(index)} onClick={()=>{setFocusIndex(index);update(part,value);}}>{String(value).padStart(2,'0')}{selected&&<Check size={13}/>}</button>;
       })}
     </div>
-    {!valid&&<p className="tm-calendar-error" role="alert">Departure must be after arrival on the same day.</p>}
+    {!valid&&<p className="tm-calendar-error" role="alert">{hotel?'Choose both times. Check-out must be earlier on the clock than check-in, for the next morning.':'Departure must be after arrival on the same day.'}</p>}
     <div className="tm-calendar-footer"><span><Clock3 size={17}/>{clockLabel(draft[phase])}</span><button type="button" className="tm-picker-apply" disabled={!valid} onClick={()=>onApply(draft.arrivalTime,draft.departureTime)}><Check size={18}/>Apply times</button></div>
   </PickerDialog>;
 }
@@ -146,7 +147,7 @@ function TripPickers({form,dateHost,timeHost}:{form:HTMLFormElement;dateHost:HTM
     {open==='destination'&&<PickerDialog title="Where would you like to go?" onClose={close} className="tm-destination-dialog">
       <div className="tm-destination-search"><Search size={20}/><input type="search" autoFocus maxLength={100} value={query} aria-label="Search trip destinations" placeholder="Search a town or province" onChange={event=>setQuery(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();if(results.length===1)chooseDestination(results[0].id);else event.currentTarget.closest('dialog')?.querySelector<HTMLButtonElement>('.tm-destination-options>button')?.focus();}}}/></div>
       <p className="tm-destination-count" role="status">{results.length} {results.length===1?'destination':'destinations'}</p>
-      <div className="tm-destination-options">{results.map((option,index)=><button type="button" key={option.id} aria-pressed={option.id===data.id} onClick={()=>chooseDestination(option.id)}><span className={'tm-destination-marker tone-'+index%3}><MapPin size={22}/></span><span><strong>{option.label.split(' · ')[0]}</strong><small>{option.label.split(' · ').slice(1).join(' · ')}</small></span>{option.id===data.id?<Check size={20}/>:<ChevronRight size={18}/>}</button>)}{!results.length&&<p className="tm-destination-empty">No matching destinations. Try another town or province.</p>}</div>
+      <div className="tm-destination-options">{results.map((option,index)=><button type="button" key={option.id} ref={node=>{if(node)placePreviewAttributes(node,'destination',option.id,option.label.split(' · ')[0],option.label.split(' · ').slice(1).join(' · '));}} aria-pressed={option.id===data.id} onClick={()=>chooseDestination(option.id)}><span className={'tm-destination-marker tone-'+index%3}><MapPin size={22}/></span><span><strong>{option.label.split(' · ')[0]}</strong><small>{option.label.split(' · ').slice(1).join(' · ')}</small></span>{option.id===data.id?<Check size={20}/>:<ChevronRight size={18}/>}</button>)}{!results.length&&<p className="tm-destination-empty">No matching destinations. Try another town or province.</p>}</div>
     </PickerDialog>}
     {(open==='start'||open==='end')&&<DateCalendar start={data.start} end={data.end} phase={open} onClose={close} onApply={(start,end)=>{arrival.value=start;departure.value=end;arrival.dispatchEvent(new Event('change',{bubbles:true}));close();}}/>}
     {(open==='arrivalTime'||open==='departureTime')&&<TimePicker arrival={data.arrivalTime} departure={data.departureTime} phase={open} sameDay={!!data.start&&data.start===data.end} onClose={close} onApply={(start,end)=>{arrivalTime.value=start;departureTime.value=end;arrivalTime.dispatchEvent(new Event('change',{bubbles:true}));close();}}/>}
@@ -155,4 +156,57 @@ function TripPickers({form,dateHost,timeHost}:{form:HTMLFormElement;dateHost:HTM
 export function mountTripPickers(form:HTMLFormElement){
   const host=form.querySelector<HTMLElement>('#react-trip-destination-picker'),dateHost=form.querySelector<HTMLElement>('#react-trip-date-picker'),timeHost=form.querySelector<HTMLElement>('#react-trip-time-picker');
   if(host&&dateHost&&timeHost)createRoot(host).render(<TripPickers form={form} dateHost={dateHost} timeHost={timeHost}/>);
+}
+
+/** Keep the owner's existing form values/events while sharing itinerary controls. */
+export function mountOwnerListingPickers(form:HTMLFormElement) {
+  if(form.querySelector('[data-owner-picker]'))return;
+  const type=form.querySelector<HTMLSelectElement>('#ol-type')!,destination=form.querySelector<HTMLSelectElement>('#ol-dest')!;
+  const checkIn=form.querySelector<HTMLInputElement>('#ol-checkin')!,checkOut=form.querySelector<HTMLInputElement>('#ol-checkout')!;
+  const host=(field:HTMLElement)=>{const node=document.createElement('div');node.className='tm-react tm-owner-picker';node.dataset.ownerPicker='';field.before(node);return node;};
+  const typeHost=host(type),destinationHost=host(destination),timeRow=checkIn.closest('.row2') as HTMLElement,timeHost=host(timeRow);
+  timeHost.dataset.type='hotel';timeRow.style.display='none';
+  for(const field of [type,destination,checkIn,checkOut]){field.hidden=true;const label=form.querySelector<HTMLLabelElement>(`label[for="${field.id}"]`);if(label)label.hidden=true;}
+  function OwnerPickers(){
+    const snapshot=()=>({type:type.value,destination:destination.value,options:Array.from(destination.options).filter(option=>option.value).map(option=>({value:option.value,label:option.text.replace(/\s*\(geographic location\)/i,'')})),checkIn:checkIn.value,checkOut:checkOut.value,disabled:type.disabled});
+    const [data,setData]=useState(snapshot),[open,setOpen]=useState<'type'|'destination'|'arrivalTime'|'departureTime'|null>(null),[query,setQuery]=useState('');
+    const trigger=useRef<HTMLButtonElement|null>(null);
+    const close=()=>{setOpen(null);requestAnimationFrame(()=>trigger.current?.focus());};
+    const show=(mode:typeof open,button:HTMLButtonElement)=>{trigger.current=button;setQuery('');setOpen(mode);};
+    useEffect(()=>{
+      const sync=()=>setData(snapshot()),reset=()=>requestAnimationFrame(sync),route=()=>setOpen(null);
+      form.addEventListener('change',sync);form.addEventListener('input',sync);form.addEventListener('reset',reset);window.addEventListener('hashchange',route);window.addEventListener('travelmate:identity',route);window.addEventListener('travelmate:owner-workspace-close',route);
+      const observer=new MutationObserver(sync);observer.observe(destination,{childList:true,attributes:true,attributeFilter:['disabled']});observer.observe(type,{attributes:true,attributeFilter:['disabled']});
+      const details=form.closest('details'),toggle=()=>{if(!details?.open)setOpen(null);};details?.addEventListener('toggle',toggle);
+      return()=>{observer.disconnect();form.removeEventListener('change',sync);form.removeEventListener('input',sync);form.removeEventListener('reset',reset);window.removeEventListener('hashchange',route);window.removeEventListener('travelmate:identity',route);window.removeEventListener('travelmate:owner-workspace-close',route);details?.removeEventListener('toggle',toggle);};
+    },[]);
+    const types=[{value:'hotel',label:'Hotel',copy:'Rooms and overnight stays',icon:BedDouble},{value:'restaurant',label:'Restaurant',copy:'Menus and table reservations',icon:Utensils},{value:'attraction',label:'Attraction',copy:'Places to visit and explore',icon:Compass}];
+    const selectedType=types.find(option=>option.value===data.type)??types[0],TypeIcon=selectedType.icon,selectedDestination=data.options.find(option=>option.value===data.destination);
+    useEffect(()=>{timeHost.hidden=data.type!=='hotel';},[data.type]);
+    const results=data.options.filter(option=>option.label.toLowerCase().includes(query.trim().toLowerCase()));
+    const choose=(field:HTMLSelectElement,value:string)=>{field.value=value;field.dispatchEvent(new Event('change',{bubbles:true}));close();};
+    return <>
+      <label id="owner-type-label">Business type</label><button type="button" className="tm-trip-destination-trigger" aria-label={'Business type: '+selectedType.label} aria-haspopup="dialog" disabled={data.disabled} onClick={event=>show('type',event.currentTarget)}><span className="tm-trip-field-icon"><TypeIcon/></span><span><strong>{selectedType.label}</strong><small>{selectedType.copy}</small></span><ChevronDown size={20}/></button>
+      {createPortal(<><label>Destination</label><button type="button" className="tm-trip-destination-trigger" aria-label={'Destination: '+(selectedDestination?.label??'Choose a destination')} aria-haspopup="dialog" disabled={data.disabled||!data.options.length} onClick={event=>show('destination',event.currentTarget)}><span className="tm-trip-field-icon"><MapPin/></span><span><strong>{selectedDestination?.label.split(', ')[0]??(data.options.length?'Choose a destination':'Loading destinations…')}</strong>{selectedDestination&&<small>{selectedDestination.label.split(', ').slice(1).join(', ')}</small>}</span><ChevronDown size={20}/></button></>,destinationHost)}
+      {createPortal(<div className="tm-trip-date-fields tm-trip-time-fields">{(['arrivalTime','departureTime'] as const).map(key=><div key={key}><label>{key==='arrivalTime'?'Check-in time':'Check-out time'}</label><button type="button" className="tm-trip-date-trigger" aria-label={(key==='arrivalTime'?'Check-in time: ':'Check-out time: ')+clockLabel(key==='arrivalTime'?data.checkIn:data.checkOut)} aria-haspopup="dialog" disabled={data.disabled} onClick={event=>show(key,event.currentTarget)}><Clock3 size={20}/><strong>{clockLabel(key==='arrivalTime'?data.checkIn:data.checkOut)}</strong><ChevronDown size={16}/></button></div>)}</div>,timeHost)}
+      {open==='type'&&<PickerDialog title="Choose your business type" onClose={close} className="tm-destination-dialog"><div className="tm-destination-options">{types.map(({value,label,copy,icon:Icon})=><button key={value} type="button" aria-pressed={data.type===value} onClick={()=>choose(type,value)}><span className="tm-destination-marker"><Icon size={23}/></span><span><strong>{label}</strong><small>{copy}</small></span>{data.type===value?<Check size={20}/>:<ChevronRight size={18}/>}</button>)}</div></PickerDialog>}
+      {open==='destination'&&<PickerDialog title="Choose your destination" onClose={close} className="tm-destination-dialog"><div className="tm-destination-search"><Search size={20}/><input type="search" autoFocus maxLength={100} aria-label="Search business destinations" placeholder="Search a town or province" value={query} onChange={event=>setQuery(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();if(results.length===1)choose(destination,results[0].value);}}}/></div><p className="tm-destination-count" role="status">{results.length} {results.length===1?'destination':'destinations'}</p><div className="tm-destination-options">{results.map((option,index)=><button type="button" key={option.value} ref={node=>{if(node)placePreviewAttributes(node,'destination',option.value,option.label.split(', ')[0],option.label.split(', ').slice(1).join(', '));}} aria-pressed={option.value===data.destination} onClick={()=>choose(destination,option.value)}><span className={'tm-destination-marker tone-'+index%3}><MapPin size={22}/></span><span><strong>{option.label.split(', ')[0]}</strong><small>{option.label.split(', ').slice(1).join(', ')}</small></span>{option.value===data.destination?<Check size={20}/>:<ChevronRight size={18}/>}</button>)}{!results.length&&<p className="tm-destination-empty">No matching destinations. Try another town or province.</p>}</div></PickerDialog>}
+      {(open==='arrivalTime'||open==='departureTime')&&<TimePicker hotel arrival={data.checkIn} departure={data.checkOut} phase={open} sameDay={false} onClose={close} onApply={(arrival,departure)=>{checkIn.value=arrival;checkOut.value=departure;checkIn.dispatchEvent(new Event('input',{bubbles:true}));checkOut.dispatchEvent(new Event('input',{bubbles:true}));close();}}/>}
+    </>;
+  }
+  createRoot(typeHost).render(<OwnerPickers/>);
+}
+
+/** Existing hotels use the same clock editor as the new-listing popup. */
+export function mountOwnerDetailTimes(form:HTMLFormElement){
+  const arrival=form.elements.namedItem('ci') as HTMLInputElement,departure=form.elements.namedItem('co') as HTMLInputElement;
+  const host=document.createElement('div');host.className='tm-react';host.style.gridColumn='1 / -1';form.id='owner-details-form';form.prepend(host);arrival.closest('label')!.hidden=true;departure.closest('label')!.hidden=true;
+  function HotelTimes(){
+    const snapshot=()=>({arrival:arrival.value,departure:departure.value});const [data,setData]=useState(snapshot),[open,setOpen]=useState<'arrivalTime'|'departureTime'|null>(null),trigger=useRef<HTMLButtonElement|null>(null);
+    useEffect(()=>{const sync=()=>setData(snapshot()),close=()=>setOpen(null);form.addEventListener('input',sync);window.addEventListener('travelmate:owner-workspace-close',close);window.addEventListener('hashchange',close);window.addEventListener('travelmate:identity',close);return()=>{form.removeEventListener('input',sync);window.removeEventListener('travelmate:owner-workspace-close',close);window.removeEventListener('hashchange',close);window.removeEventListener('travelmate:identity',close);};},[]);
+    const close=()=>{setOpen(null);requestAnimationFrame(()=>trigger.current?.isConnected&&trigger.current.focus());};
+    return <><div className="tm-trip-date-fields tm-trip-time-fields">{(['arrivalTime','departureTime'] as const).map(key=><div key={key}><label>{key==='arrivalTime'?'Check-in time':'Check-out time'}</label><button type="button" className="tm-trip-date-trigger" aria-label={(key==='arrivalTime'?'Check-in time: ':'Check-out time: ')+clockLabel(key==='arrivalTime'?data.arrival:data.departure)} aria-haspopup="dialog" onClick={event=>{trigger.current=event.currentTarget;setOpen(key);}}><Clock3 size={20}/><strong>{clockLabel(key==='arrivalTime'?data.arrival:data.departure)}</strong><ChevronDown size={16}/></button></div>)}</div>{open&&<TimePicker hotel arrival={data.arrival} departure={data.departure} phase={open} sameDay={false} onClose={close} onApply={(start,end)=>{arrival.value=start;departure.value=end;arrival.dispatchEvent(new Event('input',{bubbles:true}));departure.dispatchEvent(new Event('input',{bubbles:true}));close();}}/>}</>;
+  }
+  const root=createRoot(host);root.render(<HotelTimes/>);
+  const observer=new MutationObserver(()=>{if(!form.isConnected){observer.disconnect();root.unmount();}});observer.observe(document.body,{childList:true,subtree:true});
 }

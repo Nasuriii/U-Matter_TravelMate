@@ -1,5 +1,6 @@
 import {ToastLayer} from './toasts';
 import {installInputLimits} from '../input-limits';
+import {installPlacePreviews} from '../place-hover-preview';
 import {SavedPage} from './saved';
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -40,6 +41,7 @@ function RoutePage({ page }: { page: string }) {
 }
 let mounted = false;
 export function mountExperience() {
+  installPlacePreviews();
   if (mounted) return; mounted = true; installInputLimits();
   const auth = document.getElementById('react-auth'); if (auth) flushSync(() => createRoot(auth).render(<AuthExperience />));
   const landing = document.getElementById('react-landing'); if (landing) createRoot(landing).render(<Landing />);

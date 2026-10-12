@@ -22,11 +22,14 @@ export function listingActionMenu(host:HTMLElement,name:string,actions:{label:st
  const trigger=document.createElement('button'),panel=document.createElement('div');
  trigger.type='button';trigger.className='quiet o-more-button';trigger.setAttribute('aria-label','More actions for '+name);trigger.setAttribute('aria-haspopup','menu');trigger.setAttribute('aria-expanded','false');
  trigger.append(document.createTextNode('More'),actionIcon('more'));panel.className='tm-listing-menu';panel.id='listing-actions-'+(++nextMenu);panel.popover='auto';panel.setAttribute('role','menu');panel.setAttribute('aria-label','Actions for '+name);trigger.setAttribute('aria-controls',panel.id);
+ trigger.popoverTargetElement=panel;trigger.popoverTargetAction='toggle';
+ let focusOnOpen=0;
  const close=()=>{if(panel.matches(':popover-open'))panel.hidePopover();};
  const buttons=actions.map(action=>{const b=document.createElement('button');b.type='button';b.setAttribute('role','menuitem');b.tabIndex=-1;b.className=action.danger?'tm-action-destructive':'';labelAction(b,action.icon,action.label);b.onclick=()=>{close();trigger.focus();action.run();};panel.append(b);return b;});
- trigger.onclick=()=>{if(panel.matches(':popover-open')){close();return;}const rect=trigger.getBoundingClientRect(),width=Math.min(240,window.innerWidth-24),height=actions.length*44+16;panel.style.width=width+'px';panel.style.left=Math.max(12,Math.min(rect.right-width,window.innerWidth-width-12))+'px';panel.style.top=Math.max(12,rect.bottom+height+8>window.innerHeight?rect.top-height-8:rect.bottom+8)+'px';panel.showPopover();buttons[0]?.focus();};
- trigger.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!panel.matches(':popover-open'))trigger.click();(e.key==='ArrowUp'?buttons.at(-1):buttons[0])?.focus();}};
- panel.addEventListener('toggle',()=>trigger.setAttribute('aria-expanded',String(panel.matches(':popover-open'))));
+ // Let the native invoker toggle: a manual click handler can reopen after light dismissal.
+ trigger.onclick=()=>{const rect=trigger.getBoundingClientRect(),width=Math.min(240,window.innerWidth-24),height=actions.length*44+16;panel.style.width=width+'px';panel.style.left=Math.max(12,Math.min(rect.right-width,window.innerWidth-width-12))+'px';panel.style.top=Math.max(12,rect.bottom+height+8>window.innerHeight?rect.top-height-8:rect.bottom+8)+'px';};
+ trigger.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();focusOnOpen=e.key==='ArrowUp'?buttons.length-1:0;if(!panel.matches(':popover-open'))trigger.click();else buttons[focusOnOpen]?.focus();}};
+ panel.addEventListener('toggle',()=>{const open=panel.matches(':popover-open');trigger.setAttribute('aria-expanded',String(open));if(open){buttons[focusOnOpen]?.focus();focusOnOpen=0;}});
  panel.onkeydown=e=>{const index=buttons.indexOf(document.activeElement as HTMLButtonElement);if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close();trigger.focus();}else if(e.key==='Tab'){close();trigger.focus();}else if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:(index+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length]?.focus();}};
  const scroll=(e:Event)=>{if(!panel.contains(e.target as Node))close();};window.addEventListener('resize',close);document.addEventListener('scroll',scroll,true);window.addEventListener('hashchange',close);
  document.body.append(panel);host.append(trigger);
