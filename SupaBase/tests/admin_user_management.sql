@@ -20,7 +20,7 @@ do $$ declare denied boolean; begin
  if has_function_privilege('anon','public.admin_user_directory(text,text,text,integer)','execute') or has_function_privilege('anon','public.admin_user_account(uuid)','execute') or has_function_privilege('anon','public.admin_set_user_status(uuid,text,text,timestamptz)','execute') then raise exception 'Anonymous function grant';end if;
 end $$;
 select set_config('request.jwt.claim.sub',(select administrator::text from account_qa),true);
-do $$ declare data jsonb; target uuid:=(select target from account_qa); administrator uuid:=(select administrator from account_qa); stamp timestamptz; denied boolean; begin
+do $$ declare data jsonb; target uuid:=(select target from account_qa); administrator uuid:=(select administrator from account_qa); stamp timestamptz; denied boolean; reservations jsonb; begin
  data:=public.admin_user_directory();
  if (data->>'total')::int<>(select expected_total from account_qa) or jsonb_array_length(data->'items')>25 then raise exception 'Directory counts or pagination incorrect';end if;
  data:=public.admin_user_directory(p_role=>'admin');
@@ -40,8 +40,9 @@ do $$ declare data jsonb; target uuid:=(select target from account_qa); administ
  if data->>'account_status'<>'suspended' or not exists(select 1 from jsonb_array_elements(data->'audit') x where x->>'reason'='QA rollback-only suspension') then raise exception 'Suspension/audit failed';end if;
  perform set_config('request.jwt.claim.sub',target::text,true);
  if public.tm_active_profile_id() is not null then raise exception 'Suspended account remains active';end if;
- denied:=false;begin perform public.workspace_reservations();exception when others then denied:=true;end;
- if not denied then raise exception 'Suspended account can read protected reservations';end if;
+ reservations:=public.workspace_reservations();
+ if exists(select 1 from jsonb_array_elements(reservations) x where not exists(select 1 from public.bookings b where b.id=(x->>'id')::uuid and b.profile_id=target)) then raise exception 'Suspended account can read another profile reservations';end if;
+ if exists(select 1 from jsonb_array_elements(reservations) x where (x->>'can_delete')::boolean or (x->>'can_cancel')::boolean) then raise exception 'Suspended reservation history enables changes';end if;
  perform set_config('request.jwt.claim.sub',administrator::text,true);
  data:=public.admin_set_user_status(target,'active','QA rollback-only reactivation',(data->>'updated_at')::timestamptz);
  if data->>'account_status'<>'active' then raise exception 'Reactivation failed';end if;

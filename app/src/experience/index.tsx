@@ -18,7 +18,8 @@ import { DestinationPage, ListingPage } from './catalog';
 import { BookingPage, ReservationsPage } from './bookings';
 import { AppearanceSettings, AppearanceManager } from './appearance';
 import {UserManagement} from './user-management';
-export const experiencePages = ['destination', 'listing', 'book', 'bookings', 'reservations', 'reports', 'preferences', 'saved', 'users'].map(page => `<section data-page="${page}" hidden><div id="react-${page}" class="tm-react"></div></section>`).join('');
+import {AccountAppealPage,SuspensionNotice,AccountLoadingNotice} from './account-appeals';
+export const experiencePages = ['destination', 'listing', 'book', 'bookings', 'reservations', 'reports', 'preferences', 'saved', 'users', 'appeal'].map(page => `<section data-page="${page}" hidden><div id="react-${page}" class="tm-react"></div></section>`).join('');
 function RoutePage({ page }: { page: string }) {
   const identity = useIdentity(); const [hash, setHash] = useState(location.hash.slice(1));
   useEffect(() => { const change = () => setHash(location.hash.slice(1)); window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change); }, []);
@@ -27,6 +28,7 @@ function RoutePage({ page }: { page: string }) {
   if (identity.role === 'guest' && page === 'destination' && id) return <DestinationPage key={id} id={id} />;
   if (identity.role === 'guest' && page === 'listing' && id) return <ListingPage key={id} id={id} />;
   if (!identity.id) return null;
+  if(page==='appeal')return <AccountAppealPage key={identity.id}/>;
   if (page === 'users' && identity.role === 'admin') return <UserManagement key={identity.id+hash}/>;
   if (page === 'reports' && (identity.role === 'admin' || identity.role === 'owner')) return <WorkspaceHome key={identity.id} report />;
   if (page === 'reservations' && identity.role === 'owner') return <ReservationsPage key={identity.id} owner />;
@@ -35,7 +37,7 @@ function RoutePage({ page }: { page: string }) {
   if (page === 'preferences') return <Preferences key={identity.id} />;
   if (page === 'destination' && id) return <DestinationPage key={id + identity.id} id={id} />;
   if (page === 'listing' && id) return <ListingPage key={id + identity.id} id={id} />;
-  if (page === 'book' && id) return <BookingPage key={id + (query || '') + identity.id} id={id} room={new URLSearchParams(query).get('room')} />;
+  if (page === 'book' && id) return <BookingPage key={id + (query || '') + identity.id + identity.accountStatus} id={id} room={new URLSearchParams(query).get('room')} />;
   if (page === 'bookings') return <ReservationsPage key={identity.id} />;
   return null;
 }
@@ -46,12 +48,13 @@ export function mountExperience() {
   const auth = document.getElementById('react-auth'); if (auth) flushSync(() => createRoot(auth).render(<AuthExperience />));
   const landing = document.getElementById('react-landing'); if (landing) createRoot(landing).render(<Landing />);
   const nav = document.createElement('div'); nav.id = 'react-navigation'; nav.className = 'tm-react'; document.body.prepend(nav); createRoot(nav).render(<Navigation />);
+  const accountNotice=document.createElement('div');accountNotice.className='tm-react';document.querySelector('main')!.prepend(accountNotice);createRoot(accountNotice).render(<><AccountLoadingNotice/><SuspensionNotice/></>);
   const overlays = document.createElement('div'); document.body.append(overlays); createRoot(overlays).render(<><ToastLayer/><AppearanceManager/><OnboardingGate/><DayPlanner/></>);
   const appearance = document.getElementById('react-appearance'); if(appearance) createRoot(appearance).render(<AppearanceSettings/>);
   const home = document.createElement('div'); home.id = 'react-home'; home.className = 'tm-react'; document.querySelector('[data-page="home"]')!.prepend(home); createRoot(home).render(<Home />);
   createRoot(document.getElementById('react-trip-inspiration')!).render(<TripInspiration/>);
   createRoot(document.getElementById('react-trip-transport')!).render(<TripTransport/>);
-  for (const page of ['destination', 'listing', 'book', 'bookings', 'reservations', 'reports', 'preferences', 'saved', 'users']) createRoot(document.getElementById('react-' + page)!).render(<RoutePage page={page} />);
+  for (const page of ['destination', 'listing', 'book', 'bookings', 'reservations', 'reports', 'preferences', 'saved', 'users', 'appeal']) createRoot(document.getElementById('react-' + page)!).render(<RoutePage page={page} />);
 }
 export function initExperience(client: SupabaseClient) {
   configureClient(client); let lastPage = '';

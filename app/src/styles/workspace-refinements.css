@@ -1,0 +1,190 @@
+/* Workspace controls use readable sizes and a consistent card rhythm. */
+.tm-react .tm-workspace-reports :is(.tm-workspace-title p,.tm-workspace-pagination,.tm-data-scope) {font-size:15px;line-height:1.65}
+.tm-react .tm-workspace-reports .tm-report-filters label {font-size:15px;gap:8px}
+.tm-react .tm-workspace-reports .tm-report-filters :is(input,select) {font-size:16px;min-height:48px;margin:0}
+.tm-react .tm-workspace-reports .tm-report-leader {padding:22px;min-height:142px;background:var(--card)}
+.tm-react .tm-workspace-reports .tm-report-leader>span {font-size:15px}
+.tm-react .tm-workspace-reports .tm-report-leader strong {font-size:21px;line-height:1.35;margin:12px 0}
+.tm-react .tm-workspace-reports .tm-report-leader small {font-size:15px;line-height:1.5}
+.tm-react .tm-workspace-reports .tm-workspace-table th {font-size:15px;padding:16px}
+.tm-react .tm-workspace-reports .tm-workspace-table td {font-size:17px;padding:20px 16px}
+.tm-react .tm-workspace-reports .tm-workspace-table td small {font-size:14px;text-transform:capitalize}
+.tm-react .tm-workspace-reports .tm-workspace-table .tm-status {font-size:13px;padding:5px 10px}
+.tm-react .tm-workspace-reports .tm-workspace-table button {min-height:38px;line-height:1.45}
+.tm-report-detail-modal .tm-modal {width:min(740px,100%)}
+.tm-react .tm-report-detail-modal .tm-account-detail-body {font-size:17px;padding:28px}
+.tm-report-detail-modal .tm-detail-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:24px 0}
+.tm-report-detail-modal .tm-detail-grid>div {padding:24px;border:1px solid var(--border);border-radius:14px;background:var(--muted)}
+.tm-report-detail-modal .tm-detail-grid span {display:block;font-size:15px;color:var(--muted-foreground);line-height:1.5}
+.tm-report-detail-modal .tm-detail-grid strong {display:block;font-size:40px;line-height:1.2;margin-top:12px}
+.tm-react .tm-action-panel {background:var(--card)!important;min-width:0;align-self:start}
+.tm-react .tm-action-panel h2 {font-size:27px;line-height:1.3;margin:12px 0 22px}
+.tm-react .tm-action-panel .tm-health-row {display:flex;align-items:center;justify-content:space-between;width:100%;min-height:60px;padding:14px 12px;gap:16px;border:0;border-bottom:1px solid var(--border);border-radius:8px;background:transparent;color:var(--foreground);font:inherit;font-size:16px;text-align:left}
+.tm-react .tm-action-panel .tm-health-row span {color:var(--foreground);font-size:16px;line-height:1.45}
+.tm-react .tm-action-panel .tm-health-row strong {display:flex;align-items:center;gap:12px;font-size:21px;flex-shrink:0}
+.tm-react .tm-action-panel .tm-health-row:hover {background:var(--muted)}
+.tm-react .tm-action-panel .tm-health-row:focus-visible {outline:2px solid var(--primary);outline-offset:2px}
+.tm-react .tm-action-panel [data-slot=button] {font-size:15px;min-height:48px}
+.tm-react .tm-admin-appeals {padding:28px;box-shadow:none}
+.tm-react .tm-admin-appeals>.tm-section-title {align-items:flex-start;gap:18px;flex-wrap:wrap}
+.tm-react .tm-admin-appeals .tm-appeal-count {display:block;width:fit-content;margin:12px 0 0;font-size:14px}
+.tm-react .tm-account-detail-body>dl {gap:22px;margin:24px 0}
+.tm-react .tm-account-detail-body>dl dt {font-size:14px;line-height:1.5}
+.tm-react .tm-account-detail-body>dl dd {font-size:16px;line-height:1.6;margin:4px 0 0}
+.tm-react .tm-account-status-form {display:flex;flex-direction:column;gap:12px;padding:22px}
+.tm-react .tm-account-status-form textarea {margin:0;font-size:16px;line-height:1.6}
+.tm-react .tm-account-status-form .tm-data-scope {margin:0;font-size:14px}
+.tm-react .tm-account-status-form [data-slot=button] {align-self:flex-end;min-height:46px;font-size:15px}
+.tm-react [data-slot=button][data-variant=destructive],.tm-shadcn-confirm button[data-variant=destructive] {background:#b63229;color:#fff;border-color:#b63229}
+.tm-react [data-slot=button][data-variant=destructive]:hover {background:#96251f}
+.tm-react .tm-suspension-banner .tm-suspension-reason {color:var(--foreground);white-space:pre-wrap;overflow-wrap:anywhere;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.tm-react .tm-folded-ticket .tm-ticket-kind {padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--ticket-accent) 10%,var(--card));color:var(--ticket-accent);letter-spacing:0;text-transform:none;gap:10px}
+.tm-ticket-hotel {--ticket-accent:var(--primary)}
+.tm-ticket-restaurant {--ticket-accent:#a74420}
+body[data-theme=dark] .tm-ticket-restaurant {--ticket-accent:#f6b28c}
+.tm-react .tm-ticket-kind>svg {width:26px;height:26px;flex-shrink:0}
+.tm-react .tm-ticket-kind strong {display:block;font-size:17px;line-height:1.35}
+.tm-react .tm-ticket-kind small {display:block;font-size:12px;font-weight:500;line-height:1.5;margin-top:3px}
+.tm-react .tm-shared-dates {width:100%;margin:18px 0}
+.tm-react .tm-shared-dates .tm-trip-date-fields>div>span {font-size:15px;font-weight:600}
+.tm-react .tm-shared-dates .tm-trip-date-trigger {display:flex;align-items:center;gap:10px;width:100%;margin-top:8px;min-height:50px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--foreground);font-size:16px;text-align:left}
+.tm-react .tm-shared-dates .tm-trip-date-trigger strong {flex:1;font-size:15px;font-weight:600}
+.tm-react .tm-shared-dates .tm-trip-date-trigger>svg {flex-shrink:0;color:var(--primary)}
+.tm-react .tm-shared-dates .tm-trip-date-trigger:hover {border-color:var(--primary);background:var(--muted)}
+.tm-react .tm-shared-dates .tm-trip-date-trigger:focus-visible {outline:2px solid var(--primary);outline-offset:3px}
+.tm-react .tm-access-loading {max-width:900px;margin:32px auto;padding:28px;border:1px solid var(--border);border-radius:18px;background:var(--card);font-size:16px}
+.tm-access-loading h2 {margin:8px 0 14px}
+.tm-access-loading p {line-height:1.6;color:var(--muted-foreground)}
+
+/* Account categories stay recognizable across palettes and display modes. */
+body :is(.tm-user-management,.tm-account-detail-modal,.tm-appeal-review-modal,.tm-appeal-page,.tm-suspension-banner) {
+ --account-blue:#2c578d;--account-blue-bg:#edf3fb;--account-green:#256247;--account-green-bg:#edf7f0;
+ --account-red:#a5372d;--account-red-bg:#fff1ec;--account-purple:#684897;--account-purple-bg:#f3eefb;
+ --account-neutral:#4c5965;--account-neutral-bg:#edf0f3;
+}
+body[data-theme=dark] :is(.tm-user-management,.tm-account-detail-modal,.tm-appeal-review-modal,.tm-appeal-page,.tm-suspension-banner) {
+ --account-blue:#b7d9ff;--account-blue-bg:#1c3045;--account-green:#b8e8cc;--account-green-bg:#183d2d;
+ --account-red:#ffc4b4;--account-red-bg:#442820;--account-purple:#dcc7ff;--account-purple-bg:#352b46;
+ --account-neutral:#d0d9e2;--account-neutral-bg:#2b3540;
+}
+body .tm-react .tm-user-management {font-size:17px}
+body .tm-react :is(.tm-user-management,.tm-appeal-page) .tm-description {font-size:17px;line-height:1.65}
+body .tm-react :is(.tm-user-management,.tm-appeal-page,.tm-admin-appeals) [data-slot=button],body .tm-react:is(.tm-account-detail-modal,.tm-appeal-review-modal) [data-slot=button] {font-size:16px;min-height:48px;padding:12px 18px}
+body .tm-react .tm-user-management .tm-admin-local-nav {background:var(--background);gap:12px;padding:10px;margin-bottom:28px}
+body .tm-react .tm-user-management .tm-admin-local-nav a {font-size:17px;min-height:52px;line-height:1.5}
+body .tm-react .tm-user-management .tm-user-stats {gap:18px;margin-bottom:30px}
+body .tm-react .tm-user-stats [data-account-tone=all] {--account-accent:var(--account-blue);--account-surface:var(--account-blue-bg)}
+body .tm-react .tm-user-stats [data-account-tone=active] {--account-accent:var(--account-green);--account-surface:var(--account-green-bg)}
+body .tm-react .tm-user-stats [data-account-tone=suspended] {--account-accent:var(--account-red);--account-surface:var(--account-red-bg)}
+body .tm-react .tm-user-stats [data-account-tone=admin] {--account-accent:var(--account-purple);--account-surface:var(--account-purple-bg)}
+body .tm-react .tm-user-stats>button {position:relative;min-height:120px;padding:22px;gap:16px;border:1px solid color-mix(in srgb,var(--account-accent) 45%,var(--border));border-left:4px solid var(--account-accent);background:var(--account-surface);color:var(--account-accent);border-radius:16px}
+body .tm-react .tm-user-stats>button>svg {width:28px;height:28px;flex-shrink:0}
+body .tm-react .tm-user-stats strong {font-size:34px;line-height:1.15;margin-bottom:9px;color:var(--foreground)}
+body .tm-react .tm-user-stats small {font-size:16px;line-height:1.45;color:var(--account-accent)}
+body .tm-react .tm-user-stats>button[aria-pressed=true] {outline:2px solid var(--account-accent);outline-offset:3px;box-shadow:none;border-color:var(--account-accent)}
+body .tm-react .tm-user-stats>button:hover {box-shadow:0 5px 18px #102a2314}
+.tm-user-stat-check {position:absolute;top:12px;right:12px;width:24px;height:24px;display:grid;place-items:center;border-radius:50%;background:var(--account-accent);color:var(--account-surface);font-size:16px;font-weight:700}
+body .tm-react .tm-user-management .tm-user-directory {padding:28px}
+body .tm-react .tm-user-management .tm-workspace-title h2 {font-size:28px;line-height:1.35;margin-bottom:10px}
+body .tm-react .tm-user-management .tm-workspace-title p {font-size:16px;line-height:1.65}
+body .tm-react .tm-user-management .tm-user-filters {gap:16px;margin:24px 0}
+body .tm-react .tm-user-management .tm-user-filters [data-slot=button] {min-height:52px}
+body .tm-react .tm-user-management .tm-user-filters label {font-size:16px}
+body .tm-react .tm-user-management .tm-user-filters input {font-size:17px;min-height:52px;margin:0}
+body .tm-react .tm-user-management .tm-workspace-search svg {top:17px}
+body .tm-react .tm-user-management .tm-workspace-table th {font-size:16px;padding:17px 18px}
+body .tm-react .tm-user-management .tm-workspace-table td {font-size:17px;line-height:1.6;padding:20px 18px}
+body .tm-react .tm-user-management .tm-workspace-table td small {font-size:15px;line-height:1.5;margin-top:9px}
+body .tm-react .tm-user-management .tm-workspace-table td button {font-size:18px;min-height:38px;line-height:1.5;gap:10px}
+body .tm-react :is(.tm-user-management,.tm-admin-appeals) .tm-filter-label {font-size:16px;line-height:1.5;margin-bottom:9px}
+body .tm-react :is(.tm-user-management,.tm-admin-appeals) .tm-filter-trigger {min-height:52px;font-size:17px;gap:12px;padding:12px 16px}
+body .tm-react :is(.tm-user-management,.tm-admin-appeals) .tm-filter-options button {min-height:48px;font-size:16px}
+body .tm-react .tm-user-management .tm-page-navigation {margin-top:24px;font-size:16px;gap:20px}
+body :is(.tm-react .tm-user-management,.tm-react.tm-account-detail-modal) [data-account-status],body .tm-react .tm-appeal-page .tm-status {font-size:14px;font-weight:650;padding:7px 12px;line-height:1.45;border-radius:20px;display:inline-flex;text-transform:capitalize}
+body :is(.tm-react .tm-user-management,.tm-react.tm-account-detail-modal) [data-account-status=active] {color:var(--account-green);background:var(--account-green-bg);border:1px solid color-mix(in srgb,var(--account-green) 40%,var(--border))}
+body :is(.tm-react .tm-user-management,.tm-react.tm-account-detail-modal) [data-account-status=suspended] {color:var(--account-red);background:var(--account-red-bg);border:1px solid color-mix(in srgb,var(--account-red) 40%,var(--border))}
+body :is(.tm-react .tm-user-management,.tm-react.tm-account-detail-modal) [data-account-status=closed] {color:var(--account-neutral);background:var(--account-neutral-bg);border:1px solid var(--border)}
+body .tm-react .tm-admin-appeals {padding:28px;margin:0 0 30px;background:color-mix(in srgb,var(--account-blue-bg) 24%,var(--card));border-radius:18px}
+body .tm-react .tm-admin-appeals>.tm-section-title {gap:24px;align-items:flex-start;margin-bottom:24px}
+body .tm-react .tm-admin-appeals h2 {display:block;font-size:28px;line-height:1.35}
+body .tm-react .tm-admin-appeals .tm-appeal-count {font-size:15px;line-height:1.5;padding:7px 12px;margin-top:12px;background:var(--account-blue-bg);color:var(--account-blue);border:1px solid color-mix(in srgb,var(--account-blue) 35%,var(--border))}
+body .tm-react .tm-admin-appeals .tm-appeal-count[data-pending=true] {background:var(--account-red-bg);color:var(--account-red);border-color:color-mix(in srgb,var(--account-red) 35%,var(--border))}
+body .tm-react .tm-admin-appeals>.tm-filter-select {max-width:300px;margin:0 0 24px}
+body .tm-react .tm-admin-appeals>.tm-empty {display:grid;grid-template-columns:40px minmax(0,1fr);gap:8px 18px;align-items:start;text-align:left;padding:22px;background:var(--card);border:1px dashed var(--border);border-radius:14px}
+body .tm-react .tm-admin-appeals>.tm-empty>svg {grid-row:span 2;width:32px;height:32px;margin-top:4px;color:var(--account-blue)}
+body .tm-react .tm-admin-appeals>.tm-empty h3 {font-size:19px;line-height:1.4;margin:0}
+body .tm-react .tm-admin-appeals>.tm-empty p {font-size:16px;line-height:1.65;margin:0}
+body .tm-react .tm-admin-appeal-list>li {padding:24px 0;gap:24px}
+body .tm-react .tm-admin-appeal-list strong {font-size:19px;line-height:1.45}
+body .tm-react .tm-admin-appeal-list small {font-size:15px;line-height:1.5;margin-top:8px}
+body .tm-react .tm-admin-appeal-list p {font-size:17px;line-height:1.65;margin-top:12px}
+body .tm-react.tm-account-detail-modal .tm-modal {width:min(940px,100%)}
+body .tm-react.tm-account-detail-modal .tm-modal-header {padding:24px 28px;gap:20px;background:var(--background)}
+body .tm-react.tm-account-detail-modal .tm-modal-header h2 {font-size:27px;line-height:1.35;min-width:0;overflow-wrap:anywhere}
+body .tm-react.tm-account-detail-modal .tm-modal-header [data-size=icon] {width:44px;height:44px;padding:0;min-height:44px}
+body .tm-react.tm-account-detail-modal .tm-account-detail-body {padding:28px;font-size:17px}
+body .tm-react.tm-account-detail-modal .tm-account-detail-body>dl {gap:18px;margin:26px 0 30px}
+body .tm-react.tm-account-detail-modal .tm-account-detail-body>dl>div {padding:18px 20px;border:1px solid var(--border);border-radius:12px;background:var(--background);min-width:0}
+body .tm-react.tm-account-detail-modal .tm-account-detail-body>dl dt {font-size:15px;line-height:1.5;margin-bottom:8px}
+body .tm-react.tm-account-detail-modal .tm-account-detail-body>dl dd {font-size:18px;line-height:1.55;margin:0}
+body .tm-react .tm-account-status-form {gap:16px;padding:24px;background:var(--account-red-bg);border-color:color-mix(in srgb,var(--account-red) 40%,var(--border))}
+body .tm-react .tm-account-status-form[data-next-status=active] {background:var(--account-green-bg);border-color:color-mix(in srgb,var(--account-green) 40%,var(--border))}
+body .tm-react .tm-account-status-form label {font-size:18px;line-height:1.5}
+body .tm-react .tm-account-status-form textarea {min-height:120px;font-size:17px;line-height:1.65;padding:16px;background:var(--card)}
+body .tm-react .tm-account-status-form .tm-data-scope {font-size:15px;line-height:1.6}
+body .tm-react .tm-account-access-history {margin-top:30px;padding-top:26px;border-top:1px solid var(--border)}
+body .tm-react .tm-account-access-history h3 {font-size:23px;line-height:1.4;margin:0 0 16px;gap:12px}
+body .tm-react .tm-account-access-history :is(.tm-data-scope,.tm-audit-list) {font-size:16px;line-height:1.65;margin:0}
+body .tm-react .tm-account-access-history .tm-audit-list small {font-size:14px;line-height:1.6}
+body .tm-react .tm-appeal-layout {gap:28px;margin-top:28px}
+body .tm-react .tm-appeal-layout>div[data-slot=card]>div {padding:28px}
+body .tm-react .tm-appeal-layout h2 {font-size:26px;line-height:1.35;margin:16px 0 20px}
+body .tm-react .tm-appeal-page :is(.tm-muted,.tm-appeal-reason,.tm-appeal-pending,.tm-appeal-history p,.tm-appeal-response p) {font-size:17px;line-height:1.7}
+body .tm-react .tm-appeal-reason {margin:0 0 20px;padding:20px;border-color:color-mix(in srgb,var(--account-red) 30%,var(--border));background:var(--account-red-bg)}
+body .tm-react .tm-appeal-pending {padding:22px;margin-top:24px;gap:16px;background:var(--account-blue-bg);border-color:color-mix(in srgb,var(--account-blue) 35%,var(--border))}
+body .tm-react .tm-appeal-pending>svg {color:var(--account-blue);width:28px;height:28px}
+body .tm-react .tm-appeal-pending strong {display:block;margin-bottom:10px;font-size:18px;line-height:1.5}
+body .tm-react .tm-appeal-history>h2 {margin:0 0 22px}
+body .tm-react .tm-appeal-history>article {padding:24px;margin-bottom:20px}
+body .tm-react .tm-appeal-entry-title {gap:14px;margin-bottom:18px;align-items:center}
+body .tm-react .tm-appeal-entry-title time,body .tm-react .tm-appeal-response small {font-size:14px;line-height:1.6}
+body .tm-react .tm-appeal-history article>p {margin:0}
+body .tm-react .tm-appeal-form {gap:16px;margin-top:28px}
+body .tm-react .tm-appeal-form label {font-size:18px;line-height:1.5}
+body .tm-react .tm-appeal-form textarea {font-size:17px;line-height:1.7;padding:16px}
+body .tm-react .tm-appeal-form small {font-size:14px;line-height:1.5}
+body .tm-react .tm-suspension-banner {--account-page-inset:clamp(20px,3.7vw,56px);width:calc(100% - var(--account-page-inset) - var(--account-page-inset));max-width:calc(1480px - var(--account-page-inset) - var(--account-page-inset));padding:24px;gap:20px;margin:24px auto 0}
+body .tm-react .tm-suspension-banner strong {font-size:19px;line-height:1.5}
+body .tm-react .tm-suspension-banner p {font-size:16px;line-height:1.65;margin-top:10px}
+body .tm-react .tm-suspension-banner [data-slot=button] {font-size:16px;min-height:48px}
+body .tm-react .tm-suspension-banner .tm-suspension-reason {padding-top:14px;margin-top:14px;font-size:16px}
+@media(min-width:1800px){body .tm-react .tm-suspension-banner {max-width:calc(1500px - var(--account-page-inset) - var(--account-page-inset))}}
+@media(max-width:760px){
+ .tm-react .tm-action-panel h2 {font-size:24px}
+ .tm-react .tm-admin-appeals {padding:20px}
+ .tm-report-detail-modal .tm-detail-grid {grid-template-columns:1fr}
+ .tm-react .tm-report-detail-modal .tm-account-detail-body {padding:20px}
+ .tm-react .tm-ticket-fold-top {align-items:flex-start;flex-wrap:wrap}
+ .tm-react .tm-ticket-kind strong {font-size:16px}
+ .tm-react .tm-access-loading {margin:20px}
+ body .tm-react .tm-user-management .tm-user-stats {grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+ body .tm-react .tm-user-stats>button {padding:18px 14px;min-height:112px;gap:12px}
+ body .tm-react .tm-user-stats>button {display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;min-width:0}
+ body .tm-react .tm-user-stats>button>span:not(.tm-user-stat-check) {display:contents}
+ body .tm-react .tm-user-stats strong {grid-column:2;margin:0}
+ body .tm-react .tm-user-stats small {grid-column:1/-1;margin-top:6px}
+ body .tm-react .tm-user-stats strong {font-size:29px}
+ body .tm-react .tm-user-stats small {font-size:15px}
+ body .tm-react .tm-user-stats>button>svg {width:23px;height:23px}
+ body .tm-react .tm-user-management .tm-user-directory,body .tm-react .tm-admin-appeals {padding:20px}
+ body .tm-react.tm-account-detail-modal .tm-account-detail-body,body .tm-react.tm-account-detail-modal .tm-modal-header {padding:20px}
+ body .tm-react.tm-account-detail-modal .tm-account-detail-body>dl {grid-template-columns:1fr}
+ body .tm-react .tm-admin-appeals>.tm-section-title [data-slot=button] {width:100%}
+ body .tm-react .tm-account-status-form {padding:20px}
+ body .tm-react .tm-account-status-form [data-slot=button] {width:100%}
+ body .tm-react .tm-user-management .tm-workspace-table {min-width:0}
+ body .tm-react .tm-appeal-layout>div[data-slot=card]>div {padding:22px}
+ body .tm-react .tm-suspension-banner {--account-page-inset:20px;padding:20px;gap:16px}
+ body .tm-react .tm-suspension-banner [data-slot=button] {margin-left:0;width:100%}
+ body .tm-react .tm-suspension-banner>div {flex-basis:calc(100% - 50px)}
+}

@@ -19,11 +19,12 @@ body :is(#stay-grid,#eat-grid,#attr-grid) {grid-template-columns:repeat(3,minmax
 @media(max-width:640px) {body :is(#stay-grid,#eat-grid,#attr-grid) {grid-template-columns:minmax(0,1fr)}}
 @media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference) {
   body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card):is(:hover,:focus-within) {
-    transform:translateY(-4px);
+    transform:scale(1.045);
+    z-index:2;
     box-shadow:0 12px 26px #173e3014;
     border-color:var(--primary);
   }
-  body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card):is(:hover,:focus-within) :is(.place-art,.l-art,.tm-place-cover) img {transform:scale(1.045)}
+  body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card):is(:hover,:focus-within) :is(.place-art,.l-art,.tm-place-cover) img {transform:scale(1.09)}
   body :is(#destination-grid .destination-card,.l-grid .l-card,.tm-react .tm-place-card):is(:hover,:focus-within) :is(.destination-open-arrow,.l-more-arrow,.tm-place-card button[data-slot=button]>svg:last-child) {transform:translate(2px,-2px)}
 }
 @media(hover:none),(pointer:coarse),(prefers-reduced-motion:reduce) {

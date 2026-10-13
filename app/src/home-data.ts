@@ -1,9 +1,9 @@
+import {placePreviewAttributes} from './place-hover-preview';
 import {mountSavedHeart,isSaved} from './experience/favorites';
 import {sampleGallery} from './sample-photos';
 import { catalogLabel, isPreview } from './catalog-label';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { navigate } from './experience/state';
-import {placePreviewAttributes} from './place-hover-preview';
 import {mountDestinationFilter} from './experience/filter-select';
 type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
@@ -24,6 +24,7 @@ function menuList(items: Row[], urls: Map<string, string>) {
 function mk(tag: string, cls: string, text?: string) { const e = document.createElement(tag); e.className = cls; if (text !== undefined) e.textContent = text; return e; }
 const BUCKET_FALLBACK = 'travelmate-listings';
 let wired = false;const browseCleanups=new Map<string,()=>void>();
+const browseLoads=new Map<string,number>();
 
 /** Landing page: live numbers + latest reviews (public read policies, works for guests). */
 export function loadLanding(client: SupabaseClient) {
@@ -120,11 +121,13 @@ export function loadBrowse(client: SupabaseClient) {
     }
   }
   async function listings(type: string, gridId: string, label: string) {
-    const grid = $(gridId);browseCleanups.get(gridId)?.();const disposers:(()=>void)[]=[];
+    const grid = $(gridId),load=(browseLoads.get(gridId)??0)+1;browseLoads.set(gridId,load);
+    browseCleanups.get(gridId)?.();browseCleanups.delete(gridId);const disposers:(()=>void)[]=[];
     const { data, error } = await db.from('business_listings').select('id,name,is_sample,description,address,listing_type,destination_id,destinations(name,province)').eq('status', 'approved').eq('listing_type', type).order('name').limit(200);
+    if(browseLoads.get(gridId)!==load)return;
     if (error) { grid.replaceChildren(mk('p', 'muted', 'Could not load listings: ' + error.message)); return; }
     if (!data?.length) { grid.replaceChildren(mk('p', 'muted', 'No approved listings yet.')); return; }
-    const photos = await photoUrls((data as Row[]).map(l => l.id)); grid.replaceChildren();
+    const photos = await photoUrls((data as Row[]).map(l => l.id));if(browseLoads.get(gridId)!==load)return;grid.replaceChildren();
     const cards: { node: HTMLElement; name: string; search: string }[] = [], recentPhotos:string[]=[];
     for (const l of data as Row[]) {
       const dest = one(l.destinations), card = mk('article', 'l-card l-click');
@@ -138,6 +141,7 @@ export function loadBrowse(client: SupabaseClient) {
       location.append(mk('span','',dest?`${dest.name} · ${dest.province}`:l.address||label));
       const details = mk('a', 'l-more', type==='hotel'?'View rooms ':type==='restaurant'?'Explore menu ':'Explore place ') as HTMLAnchorElement;
       details.href = '#/listing/' + l.id;
+      placePreviewAttributes(details,type==='hotel'?'rooms':type==='restaurant'?'menu':'attraction',l.id,catalogLabel(l.name),dest?dest.name+', '+dest.province:l.address??'');
       details.setAttribute('aria-label', 'View details for ' + catalogLabel(l.name));
       const arrow = mk('span', 'l-more-arrow', '↗'); arrow.setAttribute('aria-hidden', 'true'); details.append(arrow);
       const description=String(l.description||l.address||'Explore photos and details.').trim();
@@ -145,7 +149,7 @@ export function loadBrowse(client: SupabaseClient) {
       b.append(location,mk('h3','',catalogLabel(l.name)),mk('p','l-desc',brief));
       const footer=mk('div','l-card-footer');footer.append(details);b.append(footer);
       if(preview)art.append(mk('span','l-preview-badge','Preview listing'));
-      const heart=mk('div','tm-react');art.append(heart);disposers.push(mountSavedHeart(heart,l.id,catalogLabel(l.name)));card.append(art,b);card.addEventListener('click',e=>{if(!(e.target as HTMLElement).closest('.tm-save-position,a'))navigate('/listing/'+l.id);});placePreviewAttributes(card,'listing',l.id,catalogLabel(l.name),dest?[dest.name,dest.province].join(', '):l.address??'');if(url)card.dataset.placeImage=url;card.dataset.listing=l.id;card.dataset.destination=dest?.name??''; cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
+      const heart=mk('div','tm-react');art.append(heart);disposers.push(mountSavedHeart(heart,l.id,catalogLabel(l.name)));card.append(art,b);card.addEventListener('click',e=>{if(!(e.target as HTMLElement).closest('.tm-save-position,a'))navigate('/listing/'+l.id);});card.dataset.listing=l.id;card.dataset.destination=dest?.name??''; cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});
     }
     const prefix = gridId.replace('-grid','');
     const search = $(prefix+'-search') as HTMLInputElement, sort = $(prefix+'-sort') as HTMLSelectElement;

@@ -1,3 +1,4 @@
+import {paceGuides,type Pace} from './travel-guidance';
 export type Brief={id:string;name:string;destination_id:string;start_date:string;end_date:string;arrival_time:string;departure_time:string;travel_pace:string;interests:string[];budget:number|null;budget_currency:string;updated_at:string};
 export type Venue={id:string;name:string;listing_type:string;description:string|null;address:string|null};
 export type Stop={planned_date:string;planned_time:string;planned_end_time:string;activity:string;listing_id:string|null;recommendation_reason:string;notes:string};
@@ -14,8 +15,8 @@ export function buildItinerary(trip:Brief,venues:Venue[]):Stop[]{
  const interests=trip.interests??[];const keywords:Record<string,RegExp>={beaches:/beach|coast|shore|surf|seaside/i,mountains:/mountain|summit|highland|ridge|peak/i,adventure:/adventure|hike|trail|surf|zipline|trek/i,relaxation:/quiet|relax|garden|spa|peaceful|leisure/i,nature:/beach|garden|nature|park|trail|mountain|falls|scenery/i,history:/history|historic|heritage|museum|church/i,shopping:/shop|market|mall|craft/i};
  const matches=(v:Venue)=>interests.filter(i=>keywords[i]?.test(v.name+' '+(v.description??'')));
  const sights=venues.filter(v=>v.listing_type==='attraction').sort((a,b)=>matches(b).length-matches(a).length||a.name.localeCompare(b.name));
- const maxSights=trip.travel_pace==='relaxed'?1:trip.travel_pace==='active'?3:2;
- const duration=trip.travel_pace==='relaxed'?120:90;
+ const pace=paceGuides[trip.travel_pace as Pace]??paceGuides.balanced;
+ const maxSights=pace.maxAttractions,duration=pace.visitMinutes;
  for(let d=0;d<days;d++){
   const date=new Date(start+d*DAY).toISOString().slice(0,10);
   const lower=d===0?Math.min(arrival+60,1439):480;

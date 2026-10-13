@@ -3,7 +3,8 @@ import { useSyncExternalStore } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { catalogLabel, isPreview } from '../catalog-label';
 export type WorkspaceRole = 'guest' | 'loading' | 'traveler' | 'owner' | 'admin';
-export type Identity = { id: string | null; role: WorkspaceRole; name: string; email: string };
+export type Identity = { id: string | null; role: WorkspaceRole; name: string; email: string; accountStatus?:'active'|'suspended'|'closed'; suspensionReason?:string|null; accessError?:string };
+export function isSuspended(value:Identity=identity){return value.accountStatus==='suspended';}
 let identity: Identity = { id: null, role: 'guest', name: '', email: '' };
 const listeners = new Set<() => void>();
 export function setIdentity(next: Identity) { identity = next; listeners.forEach(fn => fn()); window.dispatchEvent(new Event('travelmate:identity')); }

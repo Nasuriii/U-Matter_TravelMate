@@ -1,12 +1,12 @@
 import { createRoot } from 'react-dom/client';
-import { ArrowLeft, Check, Eye, Pencil, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Eye, Pencil, Save, Trash2, ShieldAlert } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from './components/ui/alert-dialog';
 // One shared shadcn/Radix confirmation for both React and existing database workflows.
 let queue = Promise.resolve();
 export type ConfirmationDetail = { label: string; value: string };
 export function confirmAction(title: string, message: string, label: string, cancelLabel = 'Keep editing', details?: ConfirmationDetail[]): Promise<boolean> {
-  const destructive = /^(delete|remove|discard|reject|revoke)\b/i.test(label);
-  const ActionIcon = destructive ? Trash2 : /preview|view|show/i.test(label) ? Eye : /save/i.test(label) ? Save : Check;
+  const destructive = /^(delete|remove|discard|reject|revoke|suspend)\b/i.test(label);
+  const ActionIcon = /^suspend\b/i.test(label) ? ShieldAlert : destructive ? Trash2 : /preview|view|show/i.test(label) ? Eye : /save/i.test(label) ? Save : Check;
   const CancelIcon = /edit/i.test(cancelLabel) ? Pencil : ArrowLeft;
   let resolveResult!: (value: boolean) => void;
   const result = new Promise<boolean>(resolve => { resolveResult = resolve; });

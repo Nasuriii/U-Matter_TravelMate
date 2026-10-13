@@ -19,18 +19,23 @@ function PickerDialog({title,children,onClose,className=''}:{title:string;childr
     {children}
   </dialog>;
 }
-function DateCalendar({start,end,phase:initialPhase,onApply,onClose}:{start:string;end:string;phase:'start'|'end';onApply:(start:string,end:string)=>void;onClose:()=>void}) {
+type DateMode='trip'|'stay'|'availability'|'reservation';
+function DateCalendar({start,end,phase:initialPhase,onApply,onClose,mode='trip',availableDates=[]}:{start:string;end:string;phase:'start'|'end';onApply:(start:string,end:string)=>void;onClose:()=>void;mode?:DateMode;availableDates?:string[]}) {
   const [range,setRange]=useState({start,end}),[phase,setPhase]=useState<'start'|'end'>(initialPhase==='end'&&start?'end':'start');
   const initial=calendarDate(initialPhase==='end'?end:start)||calendarDate(start)||new Date();
   const [month,setMonth]=useState(()=>new Date(initial.getFullYear(),initial.getMonth(),1,12));
   const [focusDate,setFocusDate]=useState(dateKey(initial)),[message,setMessage]=useState('');
-  const grid=useRef<HTMLDivElement>(null),days=tripDays(range.start,range.end),valid=days>=1&&days<=14;
+  const grid=useRef<HTMLDivElement>(null),days=tripDays(range.start,range.end),stay=mode==='stay',maxDays=mode==='trip'?14:stay?91:Infinity;
+  const single=mode==='reservation',labels=stay?['Check-in','Check-out']:single?['Reservation','']:mode==='availability'?['Start','End']:['Arrival','Departure'];
   const today=dateKey(new Date());
+  const valid=single?range.start>=today&&availableDates.includes(range.start):days>=(stay?2:1)&&days<=maxDays&&(mode==='trip'||range.start>=today);
   function choose(value:string) {
     setMessage('');setFocusDate(value);
+    if(mode!=='trip'&&value<today){setMessage('Choose today or a future date.');return;}
+    if(single){if(!availableDates.includes(value)){setMessage('Choose a date with available reservation times.');return;}setRange({start:value,end:''});return;}
     if(phase==='start'){setRange({start:value,end:''});setPhase('end');return;}
-    if(value<range.start){setMessage('Choose a departure on or after arrival.');return;}
-    if(tripDays(range.start,value)>14){setMessage('Your day planner supports trips up to 14 days.');return;}
+    if(value<range.start||(stay&&value===range.start)){setMessage(stay?'Check-out must be after check-in.':'Choose an end date on or after the start date.');return;}
+    if(tripDays(range.start,value)>maxDays){setMessage(stay?'Choose a stay of up to 90 nights.':'Your day planner supports trips up to 14 days.');return;}
     setRange({...range,end:value});
   }
   function focus(value:string) {
@@ -54,33 +59,46 @@ function DateCalendar({start,end,phase:initialPhase,onApply,onClose}:{start:stri
     setMonth(next);setFocusDate(dateKey(next));setMessage('');
   }
   const cells=monthCells(month),weeks=Math.ceil(cells.reduce((last,value,index)=>value?index+1:last,0)/7);
-  return <PickerDialog title="Choose your trip dates" onClose={onClose} className="tm-calendar-dialog">
-    <div className="tm-calendar-range" role="group" aria-label="Date to choose">
-      <button type="button" aria-pressed={phase==='start'} onClick={()=>setPhase('start')}><small>Arrival</small><strong>{dateLabel(range.start)}</strong></button>
-      <ArrowRight size={19}/>
-      <button type="button" aria-pressed={phase==='end'} onClick={()=>{if(range.start)setPhase('end');}} disabled={!range.start}><small>Departure</small><strong>{dateLabel(range.end)}</strong></button>
+  return <PickerDialog title={stay?'Choose your stay dates':single?'Choose your reservation date':mode==='availability'?'Choose availability dates':'Choose your trip dates'} onClose={onClose} className="tm-calendar-dialog">
+    <div className={'tm-calendar-range'+(single?' is-single':'')} role="group" aria-label="Date to choose">
+      <button type="button" aria-pressed={phase==='start'} onClick={()=>setPhase('start')}><small>{labels[0]}</small><strong>{dateLabel(range.start)}</strong></button>
+      {!single&&<><ArrowRight size={19}/><button type="button" aria-pressed={phase==='end'} onClick={()=>{if(range.start)setPhase('end');}} disabled={!range.start}><small>{labels[1]}</small><strong>{dateLabel(range.end)}</strong></button></>}
     </div>
-    <p className="tm-calendar-instruction" role="status">{phase==='start'?'Pick your arrival date.':'Pick your departure date.'} <span>Up to 14 days</span></p>
+    <p className="tm-calendar-instruction" role="status">Pick your {labels[phase==='start'?0:1].toLowerCase()} date. <span>{stay?'1–90 nights':single?'Available dates only':mode==='trip'?'Up to 14 days':'Local dates'}</span></p>
     <div className="tm-calendar-month-heading"><button type="button" className="tm-picker-icon-button" aria-label="Previous month" onClick={()=>moveMonth(-1)}><ChevronLeft/></button><h3 id="tm-calendar-month">{month.toLocaleDateString('en-PH',{month:'long',year:'numeric'})}</h3><button type="button" className="tm-picker-icon-button" aria-label="Next month" onClick={()=>moveMonth(1)}><ChevronRight/></button></div>
     <div className="tm-calendar-weekdays" aria-hidden="true">{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(day=><span key={day}>{day}</span>)}</div>
     <div className="tm-calendar-grid" ref={grid} role="grid" aria-labelledby="tm-calendar-month">
       {Array.from({length:weeks},(_,week)=><div role="row" key={week}>{cells.slice(week*7,week*7+7).map((value,index)=>{
         if(!value)return <span role="gridcell" key={'blank'+index}/>;
         const selected=value===range.start||value===range.end,inRange=!!range.start&&!!range.end&&value>range.start&&value<range.end;
-        const unavailable=phase==='end'&&(value<range.start||tripDays(range.start,value)>14);
+        const unavailable=(mode!=='trip'&&value<today)||(single&&!availableDates.includes(value))||(phase==='end'&&(value<range.start||(stay&&value===range.start)||tripDays(range.start,value)>maxDays));
         return <div role="gridcell" key={value} aria-selected={selected||inRange} className={(inRange?'is-range ':'')+(value===range.start?'range-start ':'')+(value===range.end?'range-end':'')}>
-          <button type="button" data-date={value} tabIndex={value===focusDate?0:-1} aria-label={calendarDate(value)!.toLocaleDateString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+(value===range.start?' · Arrival':'')+(value===range.end?' · Departure':'')}
+          <button type="button" data-date={value} tabIndex={value===focusDate?0:-1} aria-label={calendarDate(value)!.toLocaleDateString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+(value===range.start?' · '+labels[0]:'')+(value===range.end?' · '+labels[1]:'')}
             aria-current={value===today?'date':undefined} aria-disabled={unavailable} className={(selected?'is-selected ':'')+(unavailable?'is-unavailable':'')}
             onKeyDown={event=>keyboard(event,value)} onClick={()=>choose(value)}>{Number(value.slice(-2))}</button>
         </div>;
       })}</div>)}
     </div>
     {message&&<p className="tm-calendar-error" role="alert">{message}</p>}
-    <div className="tm-calendar-footer"><span>{valid?<><CalendarDays size={17}/>{days} {days===1?'day':'days'} away</>:'Choose arrival and departure'}</span><button type="button" className="tm-picker-apply" disabled={!valid} onClick={()=>onApply(range.start,range.end)}><Check size={18}/>Apply dates</button></div>
+    <div className="tm-calendar-footer"><span>{valid?<><CalendarDays size={17}/>{single?dateLabel(range.start):<>{stay?days-1:days} {stay?(days===2?'night':'nights'):(days===1?'day':'days')}{mode==='trip'?' away':''}</>}</>:single?'Choose an available date':'Choose both dates'}</span><button type="button" className="tm-picker-apply" disabled={!valid} onClick={()=>onApply(range.start,range.end)}><Check size={18}/>{single?'Apply date':'Apply dates'}</button></div>
   </PickerDialog>;
 }
+export function DateRangeFields({start,end,onChange,disabled=false,mode='stay'}:{start:string;end:string;onChange:(start:string,end:string)=>void;disabled?:boolean;mode?:'stay'|'availability'}){
+  const [open,setOpen]=useState<'start'|'end'|null>(null),trigger=useRef<HTMLButtonElement|null>(null);
+  const labels=mode==='stay'?['Check-in','Check-out']:['Start date','End date'];
+  const close=()=>{setOpen(null);requestAnimationFrame(()=>trigger.current?.isConnected&&trigger.current.focus());};
+  useEffect(()=>{if(disabled)setOpen(null);},[disabled]);
+  useEffect(()=>{const dismiss=()=>setOpen(null);window.addEventListener('hashchange',dismiss);window.addEventListener('travelmate:identity',dismiss);return()=>{window.removeEventListener('hashchange',dismiss);window.removeEventListener('travelmate:identity',dismiss);};},[]);
+  return <div className="tm-shared-dates"><div className="tm-trip-date-fields">{(['start','end'] as const).map((key,index)=><div key={key}><span>{labels[index]}</span><button type="button" className="tm-trip-date-trigger" aria-label={labels[index]+': '+dateLabel(index?end:start)} aria-haspopup="dialog" disabled={disabled} onClick={event=>{trigger.current=event.currentTarget;setOpen(key);}}><CalendarDays size={20}/><strong>{dateLabel(index?end:start)}</strong><ChevronDown size={16}/></button></div>)}</div>{open&&<DateCalendar start={start} end={end} phase={open} mode={mode} onClose={close} onApply={(a,b)=>{onChange(a,b);close();}}/>}</div>;
+}
+export function ReservationDateField({value,dates,onChange}:{value:string;dates:string[];onChange:(date:string)=>void}){
+ const [open,setOpen]=useState(false),trigger=useRef<HTMLButtonElement>(null);
+ const close=()=>{setOpen(false);requestAnimationFrame(()=>trigger.current?.isConnected&&trigger.current.focus());};
+ useEffect(()=>{const dismiss=()=>setOpen(false);window.addEventListener('hashchange',dismiss);window.addEventListener('travelmate:identity',dismiss);return()=>{window.removeEventListener('hashchange',dismiss);window.removeEventListener('travelmate:identity',dismiss);};},[]);
+ return <div className="tm-shared-dates"><span className="tm-field-label">Choose a date</span><button ref={trigger} type="button" className="tm-trip-date-trigger" disabled={!dates.length} aria-label={'Reservation date: '+dateLabel(value)} aria-haspopup="dialog" onClick={()=>setOpen(true)}><CalendarDays size={20}/><strong>{dates.length?dateLabel(value):'No dates available'}</strong><ChevronDown size={16}/></button>{open&&<DateCalendar start={value} end="" phase="start" mode="reservation" availableDates={dates} onClose={close} onApply={date=>{onChange(date);close();}}/>}</div>;
+}
 
-function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClose,hotel=false}:{arrival:string;departure:string;phase:'arrivalTime'|'departureTime';sameDay:boolean;onApply:(arrival:string,departure:string)=>void;onClose:()=>void;hotel?:boolean}) {
+function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClose,hotel=false,labels,title}:{arrival:string;departure:string;phase:'arrivalTime'|'departureTime';sameDay:boolean;onApply:(arrival:string,departure:string)=>void;onClose:()=>void;hotel?:boolean;labels?:[string,string];title?:string}) {
   const [draft,setDraft]=useState({arrivalTime:arrival,departureTime:departure});
   const [phase,setPhase]=useState(initialPhase),[part,setPart]=useState<'hour'|'minute'>('hour');
   const parts=clockParts(draft[phase])??{hour:9,minute:0,period:'AM' as const};
@@ -101,10 +119,10 @@ function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClos
     if(next===null)return;event.preventDefault();setFocusIndex(next);
     requestAnimationFrame(()=>options.current?.querySelector<HTMLButtonElement>(`[data-time-option="${next}"]`)?.focus());
   }
-  return <PickerDialog title={hotel?'Choose check-in & check-out times':'Choose your trip times'} onClose={onClose} className="tm-time-dialog">
-    <div className="tm-calendar-range" role="group" aria-label="Time to choose">{(['arrivalTime','departureTime'] as const).map(key=><button key={key} type="button" aria-pressed={phase===key} onClick={()=>setPhase(key)}><small>{hotel?(key==='arrivalTime'?'Check-in':'Check-out'):(key==='arrivalTime'?'Arrival':'Departure')}</small><strong>{clockLabel(draft[key])}</strong></button>)}</div>
+  return <PickerDialog title={title??(hotel?'Choose check-in & check-out times':'Choose your trip times')} onClose={onClose} className="tm-time-dialog">
+    <div className="tm-calendar-range" role="group" aria-label="Time to choose">{(['arrivalTime','departureTime'] as const).map(key=><button key={key} type="button" aria-pressed={phase===key} onClick={()=>setPhase(key)}><small>{labels?labels[key==='arrivalTime'?0:1]:hotel?(key==='arrivalTime'?'Check-in':'Check-out'):(key==='arrivalTime'?'Arrival':'Departure')}</small><strong>{clockLabel(draft[key])}</strong></button>)}</div>
     <p className="tm-time-instruction"><Clock3 size={17}/>Local time at your destination</p>
-    <div className="tm-clock-face" role="group" aria-label={hotel?(phase==='arrivalTime'?'Check-in time controls':'Check-out time controls'):(phase==='arrivalTime'?'Arrival time controls':'Departure time controls')}>
+    <div className="tm-clock-face" role="group" aria-label={labels?labels[phase==='arrivalTime'?0:1]+' time controls':hotel?(phase==='arrivalTime'?'Check-in time controls':'Check-out time controls'):(phase==='arrivalTime'?'Arrival time controls':'Departure time controls')}>
       <button type="button" className="tm-clock-digit" aria-label="Choose hour" aria-pressed={part==='hour'} onClick={()=>setPart('hour')}><strong>{String(parts.hour).padStart(2,'0')}</strong><small>Hour</small></button><span aria-hidden="true">:</span>
       <button type="button" className="tm-clock-digit" aria-label="Choose minutes" aria-pressed={part==='minute'} onClick={()=>setPart('minute')}><strong>{String(parts.minute).padStart(2,'0')}</strong><small>Minute</small></button>
       <div className="tm-clock-period" role="group" aria-label="AM or PM">{(['AM','PM'] as const).map(period=><button key={period} type="button" aria-pressed={parts.period===period} onClick={()=>update('period',period)}>{period==='AM'?<Sun size={17}/>:<Moon size={17}/>} {period}</button>)}</div>
@@ -116,7 +134,7 @@ function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClos
         return <button type="button" key={part+index} data-time-option={index} tabIndex={focusIndex===index?0:-1} aria-label={part==='hour'?`${value} ${value===1?'hour':'hours'}`:`${value} ${value===1?'minute':'minutes'}`} aria-pressed={selected} onKeyDown={event=>keyboard(event,index)} onFocus={()=>setFocusIndex(index)} onClick={()=>{setFocusIndex(index);update(part,value);}}>{String(value).padStart(2,'0')}{selected&&<Check size={13}/>}</button>;
       })}
     </div>
-    {!valid&&<p className="tm-calendar-error" role="alert">{hotel?'Choose both times. Check-out must be earlier on the clock than check-in, for the next morning.':'Departure must be after arrival on the same day.'}</p>}
+    {!valid&&<p className="tm-calendar-error" role="alert">{hotel?'Choose both times. Check-out must be earlier on the clock than check-in, for the next morning.':labels?labels[1]+' must be after '+labels[0]+' on the same day.':'Departure must be after arrival on the same day.'}</p>}
     <div className="tm-calendar-footer"><span><Clock3 size={17}/>{clockLabel(draft[phase])}</span><button type="button" className="tm-picker-apply" disabled={!valid} onClick={()=>onApply(draft.arrivalTime,draft.departureTime)}><Check size={18}/>Apply times</button></div>
   </PickerDialog>;
 }
@@ -209,4 +227,18 @@ export function mountOwnerDetailTimes(form:HTMLFormElement){
   }
   const root=createRoot(host);root.render(<HotelTimes/>);
   const observer=new MutationObserver(()=>{if(!form.isConnected){observer.disconnect();root.unmount();}});observer.observe(document.body,{childList:true,subtree:true});
+}
+
+/** One shared clock for planner stops, transportation and availability slots. */
+export function TimeRangeFields({start,end,onChange,labels=['Starts at','Ends at'],title='Choose your stop times',sameDay=true,disabled=false}:{start:string;end:string;onChange:(start:string,end:string)=>void;labels?:[string,string];title?:string;sameDay?:boolean;disabled?:boolean}){
+  const [open,setOpen]=useState<'arrivalTime'|'departureTime'|null>(null),trigger=useRef<HTMLButtonElement|null>(null);
+  const close=()=>{setOpen(null);requestAnimationFrame(()=>trigger.current?.isConnected&&trigger.current.focus());};
+  useEffect(()=>{const dismiss=()=>setOpen(null);window.addEventListener('hashchange',dismiss);window.addEventListener('travelmate:identity',dismiss);return()=>{window.removeEventListener('hashchange',dismiss);window.removeEventListener('travelmate:identity',dismiss);};},[]);
+  useEffect(()=>{if(disabled)setOpen(null);},[disabled]);
+  return <div className="tm-shared-clock"><div className="tm-trip-date-fields tm-trip-time-fields">{(['arrivalTime','departureTime'] as const).map((key,index)=><div key={key}><span>{labels[index]}</span><button type="button" className="tm-trip-date-trigger" aria-label={labels[index]+': '+clockLabel(index?end:start)} aria-haspopup="dialog" disabled={disabled} onClick={event=>{trigger.current=event.currentTarget;setOpen(key);}}><Clock3 size={20}/><strong>{clockLabel(index?end:start)}</strong><ChevronDown size={16}/></button></div>)}</div>{open&&<TimePicker title={title} labels={labels} arrival={start} departure={end} phase={open} sameDay={sameDay} onClose={close} onApply={(a,b)=>{onChange(a,b);close();}}/>}</div>;
+}
+export function DateTimeRangeFields({start,end,onChange,disabled=false}:{start:string;end:string;onChange:(start:string,end:string)=>void;disabled?:boolean}){
+  const startDate=start.split('T')[0],endDate=end.split('T')[0],startTime=start.split('T')[1]?.slice(0,5)||'09:00',endTime=end.split('T')[1]?.slice(0,5)||'10:00';
+  const today=dateKey(new Date());
+  return <div className="tm-availability-date-times"><DateRangeFields mode="availability" start={startDate} end={endDate} disabled={disabled} onChange={(a,b)=>onChange(a+'T'+startTime,b+'T'+endTime)}/><TimeRangeFields start={startTime} end={endTime} title="Choose availability times" sameDay={!startDate||!endDate||startDate===endDate} disabled={disabled} onChange={(a,b)=>onChange((startDate||today)+'T'+a,(endDate||startDate||today)+'T'+b)}/></div>;
 }

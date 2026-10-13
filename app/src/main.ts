@@ -68,6 +68,7 @@ async function start() {
  const supabase = createClient(url!, key!, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true } });
  type Profile = {id:string; full_name:string; address:string|null; avatar_object_path:string|null};
  let user: User|null=null, profile:Profile|null=null, preview:string|null=null, busy=false, generation=0;
+ let accountAccess:{account_status:'active'|'suspended'|'closed';suspension_reason?:string|null;full_name:string;address:string|null;id:string}|null=null;
  const storage = supabase.storage.from('travelmate-avatars');
  const experience = initExperience(supabase);
  const api = supabase.schema('public');
@@ -78,10 +79,10 @@ async function start() {
  const adminTools=initAdmin(supabase);
  let phoneId:string|null=null, roleNames:string[]=[];
  function controls() {
-  for(const id of ['login','refresh','save','upload','auth-submit']) el<HTMLButtonElement>(id).disabled=busy || (['save','upload'].includes(id) && !profile) || (id==='upload' && !el<HTMLInputElement>('file').files?.length);
-  el<HTMLFieldSetElement>('fields').disabled=busy || !profile;
+  for(const id of ['login','refresh','save','upload','auth-submit']) el<HTMLButtonElement>(id).disabled=busy || (['save','upload'].includes(id) && (!profile||accountAccess?.account_status==='suspended')) || (id==='upload' && !el<HTMLInputElement>('file').files?.length);
+  el<HTMLFieldSetElement>('fields').disabled=busy || !profile || accountAccess?.account_status==='suspended';
   el('auth-form').setAttribute('aria-busy', String(busy));
-  el<HTMLInputElement>('file').disabled=busy || !profile;
+  el<HTMLInputElement>('file').disabled=busy || !profile || accountAccess?.account_status==='suspended';
  }
  function clearAvatar() {
   if(preview) URL.revokeObjectURL(preview); preview=null;
@@ -98,7 +99,18 @@ async function start() {
  }
  async function loadProfile() {
   if(!user)return;const uid=user.id,token=++generation;
+  try {
   clearProfile();controls(); notice('Loading your profile…');
+  const access=await api.rpc('my_account_access');
+  if(token!==generation||user?.id!==uid)return;
+  if(access.error&&access.error.code!=='PGRST202')throw access.error;
+  if(access.data&&access.data.id!==uid)throw new Error('Unexpected account identity. Refresh your session.');
+  accountAccess=access.data;
+  if(accountAccess?.account_status==='suspended'){
+   profile={id:uid,full_name:accountAccess.full_name,address:accountAccess.address,avatar_object_path:null};roleNames=['traveler'];
+   el<HTMLInputElement>('name').value=profile.full_name;el<HTMLTextAreaElement>('address').value=profile.address??'';el('profile-id').textContent=uid;
+   applyRole(user);notice('Your account is suspended. You can browse and plan trips, but new bookings and reviews are paused. You can submit an appeal.');controls();return;
+  }
   const signup = await api.rpc('finish_my_signup', {p_account_type: sessionStorage.getItem('travelmate:entry-intent') === 'business_owner' ? 'business_owner' : 'traveler'});
   if(token!==generation || user?.id!==uid)return;
   if(signup.error)throw signup.error;
@@ -131,8 +143,12 @@ async function start() {
   if(roleNames.includes('business_owner'))void owner.refresh();
   if(roleNames.includes('admin'))void adminTools.refresh();
   notice('Your profile is ready.');controls();
+  }catch(error){
+   if(token===generation&&user?.id===uid)experience.setUser({id:uid,role:'loading',name:'',email:user.email||'',accessError:'We could not verify your account access. '+explain(error)});
+   throw error;
+  }
  }
- window.addEventListener('travelmate:profile-updated', event=>{const value=(event as CustomEvent).detail;if(!user||!profile||value.profile_id!==user.id)return;profile.full_name=value.full_name;(el('name') as HTMLInputElement).value=value.full_name;experience.setUser({id:user.id,role:roleNames.includes('admin')?'admin':roleNames.includes('business_owner')?'owner':'traveler',name:value.full_name,email:user.email||''});});
+ window.addEventListener('travelmate:profile-updated', event=>{const value=(event as CustomEvent).detail;if(!user||!profile||value.profile_id!==user.id)return;profile.full_name=value.full_name;(el('name') as HTMLInputElement).value=value.full_name;experience.setUser({id:user.id,role:roleNames.includes('admin')?'admin':roleNames.includes('business_owner')?'owner':'traveler',name:value.full_name,email:user.email||'',accountStatus:accountAccess?.account_status,suspensionReason:accountAccess?.suspension_reason});});
  function applyRole(u:User|null){
   const owner=roleNames.includes('business_owner'),admin=roleNames.includes('admin');
   el('account-type').textContent=!u?'':admin?'Administrator':owner?'Business Owner':'Traveler';
@@ -145,7 +161,7 @@ async function start() {
   el('travel-preferences-link').hidden=!u||owner||admin;
   if(u)document.body.dataset.owner=owner?'yes':'no';else delete document.body.dataset.owner;
   if(u)document.body.dataset.admin=admin?'yes':'no';else delete document.body.dataset.admin;
-  experience.setUser({id:u?.id??null,role:!u?'guest':admin?'admin':owner?'owner':'traveler',name:profile?.full_name||String(u?.user_metadata?.full_name||u?.email?.split('@')[0]||''),email:u?.email||''});
+  experience.setUser({id:u?.id??null,role:!u?'guest':admin?'admin':owner?'owner':'traveler',name:profile?.full_name||String(u?.user_metadata?.full_name||u?.email?.split('@')[0]||''),email:u?.email||'',accountStatus:u?accountAccess?.account_status??'active':undefined,suspensionReason:accountAccess?.suspension_reason});
   const traveler=!!u&&!admin&&!owner;
   explorer.setUser(traveler?u!.id:null);trips.setUser(traveler?u!.id:null);
   if(traveler||!u)loadBrowse(supabase);
@@ -156,6 +172,7 @@ async function start() {
   delete document.body.dataset.owner;delete document.body.dataset.admin;
   owner.setUser(next?.id ?? null);
   generation++;const changed=user?.id!==next?.id;user=next;
+  if(changed||!next)accountAccess=null;
   if(changed || !next)clearProfile();
   explorer.setUser(null);trips.setUser(null);
   document.body.dataset.auth=next?'in':'out';if(!next)applyRole(null);route();el('account').hidden=!next;el('email').textContent=next?.email??'';el('uid').textContent=next?.id??'';el('hm-name').textContent=String(next?.user_metadata?.full_name||next?.email||'traveler').split(' ')[0].split('@')[0].toUpperCase();controls();
@@ -211,6 +228,19 @@ async function start() {
  }));
  el('account-logout').addEventListener('click',()=>window.dispatchEvent(new Event('travelmate:sign-out')));
  el('refresh').addEventListener('click',()=>void run(loadProfile));
+ window.addEventListener('travelmate:retry-profile',()=>void run(async()=>{if(!user)return;experience.setUser({id:user.id,role:'loading',name:'',email:user.email||''});await loadProfile();}));
+ let checkingAccess=false,lastAccessCheck=0;
+ async function checkAccountAccess(force=false){
+  if(!user||busy||checkingAccess||(!force&&Date.now()-lastAccessCheck<15000))return;
+  const uid=user.id;checkingAccess=true;lastAccessCheck=Date.now();
+  try{const result=await api.rpc('my_account_access');if(!result.error&&result.data&&user?.id===uid&&
+   (result.data.account_status!==accountAccess?.account_status||result.data.suspension_reason!==accountAccess?.suspension_reason))await run(loadProfile);
+  }catch{/* Keep browsing during a transient status-check failure; database guards remain authoritative. */}finally{checkingAccess=false;}
+ }
+ window.addEventListener('travelmate:refresh-access',()=>void checkAccountAccess(true));
+ window.addEventListener('focus',()=>void checkAccountAccess());window.addEventListener('hashchange',()=>void checkAccountAccess());
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void checkAccountAccess();});
+ window.setInterval(()=>{if(document.visibilityState==='visible')void checkAccountAccess();},30000);
  el('profile-form').addEventListener('submit',event=>{event.preventDefault();void run(async()=>{
   if(!profile || !user)throw new Error('Sign in and load a profile first.');
   const name=el<HTMLInputElement>('name').value.trim();if(!name)throw new Error('Enter your name.');
@@ -250,7 +280,7 @@ async function start() {
  supabase.auth.onAuthStateChange((event,session)=>{
   if(event==='PASSWORD_RECOVERY'){recovery=true;location.hash='#/reset';}
   if(event==='SIGNED_IN'){if(session?.user?.id&&session.user.id===user?.id&&profile)return;setTimeout(()=>void run(async()=>{const result=await supabase.auth.getUser();if(result.error)throw result.error;await displayUser(result.data.user);}),0);}
-  if(event==='SIGNED_OUT'){owner.setUser(null);generation++;user=null;clearProfile();explorer.setUser(null);trips.setUser(null);el('account').hidden=true;document.body.dataset.auth='out';applyRole(null);location.hash='#/';route();controls();notice('Signed out.');}
+  if(event==='SIGNED_OUT'){owner.setUser(null);generation++;user=null;accountAccess=null;clearProfile();explorer.setUser(null);trips.setUser(null);el('account').hidden=true;document.body.dataset.auth='out';applyRole(null);location.hash='#/';route();controls();notice('Signed out.');}
  });
  const params=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.slice(1));
  const oauthError=params.get('error_description')||hash.get('error_description');
@@ -290,3 +320,8 @@ import './styles/interaction-feedback.css';
 import './styles/business-workspace.css';
 import './styles/trip-page.css';
 import './styles/owner-dialog.css';
+import './styles/account-appeals.css';
+
+import './styles/travel-interactions.css';
+import './styles/workspace-refinements.css';
+import './styles/catalog-carousel.css';

@@ -97,3 +97,10 @@ body .tm-page-controls [aria-current=page] {background:var(--primary);color:var(
  .tm-filter-options:popover-open {animation:none}
  .tm-admin-local-nav a,.tm-filter-trigger,.tm-filter-trigger>svg,.tm-owner-slot-disclosure>summary>svg {transition:none}
 }
+
+/* Every point in an account row opens the same details dialog. */
+.tm-user-management .tm-account-row{cursor:pointer}
+.tm-user-management .tm-account-row td{transition:background-color .15s}
+.tm-user-management .tm-account-row:is(:hover,:focus-within) td{background:color-mix(in srgb,var(--primary) 7%,var(--card))}
+body .tm-user-management .tm-account-row td button{background:transparent;box-shadow:none;border:0;margin:0;padding:0;min-height:32px;border-radius:4px}
+.tm-user-management .tm-account-row td button svg{flex-shrink:0;color:var(--primary)}

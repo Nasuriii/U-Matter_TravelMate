@@ -25,6 +25,7 @@ const routes: Record<string, { page: string; access: Access }> = {
   '/admin': { page: 'admin', access: 'admin' },
   '/users': { page: 'users', access: 'admin' },
   '/account': { page: 'account', access: 'in' },
+  '/appeal': { page: 'appeal', access: 'in' },
 };
 export const go = (path: string) => { location.hash = '#' + path; };
 let lastPath = '';

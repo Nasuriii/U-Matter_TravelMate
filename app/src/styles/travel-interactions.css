@@ -1,0 +1,53 @@
+/* Disclosure rows stay visible even when their fields are collapsed. */
+body #trip-form :is(.travel-name-details,.travel-time-details)>summary,
+body .tm-react .tm-stop-editor-body :is(.tm-custom-stop-toggle,.tm-popup-notes>summary) {
+ display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:12px 14px;margin:10px 0;
+ border:1px solid color-mix(in srgb,var(--primary) 30%,var(--border));border-radius:12px;
+ background:color-mix(in srgb,var(--primary) 7%,var(--card));color:var(--foreground);font-size:15px;font-weight:650;
+ cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s;
+}
+body #trip-form :is(.travel-name-details,.travel-time-details)>summary::before {content:'＋';color:var(--primary);font-size:20px;line-height:1}
+body #trip-form :is(.travel-name-details,.travel-time-details)[open]>summary::before {content:'−'}
+body #trip-form :is(.travel-name-details,.travel-time-details)>summary>span {margin-left:auto;color:var(--primary);font-size:12px;font-weight:500}
+body #trip-form :is(.travel-name-details,.travel-time-details)[open]>summary,
+body .tm-react .tm-stop-editor-body .tm-custom-stop-toggle[aria-expanded=true],
+body .tm-react .tm-popup-notes[open]>summary {background:color-mix(in srgb,var(--primary) 14%,var(--card));border-color:var(--primary)}
+body #trip-form :is(.travel-name-details,.travel-time-details)[open] :is(label,#react-trip-time-picker),
+.tm-stop-editor-body :is(.tm-popup-activity,.tm-popup-notes[open]>label) {animation:tm-fields-reveal .24s ease-out}
+body #trip-form :is(.travel-name-details,.travel-time-details)>summary:focus-visible,
+body .tm-react .tm-stop-editor-body :is(.tm-custom-stop-toggle,.tm-popup-notes>summary):focus-visible {outline:3px solid var(--ring);outline-offset:3px}
+.tm-disclosure-chevron {margin-left:auto;flex-shrink:0;transition:transform .2s}
+.tm-custom-stop-toggle[aria-expanded=true] .tm-disclosure-chevron {transform:rotate(180deg)}
+.tm-popup-notes[open]>summary>svg:last-child {transform:rotate(180deg)}
+body .tm-react .tm-stop-editor-body .tm-popup-notes {border:0;padding:0}
+body .travel-pace-tiles .tm-pace-learn {font-size:11px;line-height:1.4;color:var(--primary);margin-top:auto}
+.travel-transport-options {max-height:264px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding:3px}
+.tm-place-hover-preview[data-kind=transport] .tm-peek-photo {height:180px;background:var(--muted)}
+.tm-place-hover-preview[data-kind=transport] .tm-peek-photo img {height:180px;object-fit:contain}
+.tm-peek-description {font-size:14px!important;line-height:1.6!important;margin-top:10px!important}
+.tm-peek-facts {margin:0;padding:0 18px 16px}
+.tm-peek-facts>div {padding:10px 0;border-top:1px solid var(--border)}
+.tm-peek-facts dt {font-size:11px;line-height:1.5;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground)}
+.tm-peek-facts dd {font-size:14px;line-height:1.5;font-weight:600;margin:4px 0 0}
+.tm-peek-limitations {padding:14px 18px;background:var(--muted);border-top:1px solid var(--border)}
+.tm-peek-limitations>strong {font-size:13px}
+.tm-peek-limitations p {font-size:12px;line-height:1.65;margin:7px 0 0}
+.tm-peek-footnote,.tm-peek-empty {font-size:12px;line-height:1.6;color:var(--muted-foreground);margin:0;padding:0 18px 16px}
+.tm-place-hover-preview:is([data-kind=rooms],[data-kind=menu]) .tm-peek-places>div {gap:12px;margin-top:12px;min-height:58px}
+.tm-place-hover-preview:is([data-kind=rooms],[data-kind=menu]) .tm-peek-places img {width:78px;height:58px;border-radius:10px}
+.tm-place-hover-preview:is([data-kind=rooms],[data-kind=menu]) .tm-peek-places strong {font-size:14px}
+.tm-place-hover-preview:is([data-kind=rooms],[data-kind=menu]) .tm-peek-places span>small {font-size:12px;line-height:1.5}
+@keyframes tm-fields-reveal {from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+@media(hover:hover) and (pointer:fine) {
+ body #trip-form :is(.travel-name-details,.travel-time-details)>summary:hover,
+ body .tm-react .tm-stop-editor-body :is(.tm-custom-stop-toggle,.tm-popup-notes>summary):hover {background:color-mix(in srgb,var(--primary) 12%,var(--card));border-color:var(--primary)}
+}
+@media(max-width:440px) {
+ body #trip-form :is(.travel-name-details,.travel-time-details)>summary {font-size:14px;padding:12px 10px;gap:7px}
+ body #trip-form :is(.travel-name-details,.travel-time-details)>summary>span {font-size:11px}
+ body .travel-pace-tiles .tm-pace-learn {font-size:10px}
+}
+@media(prefers-reduced-motion:reduce) {
+ body #trip-form :is(.travel-name-details,.travel-time-details)[open] :is(label,#react-trip-time-picker),.tm-stop-editor-body :is(.tm-popup-activity,.tm-popup-notes[open]>label) {animation:none}
+ .tm-disclosure-chevron {transition:none}
+}

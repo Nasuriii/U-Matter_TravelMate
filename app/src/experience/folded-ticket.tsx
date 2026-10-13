@@ -1,17 +1,17 @@
 import {useId,useState,type ReactNode} from 'react';
-import {ChevronDown,Ticket} from 'lucide-react';
+import {ChevronDown,BedDouble,Utensils} from 'lucide-react';
 import {Card} from '../components/ui/card';
 
 /** Details unfold independently of the always-visible reservation actions. */
-export function FoldedTicket({name,kind,status,dates,amount,payment,reference,actions,children,preview=false}: {
-  name:string;kind:string;status:string;dates:string;amount:string;payment:string;
+export function FoldedTicket({name,kind,type,status,dates,amount,payment,reference,actions,children,preview=false}: {
+  name:string;kind:string;type:'hotel'|'restaurant';status:string;dates:string;amount:string;payment:string;
   reference?:string;actions?:ReactNode;children:ReactNode;preview?:boolean;
 }) {
-  const [open,setOpen]=useState(false),id=useId();
-  return <Card className={'tm-booking-ticket tm-folded-ticket'+(open?' is-open':'')+(preview?' tm-preview-ticket':'')}>
+  const [open,setOpen]=useState(false),id=useId(),Icon=type==='hotel'?BedDouble:Utensils;
+  return <Card className={'tm-booking-ticket tm-folded-ticket tm-ticket-'+type+(open?' is-open':'')+(preview?' tm-preview-ticket':'')}>
     <button type="button" className="tm-ticket-fold-toggle" aria-expanded={open} aria-controls={id}
       aria-label={(open?'Fold ticket for ':'Unfold ticket for ')+name} onClick={()=>setOpen(value=>!value)}>
-      <span className="tm-ticket-fold-top"><span className="tm-ticket-kind"><Ticket size={17}/>{kind}</span><span className={'tm-status tm-status-'+status}>{status}</span></span>
+      <span className="tm-ticket-fold-top"><span className="tm-ticket-kind"><Icon size={24}/><span><strong>{type==='hotel'?'Hotel stay':'Restaurant table'}</strong><small>{kind}</small></span></span><span className={'tm-status tm-status-'+status}>{status}</span></span>
       <span className="tm-ticket-title">{name}</span>
       <span className="tm-ticket-date-line">{dates}</span>
       {reference&&<span className="tm-ticket-reference">Reference · {reference}</span>}

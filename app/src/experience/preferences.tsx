@@ -2,7 +2,7 @@ import {toast} from '../ui';
 import {useEffect,useState,useRef} from 'react';
 import {Waves,Mountain,Trees,Utensils,Landmark,Footprints,Coffee,ShoppingBag,Check,ArrowRight,ArrowLeft,Compass,UserRound,Sparkles} from 'lucide-react';
 import {Button} from '../components/ui/button';
-import {client,useIdentity,currentIdentity,navigate,errorMessage} from './state';
+import {client,useIdentity,currentIdentity,navigate,errorMessage,isSuspended} from './state';
 import {confirmAction} from '../action-confirm';
 import {Modal} from './modal';
 const interests=[{value:'beaches',name:'Beaches',copy:'Salt air & sunsets',icon:Waves},{value:'mountains',name:'Mountains',copy:'Cool air & higher views',icon:Mountain},{value:'nature',name:'Nature',copy:'Green spaces & quiet trails',icon:Trees},{value:'food',name:'Food & culture',copy:'A taste of somewhere new',icon:Utensils},{value:'history',name:'History',copy:'Places with a story',icon:Landmark},{value:'adventure',name:'Adventure',copy:'Go a little further',icon:Footprints},{value:'relaxation',name:'Relaxation',copy:'More breathing room',icon:Coffee},{value:'shopping',name:'Shopping',copy:'Find something local',icon:ShoppingBag}];
@@ -18,9 +18,9 @@ export function SetupWizard({setup,done}:{setup:Setup;done:()=>void}){
 function SetupGate({explicit=false}:{explicit?:boolean}){
  const identity=useIdentity();const [setup,setSetup]=useState<Setup|null>(null),[dismissed,setDismissed]=useState(false),[error,setError]=useState(''),[version,setVersion]=useState(0),[path,setPath]=useState(location.hash);
  useEffect(()=>{const change=()=>setPath(location.hash);window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change);},[]);
- useEffect(()=>{let live=true;setSetup(null);setDismissed(false);setError('');if(identity.id&&identity.role!=='loading')void client.rpc('my_setup_state').then(r=>{if(!live)return;if(r.error)setError(errorMessage(r.error));else setSetup(r.data as Setup);});return()=>{live=false;};},[identity.id,identity.role,version]);
+ useEffect(()=>{let live=true;setSetup(null);setDismissed(false);setError('');if(isSuspended(identity)){if(explicit)setSetup({name_needed:false,preferences_needed:true});return()=>{live=false;};}if(identity.id&&identity.role!=='loading')void client.rpc('my_setup_state').then(r=>{if(!live)return;if(r.error)setError(errorMessage(r.error));else setSetup(r.data as Setup);});return()=>{live=false;};},[identity.id,identity.role,identity.accountStatus,version]);
  useEffect(()=>{const complete=()=>setDismissed(true);window.addEventListener('travelmate:setup-dismissed',complete);return()=>window.removeEventListener('travelmate:setup-dismissed',complete);},[]);
- const finish=()=>{setDismissed(true);window.dispatchEvent(new Event('travelmate:setup-dismissed'));if(explicit)navigate('/home');};if(!identity.id||identity.role==='loading'||dismissed||(!explicit&&path.split('?')[0]==='#/preferences'))return null;
+ const finish=()=>{setDismissed(true);window.dispatchEvent(new Event('travelmate:setup-dismissed'));if(explicit)navigate('/home');};if((isSuspended(identity)&&!explicit)||!identity.id||identity.role==='loading'||dismissed||(!explicit&&path.split('?')[0]==='#/preferences'))return null;
  if(error)return <div className="tm-setup-retry" role="alert"><p>Profile setup could not load: {error}</p><Button onClick={()=>setVersion(v=>v+1)}>Try again</Button><Button variant="ghost" onClick={finish}>Later</Button></div>;
  if(!setup)return explicit?<p role="status">Preparing your travel style…</p>:null;
  return explicit||setup.name_needed||setup.preferences_needed?<SetupWizard key={identity.id} setup={{...setup,preferences_needed:explicit||setup.preferences_needed}} done={finish}/>:null;

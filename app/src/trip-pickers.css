@@ -1,7 +1,7 @@
 /* Custom trip controls use the active palette in every display mode. */
 .trip-destination-field>label {display:block;margin-bottom:8px;font-size:15px;font-weight:600}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-trip-destination-trigger,:is(#trip-form,#ol-form,#owner-details-form) .tm-trip-date-trigger {display:flex;align-items:center;gap:12px;width:100%;height:auto;min-height:62px;padding:12px 16px;text-align:left;white-space:normal;background:var(--card);color:var(--foreground);border:1.5px solid var(--border);border-radius:12px;transition:border-color .18s,background .18s,box-shadow .18s}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-trip-destination-trigger:hover,:is(#trip-form,#ol-form,#owner-details-form) .tm-trip-date-trigger:hover {background:var(--muted);border-color:var(--primary);box-shadow:0 3px 12px #173e3010;transform:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-trip-destination-trigger,:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-trip-date-trigger {display:flex;align-items:center;gap:12px;width:100%;height:auto;min-height:62px;padding:12px 16px;text-align:left;white-space:normal;background:var(--card);color:var(--foreground);border:1.5px solid var(--border);border-radius:12px;transition:border-color .18s,background .18s,box-shadow .18s}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-trip-destination-trigger:hover,:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-trip-date-trigger:hover {background:var(--muted);border-color:var(--primary);box-shadow:0 3px 12px #173e3010;transform:none}
 .tm-trip-destination-trigger>span:nth-child(2) {display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
 .tm-trip-destination-trigger strong {font-size:17px;font-weight:600}
 .tm-trip-destination-trigger small {font-size:13px;color:var(--muted-foreground)}
@@ -12,21 +12,21 @@
 .tm-trip-date-trigger>svg {color:var(--primary);flex-shrink:0}
 dialog.tm-trip-picker-dialog {width:min(520px,calc(100vw - 28px));max-width:none;max-height:calc(100dvh - 32px);margin:auto;padding:22px;border:1px solid var(--border);border-radius:22px;background:var(--card);color:var(--foreground);box-shadow:0 22px 80px #102a2340;overflow:auto;overscroll-behavior:contain;animation:tm-picker-in .18s ease-out}
 .tm-trip-picker-dialog::backdrop {background:#102a2366;backdrop-filter:blur(3px)}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-trip-picker-dialog button,:is(#trip-form,#ol-form,#owner-details-form) :is(.tm-trip-destination-trigger,.tm-trip-date-trigger) {margin:0}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-destination-search input {margin:0;padding:8px 0;border:0;border-radius:0;background:transparent;font-size:16px;box-shadow:none}
-:is(#trip-form,#ol-form,#owner-details-form) :is(.tm-trip-destination-trigger,.tm-trip-date-trigger) {min-height:62px;font-size:16px}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-trip-picker-dialog button,:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) :is(.tm-trip-destination-trigger,.tm-trip-date-trigger) {margin:0}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-destination-search input {margin:0;padding:8px 0;border:0;border-radius:0;background:transparent;font-size:16px;box-shadow:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) :is(.tm-trip-destination-trigger,.tm-trip-date-trigger) {min-height:62px;font-size:16px}
 .tm-picker-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-picker-heading h2 {font-family:Fraunces,Georgia,serif;font-size:25px;font-weight:500;line-height:1.3;margin:0}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-picker-heading h2 {font-family:Fraunces,Georgia,serif;font-size:25px;font-weight:500;line-height:1.3;margin:0}
 body[data-palette=ocean] .tm-picker-heading h2 {font-family:'DM Sans',Arial,sans-serif;font-size:23px;font-weight:650}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-picker-icon-button {display:grid;place-items:center;flex-shrink:0;width:42px;height:42px;padding:0;background:var(--muted);color:var(--foreground);border:1px solid var(--border);border-radius:12px;box-shadow:none}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-picker-icon-button:hover {border-color:var(--primary);color:var(--primary);transform:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-picker-icon-button {display:grid;place-items:center;flex-shrink:0;width:42px;height:42px;padding:0;background:var(--muted);color:var(--foreground);border:1px solid var(--border);border-radius:12px;box-shadow:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-picker-icon-button:hover {border-color:var(--primary);color:var(--primary);transform:none}
 .tm-destination-search {display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);border-radius:12px;background:var(--background);padding:0 13px;color:var(--primary)}
 .tm-destination-search:focus-within {border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 15%,transparent)}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-destination-search input {width:100%;min-width:0;height:50px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;box-shadow:none;outline:none!important}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-destination-search input {width:100%;min-width:0;height:50px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;box-shadow:none;outline:none!important}
 .tm-destination-count {margin:12px 0!important;font-size:13px!important;color:var(--muted-foreground)}
 .tm-destination-options {max-height:min(400px,calc(100dvh - 230px));min-height:100px;overflow:auto;display:flex;flex-direction:column;gap:7px;padding:2px 5px 2px 1px;scrollbar-width:thin;scrollbar-color:var(--primary) var(--muted)}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-destination-options>button {display:flex;align-items:center;gap:12px;width:100%;min-height:68px;height:auto;text-align:left;white-space:normal;padding:10px 12px;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:12px;box-shadow:none}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-destination-options>button:is(:hover,[aria-pressed=true]) {background:var(--muted);border-color:var(--primary);transform:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-destination-options>button {display:flex;align-items:center;gap:12px;width:100%;min-height:68px;height:auto;text-align:left;white-space:normal;padding:10px 12px;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:12px;box-shadow:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-destination-options>button:is(:hover,[aria-pressed=true]) {background:var(--muted);border-color:var(--primary);transform:none}
 .tm-destination-options>button>span:nth-child(2) {display:flex;flex-direction:column;flex:1;gap:3px;min-width:0}
 .tm-destination-options strong {font-size:17px;font-weight:600}
 .tm-destination-options small {font-size:13px;color:var(--muted-foreground);line-height:1.4}
@@ -36,30 +36,32 @@ body[data-palette=ocean] .tm-picker-heading h2 {font-family:'DM Sans',Arial,sans
 body[data-theme=dark] .tm-destination-marker {background:#29493c;color:#b4d6bf}body[data-theme=dark] .tm-destination-marker.tone-1 {background:#503b2b;color:#efd0ac}body[data-theme=dark] .tm-destination-marker.tone-2 {background:#3c334b;color:#d7c3ef}
 .tm-destination-empty {padding:24px 8px;font-size:15px;color:var(--muted-foreground);text-align:center}
 .tm-calendar-range {display:grid;grid-template-columns:1fr auto 1fr;gap:9px;align-items:center}
+.tm-calendar-range.is-single {grid-template-columns:1fr}
 .tm-calendar-range>svg {color:var(--muted-foreground)}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-calendar-range>button {height:auto;min-height:72px;display:flex;flex-direction:column;gap:5px;text-align:left;white-space:normal;padding:12px;border:1.5px solid var(--border);border-radius:12px;background:var(--background);color:var(--foreground);box-shadow:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-calendar-range>button {height:auto;min-height:72px;display:flex;flex-direction:column;gap:5px;text-align:left;white-space:normal;padding:12px;border:1.5px solid var(--border);border-radius:12px;background:var(--background);color:var(--foreground);box-shadow:none}
 .tm-calendar-range small {font-size:13px;color:var(--muted-foreground)}.tm-calendar-range strong {font-size:16px;font-weight:600}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-calendar-range>button[aria-pressed=true] {border-color:var(--primary);background:var(--muted);box-shadow:0 0 0 1px var(--primary)}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-calendar-range>button[aria-pressed=true] {border-color:var(--primary);background:var(--muted);box-shadow:0 0 0 1px var(--primary)}
 .tm-calendar-instruction {font-size:14px!important;margin:18px 0!important;display:flex;justify-content:space-between;gap:10px;color:var(--primary);font-weight:500}
 .tm-calendar-instruction span {font-size:12px;font-weight:400;color:var(--muted-foreground)}
 .tm-calendar-month-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:16px;border-top:1px solid var(--border);margin-bottom:12px}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-calendar-month-heading h3 {font-size:19px;font-weight:600;margin:0;font-family:'DM Sans',Arial,sans-serif}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-calendar-month-heading h3 {font-size:19px;font-weight:600;margin:0;font-family:'DM Sans',Arial,sans-serif}
 .tm-calendar-weekdays,.tm-calendar-grid>[role=row] {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0}
 .tm-calendar-weekdays {font-size:12px;color:var(--muted-foreground);text-align:center;margin-bottom:6px}
 .tm-calendar-grid>[role=row] {margin-top:4px}
 .tm-calendar-grid [role=gridcell] {display:grid;place-items:center;min-height:44px;min-width:0}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-calendar-grid button {display:grid;place-items:center;width:44px;max-width:100%;height:44px;min-height:44px;margin:0;padding:0;border:1px solid transparent;border-radius:50%;font-size:16px;font-weight:500;background:transparent;color:var(--foreground);box-shadow:none}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-calendar-grid button:hover {background:var(--muted);border-color:var(--primary);transform:none}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-calendar-grid button.is-selected {background:var(--primary);color:var(--primary-foreground);font-weight:650}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-calendar-grid button.is-unavailable {color:color-mix(in srgb,var(--muted-foreground) 70%,var(--card))}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-calendar-grid button[aria-current=date]:not(.is-selected) {border-color:var(--primary)}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-calendar-grid button {display:grid;place-items:center;width:44px;max-width:100%;height:44px;min-height:44px;margin:0;padding:0;border:1px solid transparent;border-radius:50%;font-size:16px;font-weight:500;background:transparent;color:var(--foreground);box-shadow:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-calendar-grid button:hover {background:var(--muted);border-color:var(--primary);transform:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-calendar-grid button.is-selected {background:var(--primary);color:var(--primary-foreground);font-weight:650}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-calendar-grid button.is-unavailable {color:color-mix(in srgb,var(--muted-foreground) 70%,var(--card))}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-calendar-grid button[aria-current=date]:not(.is-selected) {border-color:var(--primary)}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-calendar-grid button.is-selected.is-unavailable {color:var(--primary-foreground)}
 .tm-calendar-grid .is-range,.tm-calendar-grid .range-start:has(+.is-range),.tm-calendar-grid .range-end {background:color-mix(in srgb,var(--primary) 12%,var(--card))}
 .tm-calendar-grid .range-start {border-radius:50% 0 0 50%}.tm-calendar-grid .range-end {border-radius:0 50% 50% 0}.tm-calendar-grid .range-start.range-end {border-radius:50%}
 .tm-calendar-error {color:#b4422e;font-size:14px!important;margin:12px 0!important}body[data-theme=dark] .tm-calendar-error {color:#ffb3a6}
 .tm-calendar-footer {position:sticky;bottom:-22px;z-index:1;background:var(--card);display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;margin-bottom:-10px;padding:14px 0 10px;border-top:1px solid var(--border)}
 .tm-calendar-footer>span {display:flex;align-items:center;gap:7px;font-size:14px;color:var(--muted-foreground)}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-picker-apply {display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;height:auto;padding:12px 16px;background:var(--primary);color:var(--primary-foreground);border:1px solid var(--primary);border-radius:11px;font-size:15px;font-weight:600}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-picker-apply:disabled {opacity:.5;cursor:not-allowed}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-picker-apply {display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;height:auto;padding:12px 16px;background:var(--primary);color:var(--primary-foreground);border:1px solid var(--primary);border-radius:11px;font-size:15px;font-weight:600}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-picker-apply:disabled {opacity:.5;cursor:not-allowed}
 body[data-theme=dark] .travel-trip-page .tm-calendar-grid button.is-selected,body[data-theme=dark] .travel-trip-page .tm-picker-apply {background:var(--primary)!important;color:var(--primary-foreground)!important;border-color:var(--primary)!important}
 body[data-theme=dark] .travel-trip-page .tm-calendar-grid button {background:transparent!important;border-color:transparent!important}
 body[data-theme=dark] .travel-trip-page .tm-calendar-grid button.is-selected {background:var(--primary)!important;border-color:var(--primary)!important}
@@ -77,21 +79,21 @@ body[data-theme=dark] .travel-trip-page .tm-calendar-range>button[aria-pressed=t
 .tm-time-instruction svg {color:var(--primary);flex-shrink:0}
 .tm-clock-face {display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) 82px;align-items:center;gap:10px;padding:16px 0;border-top:1px solid var(--border)}
 .tm-clock-face>span {font-size:30px;color:var(--muted-foreground)}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-clock-digit {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:100%;min-height:96px;height:auto;padding:12px 5px;background:var(--background);color:var(--foreground);border:1.5px solid var(--border);border-radius:16px;box-shadow:none;transition:border-color .18s,background .18s}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-clock-digit {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:100%;min-height:96px;height:auto;padding:12px 5px;background:var(--background);color:var(--foreground);border:1.5px solid var(--border);border-radius:16px;box-shadow:none;transition:border-color .18s,background .18s}
 .tm-clock-digit strong {font-size:40px;line-height:1.1;font-weight:600;font-variant-numeric:tabular-nums}
 .tm-clock-digit small {font-size:13px;color:var(--muted-foreground)}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-clock-digit[aria-pressed=true] {border-color:var(--primary);background:var(--muted);box-shadow:0 0 0 1px var(--primary)}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-clock-digit[aria-pressed=true] {border-color:var(--primary);background:var(--muted);box-shadow:0 0 0 1px var(--primary)}
 .tm-clock-period {display:grid;gap:8px}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-clock-period>button {display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;width:100%;padding:8px 5px;font-size:15px;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:11px;box-shadow:none}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-clock-period>button[aria-pressed=true] {background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-clock-period>button {display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;width:100%;padding:8px 5px;font-size:15px;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:11px;box-shadow:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-clock-period>button[aria-pressed=true] {background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
 .tm-clock-options-heading {display:flex;align-items:center;justify-content:space-between;gap:10px;margin:5px 0 12px}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-clock-options-heading h3 {font:600 16px 'DM Sans',Arial,sans-serif;margin:0}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-clock-options-heading h3 {font:600 16px 'DM Sans',Arial,sans-serif;margin:0}
 .tm-clock-options-heading>span {font-size:13px;color:var(--muted-foreground)}
 .tm-clock-options {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:2px}
 .tm-clock-options.is-minutes {grid-template-columns:repeat(6,minmax(0,1fr));max-height:220px;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--primary) var(--muted);padding-right:5px}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-clock-options>button {position:relative;display:flex;align-items:center;justify-content:center;min-height:46px;height:auto;padding:10px 4px;font-size:17px;font-weight:500;font-variant-numeric:tabular-nums;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:10px;box-shadow:none}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-clock-options>button:hover {border-color:var(--primary);background:var(--muted);transform:none}
-:is(#trip-form,#ol-form,#owner-details-form) .tm-clock-options>button[aria-pressed=true] {background:var(--primary);color:var(--primary-foreground);border-color:var(--primary);font-weight:650}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-clock-options>button {position:relative;display:flex;align-items:center;justify-content:center;min-height:46px;height:auto;padding:10px 4px;font-size:17px;font-weight:500;font-variant-numeric:tabular-nums;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:10px;box-shadow:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-clock-options>button:hover {border-color:var(--primary);background:var(--muted);transform:none}
+:is(#trip-form,#ol-form,#owner-details-form,.tm-shared-clock,.tm-shared-dates) .tm-clock-options>button[aria-pressed=true] {background:var(--primary);color:var(--primary-foreground);border-color:var(--primary);font-weight:650}
 .tm-clock-options>button>svg {position:absolute;right:3px;top:3px}
 body[data-theme=dark] .travel-trip-page :is(.tm-clock-options>button,.tm-clock-period>button)[aria-pressed=true] {background:var(--primary)!important;color:var(--primary-foreground)!important;border-color:var(--primary)!important}
 body[data-theme=dark] .travel-trip-page .tm-clock-digit[aria-pressed=true] {border-color:var(--primary)!important}
