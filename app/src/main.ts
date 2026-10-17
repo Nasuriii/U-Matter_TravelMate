@@ -330,3 +330,4 @@ import './styles/file-inputs.css';
 import './styles/save-hearts.css';
 import './styles/itinerary-reservations.css';
 import './styles/planning-choices.css';
+import './styles/buddy-cards.css';
