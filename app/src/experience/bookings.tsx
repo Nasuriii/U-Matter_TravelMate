@@ -1,5 +1,7 @@
+import {checkout,offerBookingToTrip} from './reservation-service';
 import {DateTimeRangeFields,DateRangeFields} from '../trip-pickers';
 import {BookingRestriction} from './account-appeals';
+import {AttachBookingDialog,useTripBookingCatalog} from './trip-bookings';
 import {toast} from '../ui';
 import {FoldedTicket,ticketDate} from './folded-ticket';
 import {PreviewReservations} from './preview-reservations';
@@ -8,7 +10,7 @@ import {ReservationSlots} from './reservation-slots';
 import {FilterSelect} from './filter-select';
 import {PageNavigation} from './page-navigation';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowUpRight, BedDouble, CalendarDays, Check, Clock3, Download, RefreshCw, Ticket, Users, Plus, Star, CheckCircle2, Trash2, CircleX, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, BedDouble, CalendarDays, Check, Clock3, Download, RefreshCw, Ticket, Users, Plus, Star, CheckCircle2, Trash2, CircleX, ChevronDown, Paperclip } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { confirmAction } from '../action-confirm';
@@ -18,14 +20,6 @@ import { EmptyState, ErrorState, LoadingCards, PageHeading } from './shared';
 type Booking = { id: string; booking_type: string; guest_name: string; guest_email: string; guest_phone: string | null; guest_count: number; total_amount: number; status: string; payment_status: string | null; is_test?:boolean; can_delete?:boolean; can_cancel?:boolean; starts_at: string | null; ends_at: string | null; listing_id: string; listing_name: string; room_type: string | null; room_number: string | null; hold_expires_at: string | null; created_at: string };
 const readableDate=(value:string)=>value?new Date(value+'T12:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}):'Choose a date';
 const today = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
-async function checkout(bookingId: string) {
-  if(isSuspended())throw new Error('Bookings and payments are paused while your account is suspended.');
-  const { data, error } = await client.functions.invoke('create-checkout', { body: { bookingId, returnOrigin: location.origin } });
-  if (error) { let message = error.message; if ('context' in error && error.context instanceof Response) { const body = await error.context.json().catch(() => null); if (body?.error) message = body.error; } throw new Error(message); }
-  if (data?.error) throw new Error(data.error);
-  const url = new URL(data?.url); if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com') throw new Error('The payment provider returned an unexpected checkout URL.');
-  location.assign(url.href);
-}
 export function BookingPage({ id, room: selectedRoom }: { id: string; room: string | null }) {
   const identity = useIdentity(); const [detail, setDetail] = useState<Awaited<ReturnType<typeof listingDetail>> | null>(null); const [error, setError] = useState(''); const [version, setVersion] = useState(0); const [busy, setBusy] = useState(false); const [bookingId, setBookingId] = useState<string | null>(null);
   const [preview,setPreview]=useState(false),[previewId,setPreviewId]=useState<string|null>(null);
@@ -44,7 +38,7 @@ export function BookingPage({ id, room: selectedRoom }: { id: string; room: stri
       if (currentIdentity().id !== userId || currentIdentity().role !== 'traveler'||isSuspended()) return;
       const { data, error: problem } = await client.rpc('reserve_my_booking', { p_listing: id, p_room: hotel ? snapshot.room : null, p_slot: hotel ? null : snapshot.slot, p_check_in: hotel ? snapshot.start : null, p_check_out: hotel ? snapshot.end : null, p_guests: Number(snapshot.guests), p_name: snapshot.name.trim(), p_email: snapshot.email.trim(), p_phone: snapshot.phone.trim() || null, p_key: key }); if (problem) throw problem;
       if (currentIdentity().id !== userId) return; setBookingId(String(data));toast(detail.listing.preview?'Reservation saved in Bookings & tickets.':amount>0?'Reservation hold saved. Continue to payment.':'Reservation saved successfully.');
-      if(detail.listing.preview){setPreviewId(String(data));setPreview(true);}else if (amount > 0) await checkout(String(data)); else navigate('/bookings');
+      if(detail.listing.preview){setPreviewId(String(data));setPreview(true);offerBookingToTrip(String(data));}else if(amount>0)await checkout(String(data));else{navigate('/bookings');offerBookingToTrip(String(data));}
     } catch (e) { if (currentIdentity().id === userId) setError(errorMessage(e)); } finally { setBusy(false); }
   }
   if(isSuspended(identity))return <div className="tm-page"><Button variant="ghost" onClick={()=>navigate('/listing/'+id)}><ArrowLeft/>Back to listing</Button><PageHeading eyebrow="YOUR ACCOUNT" title="New bookings are paused" description="You can continue exploring while your account is suspended."/><BookingRestriction/></div>;
@@ -58,6 +52,8 @@ function ticketDownload(booking: Booking) {
 export function ReservationsPage({ owner = false }: { owner?: boolean }) {
   const identity = useIdentity(); const [data, setData] = useState<Booking[]>([]); const [error, setError] = useState(''); const [loading, setLoading] = useState(true); const [version, setVersion] = useState(0); const [filter, setFilter] = useState('all'); const [busy, setBusy] = useState<string | null>(null);
   const [page,setPage]=useState(0),pageSize=4;
+  const [attachBooking,setAttachBooking]=useState<string|null>(null),tripLinks=useTripBookingCatalog(undefined,!owner&&identity.role==='traveler');
+  useEffect(()=>{if(version>0&&!owner&&identity.role==='traveler')tripLinks.refresh();},[version]);
   useEffect(()=>setPage(0),[identity.id,owner]);
   useEffect(() => { let cancelled = false; setLoading(true); setError(''); setData([]); void client.rpc('workspace_reservations').then(({ data: rows, error: problem }) => { if (cancelled) return; if (problem) setError(errorMessage(problem)); else setData(rows as Booking[]); setLoading(false); }); return () => { cancelled = true; }; }, [identity.id, identity.accountStatus, owner, version]);
   const paymentPolls = useRef(0);
@@ -124,6 +120,7 @@ export function ReservationsPage({ owner = false }: { owner?: boolean }) {
     const dates=ticketDate(b.starts_at,!hotel)+(hotel&&b.ends_at?' – '+ticketDate(b.ends_at):'');
     const payment=b.is_test?'No charge':b.payment_status==='paid'?'Paid':Number(b.total_amount)===0?'No payment needed':status==='expired'?'Expired · unpaid':'Unpaid';
     const quickActions=[];
+    if(!owner&&identity.role==='traveler'&&(b.is_test||Number(b.total_amount)===0||b.payment_status==='paid')&&['confirmed','completed'].includes(status))quickActions.push(<Button key="attach" variant="outline" disabled={busy!==null} onClick={()=>{const link=tripLinks.catalog.bookings.find(link=>link.booking_id===b.id);if(link?.attached_trip_id)window.dispatchEvent(new CustomEvent('travelmate:open-planner',{detail:{id:link.attached_trip_id}}));else setAttachBooking(b.id);}} title={tripLinks.catalog.bookings.find(link=>link.booking_id===b.id)?.attached_trip_name||undefined}><Paperclip/>{tripLinks.catalog.bookings.find(link=>link.booking_id===b.id)?.attached_trip_id?'View trip plan':'Attach to trip'}</Button>);
     if(!owner&&!isSuspended(identity)&&identity.role==='traveler'&&b.can_delete)quickActions.push(<Button key="delete" className="tm-ticket-action-danger" variant="outline" disabled={busy!==null} onClick={()=>void deleteExpired(b)}><Trash2/>Delete ticket</Button>);
     if(!owner&&!isSuspended(identity)&&b.can_cancel)quickActions.push(<Button key="cancel" className="tm-ticket-action-danger" variant="outline" disabled={busy!==null} onClick={()=>void cancel(b)}><CircleX/>Cancel reservation</Button>);
     if(!owner&&!isSuspended(identity)&&!b.is_test&&status==='pending'&&b.payment_status!=='paid')quickActions.push(<Button key="pay" disabled={busy!==null} onClick={()=>void pay(b)}>Pay securely<ArrowUpRight/></Button>);
@@ -143,7 +140,7 @@ export function ReservationsPage({ owner = false }: { owner?: boolean }) {
         {!owner&&!isSuspended(identity)&&!b.is_test&&status==='completed'&&<Button variant="outline" onClick={()=>navigate('/listing/'+b.listing_id+'?review=1')}><Star/>Write a review</Button>}
       </div>
     </FoldedTicket>;
-  })}{!filtered.length && <EmptyState title={filter!=='all'?'No '+filter+' reservations':owner ? 'No reservations to show' : 'No stay or table bookings yet'} action={!owner && <Button onClick={() => navigate('/explore')}>Explore destinations<ArrowUpRight /></Button>}>{filter!=='all'?'Choose another status to see more reservations.':owner ? 'Bookings for your listings will appear here as travelers reserve.' : 'Open a destination, find a stay or restaurant, and review your reservation.'}</EmptyState>}</div>}{!owner&&identity.role==='traveler'&&<PreviewReservations version={version}/>} {owner && <OwnerSlots />}</div>;
+  })}{!filtered.length && <EmptyState title={filter!=='all'?'No '+filter+' reservations':owner ? 'No reservations to show' : 'No stay or table bookings yet'} action={!owner && <Button onClick={() => navigate('/explore')}>Explore destinations<ArrowUpRight /></Button>}>{filter!=='all'?'Choose another status to see more reservations.':owner ? 'Bookings for your listings will appear here as travelers reserve.' : 'Open a destination, find a stay or restaurant, and review your reservation.'}</EmptyState>}</div>}{!owner&&identity.role==='traveler'&&<PreviewReservations version={version}/>} {owner && <OwnerSlots />}{attachBooking&&!owner&&identity.role==='traveler'&&<AttachBookingDialog bookingId={attachBooking} close={()=>setAttachBooking(null)} saved={()=>setVersion(v=>v+1)}/>}</div>;
 }
 function OwnerSlots() {
   const [slotPage,setSlotPage]=useState(0);

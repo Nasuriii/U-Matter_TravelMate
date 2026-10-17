@@ -1,3 +1,4 @@
+import {ItineraryFlow} from './itinerary-chooser';
 import {ToastLayer} from './toasts';
 import {installInputLimits} from '../input-limits';
 import {installPlacePreviews} from '../place-hover-preview';
@@ -49,7 +50,7 @@ export function mountExperience() {
   const landing = document.getElementById('react-landing'); if (landing) createRoot(landing).render(<Landing />);
   const nav = document.createElement('div'); nav.id = 'react-navigation'; nav.className = 'tm-react'; document.body.prepend(nav); createRoot(nav).render(<Navigation />);
   const accountNotice=document.createElement('div');accountNotice.className='tm-react';document.querySelector('main')!.prepend(accountNotice);createRoot(accountNotice).render(<><AccountLoadingNotice/><SuspensionNotice/></>);
-  const overlays = document.createElement('div'); document.body.append(overlays); createRoot(overlays).render(<><ToastLayer/><AppearanceManager/><OnboardingGate/><DayPlanner/></>);
+  const overlays = document.createElement('div'); document.body.append(overlays); createRoot(overlays).render(<><ToastLayer/><AppearanceManager/><OnboardingGate/><DayPlanner/><ItineraryFlow/></>);
   const appearance = document.getElementById('react-appearance'); if(appearance) createRoot(appearance).render(<AppearanceSettings/>);
   const home = document.createElement('div'); home.id = 'react-home'; home.className = 'tm-react'; document.querySelector('[data-page="home"]')!.prepend(home); createRoot(home).render(<Home />);
   createRoot(document.getElementById('react-trip-inspiration')!).render(<TripInspiration/>);

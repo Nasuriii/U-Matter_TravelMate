@@ -1,0 +1,62 @@
+body .tm-react.tm-trip-reservation-modal {z-index:1300;padding:24px;background:rgba(18,40,32,.58);backdrop-filter:blur(5px)}
+body .tm-trip-reservation-modal .tm-modal {width:min(760px,100%);max-height:calc(100dvh - 48px);background:var(--card,#fffdf7);color:var(--foreground,#19382e);display:flex;flex-direction:column;overflow:hidden}
+body .tm-trip-reservation-modal .tm-modal-header {padding:22px 28px;font-size:23px;position:sticky;top:0;z-index:2;background:var(--card,#fffdf7)}
+body .tm-react .tm-trip-reservation-body {padding:26px 28px;font-size:16px;line-height:1.6;overflow:auto;min-height:0}
+body .tm-react .tm-trip-reservation-body:focus {outline:none}
+body .tm-react .tm-trip-reservation-body h2 {font-size:23px;line-height:1.3;margin:0 0 14px}
+body .tm-react .tm-trip-reservation-body p {margin:12px 0;font-size:15px}
+body .tm-react .tm-trip-reservation-body fieldset {border:0;padding:0;margin:0;min-width:0;display:grid;gap:20px}
+body .tm-react .tm-trip-reservation-body button {min-height:44px;font-size:15px}
+body .tm-react .tm-trip-reservation-context {display:flex;gap:20px;align-items:center;margin-bottom:24px}
+body .tm-react .tm-trip-reservation-context img {width:112px;height:88px;object-fit:cover;border-radius:12px}
+body .tm-react .tm-trip-reservation-context h2 {margin:5px 0}
+body .tm-react .tm-trip-reservation-context span {font-size:13px;font-weight:650}
+body .tm-react .tm-trip-reservation-context p {margin:4px 0;color:var(--muted-foreground,#56685f)}
+body .tm-react .tm-trip-reservation-steps {display:grid;grid-template-columns:repeat(3,1fr);gap:12px;list-style:none;padding:0;margin:0 0 24px}
+body .tm-react .tm-trip-reservation-steps li {display:flex;align-items:center;gap:9px;font-size:14px;padding:12px 10px;background:var(--muted,#f1efe6);border:1px solid var(--border,#d8ded4);border-radius:10px}
+body .tm-react .tm-trip-reservation-steps li span {display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%;background:var(--card,#fffdf7);font-weight:700}
+body .tm-react .tm-trip-reservation-steps li[aria-current=step] {background:#dcebdd;color:#19382e;border-color:#2c5948;font-weight:700}
+body .tm-react .tm-trip-reservation-steps li[data-complete=true] {border-color:#83aa92}
+body .tm-react .tm-trip-reservation-note {padding:16px 18px;background:var(--muted,#edf2e8);border:1px solid var(--border,#d6dfd2);border-radius:12px;line-height:1.6}
+body .tm-react .tm-reservation-warning {display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border:1px solid #dba779;border-radius:10px;background:#fff4e3;color:#734218}
+body .tm-react .tm-reservation-warning svg {flex:none;width:20px;height:20px;margin-top:3px}
+body .tm-react .tm-trip-reservation-guests {display:grid;gap:20px}
+body .tm-react .tm-trip-reservation-guests label {display:grid;gap:8px;font-size:16px;font-weight:600}
+body .tm-react .tm-trip-reservation-guests small {font-size:13px;font-weight:400}
+body .tm-react .tm-trip-reservation-guests input {width:100%;min-height:48px;font-size:16px;padding:12px;border-radius:10px}
+body .tm-react .tm-trip-reservation-review dl {margin:16px 0;display:grid;gap:0;border:1px solid var(--border,#d8ded4);border-radius:12px;overflow:hidden}
+body .tm-react .tm-trip-reservation-review dl>div {display:flex;justify-content:space-between;gap:20px;padding:16px 18px;border-bottom:1px solid var(--border,#d8ded4)}
+body .tm-react .tm-trip-reservation-review dl>div:last-child {border-bottom:0;background:var(--muted,#edf2e8)}
+body .tm-react .tm-trip-reservation-review dd {margin:0;font-weight:650;text-align:right;overflow-wrap:anywhere}
+body .tm-react .tm-trip-reservation-footer {display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;padding:18px 0;border-top:1px solid var(--border,#d8ded4);margin-top:12px;position:sticky;bottom:-26px;z-index:1;background:var(--card,#fffdf7);box-shadow:0 -8px 18px var(--card,#fffdf7)}
+body .tm-react .tm-reservation-footer-total {display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3}
+body .tm-react .tm-reservation-footer-total small {font-size:12px;color:var(--muted-foreground,#56685f)}
+body .tm-react .tm-reservation-footer-total strong {font-size:19px;margin-top:4px}
+body .tm-react .tm-trip-reservation-result {text-align:center;padding:22px 0}
+body .tm-react .tm-trip-reservation-result>svg {color:#287449;margin:auto}
+body .tm-react .tm-trip-reservation-result h2 {margin:18px 0}
+body .tm-react .tm-reservation-room-photo {display:block;width:100%;max-height:220px;object-fit:cover;border-radius:12px}
+body .tm-react .tm-stop-reservation-options {margin-top:20px;padding:18px;border:1px solid #9ab9a3;background:var(--muted,#eef3e9);border-radius:12px;display:grid;gap:14px}
+body .tm-react .tm-stop-reservation-options p {font-size:14px;line-height:1.6;margin:8px 0 0}
+body .tm-react .tm-stop-reservation-options button {min-height:44px}
+body .tm-react .tm-stop-reservation-status {display:inline-block;margin-top:8px;padding:5px 10px;font-size:13px;font-weight:600;border-radius:7px;background:var(--muted,#edece3);border:1px solid var(--border,#d8ded4)}
+body .tm-react .tm-stop-reservation-status[data-status=confirmed] {background:#def0e3;color:#205d3e;border-color:#94bba0}
+body .tm-react .tm-stop-reservation-status[data-status=pending] {background:#fff0d5;color:#754514;border-color:#ddb77c}
+body .tm-react .tm-plan-stop .tm-stop-actions {flex-wrap:wrap;gap:8px}
+body .tm-react .tm-trip-reservation-body .tm-room-choice {font-size:16px;padding:16px}
+body .tm-react .tm-trip-reservation-body .tm-room-choice small {font-size:14px;line-height:1.5}
+@media(max-width:600px){
+ body .tm-react.tm-trip-reservation-modal {padding:12px}
+ body .tm-trip-reservation-modal .tm-modal {max-height:calc(100dvh - 24px)}
+ body .tm-react .tm-trip-reservation-body {padding:20px 16px}
+ body .tm-trip-reservation-modal .tm-modal-header {padding:18px 16px}
+ body .tm-react .tm-trip-reservation-context {gap:12px}
+ body .tm-react .tm-trip-reservation-context img {width:80px;height:76px}
+ body .tm-react .tm-trip-reservation-steps {gap:6px}
+ body .tm-react .tm-trip-reservation-steps li {flex-direction:column;gap:6px;text-align:center;font-size:12px;padding:10px 5px}
+ body .tm-react .tm-trip-reservation-review dl>div {flex-direction:column;gap:6px}
+ body .tm-react .tm-trip-reservation-review dd {text-align:left}
+ body .tm-react .tm-trip-reservation-footer button {flex:1;min-width:130px;white-space:normal;line-height:1.35;height:auto;padding:12px 10px;font-size:14px;gap:6px}
+ body .tm-react .tm-trip-reservation-footer {bottom:-20px}
+ body .tm-react .tm-reservation-footer-total {order:-1;flex-basis:100%}
+}

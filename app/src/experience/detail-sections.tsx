@@ -2,9 +2,10 @@ import {useEffect,useState,type ReactNode,type ComponentType} from 'react';
 import {ChevronRight} from 'lucide-react';
 import {Modal} from './modal';
 type Section={key:string;label:string;icon:ComponentType<{size?:number}>;content:ReactNode};
-export function DetailSections({items}:{items:Section[]}){
- const [selected,setSelected]=useState<string|null>(location.hash.includes('review=1')?'reviews':null);const item=items.find(i=>i.key===selected);
+export function DetailSections({items,requested}:{items:Section[];requested?:{key:string;revision:number}}){
+ const [selected,setSelected]=useState<string|null>(location.hash.includes('review=1')?'reviews':new URLSearchParams(location.hash.split('?')[1]||'').get('section'));const item=items.find(i=>i.key===selected);
  const [exiting,setExiting]=useState(false);
+ useEffect(()=>{if(requested){setExiting(false);setSelected(requested.key);}},[requested]);
  const finishClose=()=>{setSelected(null);setExiting(false);};
  const requestClose=()=>{if(exiting)return;if(matchMedia('(prefers-reduced-motion: reduce)').matches)finishClose();else setExiting(true);};
  // Keep focus and the backdrop until the animation finishes; the timeout also

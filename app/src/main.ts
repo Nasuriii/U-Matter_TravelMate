@@ -325,3 +325,8 @@ import './styles/account-appeals.css';
 import './styles/travel-interactions.css';
 import './styles/workspace-refinements.css';
 import './styles/catalog-carousel.css';
+import './styles/trip-bookings.css';
+import './styles/file-inputs.css';
+import './styles/save-hearts.css';
+import './styles/itinerary-reservations.css';
+import './styles/planning-choices.css';

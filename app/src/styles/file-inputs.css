@@ -1,0 +1,10 @@
+/* Shared native file picker treatment for traveler, owner and admin forms. */
+body input[type=file]:not(.sr-only):not([hidden]){max-width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--foreground);font-family:inherit;font-size:16px;line-height:1.5;box-sizing:border-box;cursor:pointer}
+body input[type=file]::file-selector-button{min-height:44px;margin:0 14px 0 0;padding:10px 18px;border:1px solid var(--primary);border-radius:9px;background:var(--primary);color:var(--primary-foreground);font-family:inherit;font-size:15px;font-weight:600;line-height:1.4;cursor:pointer;transition:background .16s,border-color .16s,box-shadow .16s}
+body input[type=file]:hover:not(:disabled)::file-selector-button{background:color-mix(in srgb,var(--primary) 86%,var(--foreground));border-color:color-mix(in srgb,var(--primary) 86%,var(--foreground));box-shadow:0 2px 8px color-mix(in srgb,var(--primary) 18%,transparent)}
+body input[type=file]:focus-visible{outline:3px solid var(--ring);outline-offset:3px}
+body input[type=file]:disabled{opacity:.55;cursor:not-allowed}
+body input[type=file]:disabled::file-selector-button{cursor:not-allowed;box-shadow:none}
+body .tm-react .tm-attach-booking-body input[type=file]{padding:8px;font-size:16px;min-height:62px}
+@media(max-width:480px){body input[type=file]{font-size:14px}body input[type=file]::file-selector-button{margin-right:10px;padding:10px 14px;font-size:14px}}
+@media(prefers-reduced-motion:reduce){body input[type=file]::file-selector-button{transition:none}}

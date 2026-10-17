@@ -1,0 +1,86 @@
+// From app/: npm install --prefix .tmp/booking-db --no-save --package-lock=false @electric-sql/pglite@0.5.9
+// Then: node tests/trip-bookings-db.mjs
+// Runs an isolated in-memory database with fictional users; never accesses Supabase.
+const {PGlite}=await import(process.env.PGLITE_MODULE||new URL('../.tmp/booking-db/node_modules/@electric-sql/pglite/dist/index.js',import.meta.url).href);
+import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const db=new PGlite();
+await db.exec(`
+create role authenticated;create role anon;
+create schema auth;create schema storage;create schema travelmate_ui;
+grant usage on schema auth,storage,travelmate_ui,public to authenticated,anon;
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+create table public.profiles(id uuid primary key,account_status text,role text);
+create function public.tm_browsing_profile_id() returns uuid language sql stable security definer as $$select id from public.profiles where id=auth.uid() and account_status in ('active','suspended')$$;
+create function public.tm_can_plan() returns boolean language sql stable security definer as $$select coalesce((select role='traveler' and account_status in ('active','suspended') from public.profiles where id=auth.uid()),false)$$;
+create table public.trips(id uuid primary key,profile_id uuid references public.profiles(id),name text,start_date date,end_date date,status text);
+create table public.bookings(id uuid primary key,profile_id uuid references public.profiles(id),booking_type text,status text,payment_status text,is_test boolean,total_amount numeric(12,2),guest_count int);
+create table public.business_listings(id uuid primary key,name text,address text);
+create table public.hotels(hotel_id uuid primary key,check_in_time time,check_out_time time);
+create table public.hotel_bookings(booking_id uuid primary key references public.bookings(id),hotel_id uuid,check_in date,check_out date);
+create table public.rooms(id uuid primary key,room_type text,room_number text);
+create table public.booking_rooms(booking_id uuid references public.bookings(id),room_id uuid,nightly_rate numeric);
+create table public.restaurant_slots(id uuid primary key,restaurant_id uuid,starts_at timestamptz,ends_at timestamptz);
+create table public.restaurant_bookings(booking_id uuid primary key references public.bookings(id),slot_id uuid);
+create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+create table storage.objects(id uuid default gen_random_uuid(),bucket_id text,name text,unique(bucket_id,name));
+alter table storage.objects enable row level security;grant select,insert,delete on storage.objects to authenticated;
+create function storage.foldername(text) returns text[] language sql immutable as $$select (string_to_array($1,'/'))[1:array_length(string_to_array($1,'/'),1)-1]$$;
+`);
+const sql=await fs.readFile(new URL('../../SupaBase/migrations/20261013154920_trip_booking_attachments.sql',import.meta.url),'utf8');
+await db.exec(sql);
+await db.exec(await fs.readFile(new URL('../../SupaBase/migrations/20261014084640_trip_booking_payment_state.sql',import.meta.url),'utf8'));
+const uid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
+await db.query("insert into profiles values($1,'active','traveler'),($2,'suspended','traveler'),($3,'active','owner')",[uid(1),uid(2),uid(3)]);
+await db.query("insert into trips values($1,$2,'Weekend','2026-11-01','2026-11-04','draft'),($3,$2,'Second','2026-11-01','2026-11-04','draft'),($4,$5,'Other','2026-11-01','2026-11-04','draft'),($6,$2,'Archive','2026-11-01','2026-11-04','completed')",[uid(10),uid(1),uid(11),uid(12),uid(2),uid(13)]);
+await db.query('insert into business_listings values($1,$2,$3),($4,$5,$6)',[uid(20),'Coast Hotel','Agoo',uid(21),'Local Table','Agoo']);
+await db.query('insert into hotels values($1,$2,$3)',[uid(20),'14:00','11:00']);
+await db.query("insert into rooms values($1,'Twin','101'),($2,'Double','102')",[uid(30),uid(31)]);
+for(const [n,owner,type,status,payment,test] of [[40,1,'hotel','confirmed','paid',false],[41,1,'restaurant','confirmed','paid',false],[42,1,'hotel','pending','unpaid',false],[43,2,'hotel','confirmed','paid',false],[44,1,'hotel','confirmed','unpaid',true],[45,1,'hotel','confirmed','paid',false]]){
+ await db.query('insert into bookings values($1,$2,$3,$4,$5,$6,$7,2)',[uid(n),uid(owner),type,status,payment,test,type==='hotel'?3600:150]);
+ if(type==='hotel')await db.query('insert into hotel_bookings values($1,$2,$3,$4)',[uid(n),uid(20),n===45?'2026-10-30':'2026-11-01',n===45?'2026-11-06':'2026-11-03']);
+}
+await db.query('insert into booking_rooms values($1,$2,1800),($1,$3,1800)',[uid(40),uid(30),uid(31)]);
+await db.query("insert into restaurant_slots values($1,$2,'2026-11-02T04:00:00Z','2026-11-02T05:00:00Z');",[uid(50),uid(21)]);
+await db.query('insert into restaurant_bookings values($1,$2)',[uid(41),uid(50)]);
+const login=async n=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[n?uid(n):'']);await db.exec('set role authenticated');};
+const catalog=async(trip=null)=>(await db.query('select public.my_trip_booking_catalog($1) as value',[trip])).rows[0].value;
+let checks=0;
+async function deny(sql,args=[],match){await assert.rejects(()=>db.query(sql,args),match);checks++;}
+await login(1);
+let c=await catalog(uid(10));assert.equal(c.bookings.length,3);assert.match(c.bookings.find(x=>x.booking_id===uid(40)).room,/101.*102/);assert.equal(c.bookings.find(x=>x.booking_id===uid(41)).start_time,'12:00:00');checks++;
+await deny('select attach_my_trip_booking($1,$2,$3)',[uid(10),uid(43),'2026-11-01'],/not found/);
+await deny('select attach_my_trip_booking($1,$2,$3)',[uid(12),uid(40),'2026-11-01'],/own editable/);
+await deny('select attach_my_trip_booking($1,$2,$3)',[uid(13),uid(40),'2026-11-01'],/own editable/);
+await deny('select attach_my_trip_booking($1,$2,$3)',[uid(10),uid(42),'2026-11-01'],/Only paid/);
+await deny('select attach_my_trip_booking($1,$2,$3)',[uid(10),uid(44),'2026-11-01'],/Only paid/);
+await deny('select attach_my_trip_booking($1,$2,$3)',[uid(10),uid(40),'2026-12-01'],/within your trip/);
+await deny('select attach_my_trip_booking($1,$2,$3)',[uid(10),uid(45),'2026-11-01'],/outside/);
+await db.query('select attach_my_trip_booking($1,$2,$3,true)',[uid(10),uid(45),'2026-11-01']);checks++;
+const attach=async()=> (await db.query('select attach_my_trip_booking($1,$2,$3) as id',[uid(10),uid(40),'2026-11-01'])).rows[0].id;
+const linked=await attach();assert.equal(await attach(),linked);assert.equal((await catalog(uid(10))).attachments.length,2);checks++;
+await deny('select attach_my_trip_booking($1,$2,$3)',[uid(11),uid(40),'2026-11-01'],/already attached/);
+await deny('select * from travelmate_ui.trip_booking_attachments',[],/permission denied/);
+const externalId=uid(60),path=uid(1)+'/'+uid(10)+'/'+externalId+'.pdf';
+const doc={id:externalId,booking_type:'hotel',name:'External Inn',provider:'Property',reference:'CONF-100',address:'Agoo',planned_date:'2026-11-02',start_date:'2026-11-02',end_date:'2026-11-03',start_time:'14:00',end_time:'11:00',amount:1200,currency:'PHP',file_path:path,file_name:'confirmation.pdf'};
+await deny('select add_my_external_trip_booking($1,$2)',[uid(10),doc],/Upload/);
+await db.query("insert into storage.objects(bucket_id,name) values('trip-confirmations',$1)",[path]);checks++;
+await deny("insert into storage.objects(bucket_id,name) values('trip-confirmations',$1)",[uid(2)+'/'+uid(12)+'/'+uid(61)+'.pdf'],/row-level security/);
+await deny("insert into storage.objects(bucket_id,name) values('trip-confirmations',$1)",[uid(1)+'/'+uid(12)+'/'+uid(61)+'.pdf'],/row-level security/);
+await deny("insert into storage.objects(bucket_id,name) values('trip-confirmations',$1)",[uid(1)+'/'+uid(10)+'/file.html'],/row-level security/);
+await db.query('select add_my_external_trip_booking($1,$2)',[uid(10),doc]);assert.equal((await catalog(uid(10))).attachments.length,3);checks++;
+await deny('select add_my_external_trip_booking($1,$2)',[uid(10),doc],/already attached/);
+await login(2);assert.equal((await catalog()).attachments.length,0);assert.equal((await db.query("select * from storage.objects where bucket_id='trip-confirmations'")).rows.length,0);checks++;
+await deny('select my_trip_booking_catalog($1)',[uid(10)],/not found/);await deny('select detach_my_trip_booking($1)',[linked],/not found/);
+await db.query('select attach_my_trip_booking($1,$2,$3)',[uid(12),uid(43),'2026-11-01']);assert.equal((await catalog(uid(12))).attachments.length,1);checks++;
+await login(3);await deny('select my_trip_booking_catalog()',[],/Traveler/);
+await db.exec("reset role;set role anon;");await deny('select public.my_trip_booking_catalog()',[],/permission denied/);
+await login(1);await db.exec('reset role');await db.query('update bookings set payment_status=null where id=$1',[uid(40)]);await db.exec('set role authenticated');assert.equal((await catalog(uid(10))).attachments.find(a=>a.id===linked).payment_status,'unpaid');checks++;await db.exec('reset role');await db.query("update bookings set status='cancelled',payment_status='refunded' where id=$1",[uid(40)]);await db.exec('set role authenticated');c=await catalog(uid(10));assert.equal(c.attachments.find(a=>a.id===linked).payment_status,'refunded');assert.ok(!c.bookings.some(b=>b.booking_id===uid(40)));checks++;
+assert.equal((await db.query('select detach_my_trip_booking($1) as path',[externalId])).rows[0].path,path);await db.query("delete from storage.objects where name=$1",[path]);assert.equal((await db.query('select * from storage.objects')).rows.length,0);checks++;
+await db.exec('reset role');await db.query('delete from trips where id=$1',[uid(10)]);assert.equal((await db.query('select count(*)::int as n from travelmate_ui.trip_booking_attachments where trip_id=$1',[uid(10)])).rows[0].n,0);assert.equal((await db.query('select count(*)::int as n from bookings')).rows[0].n,6);checks++;
+console.log(JSON.stringify({databaseChecks:checks,migrationApplied:true,ownership:true,privateFiles:true,suspendedPlanning:true,livePaymentStatus:true,noDuplicateLinks:true,tripDeletionKeepsBookings:true},null,2));
+const {verifyItineraryReservations}=await import('./itinerary-reservations-db.mjs');
+await verifyItineraryReservations(db,{uid,login,catalog,deny});
+const {verifyBookingChoices}=await import('./booking-choices-db.mjs');
+await verifyBookingChoices(db,{uid,login,catalog,deny});
+await db.close();

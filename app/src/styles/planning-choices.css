@@ -1,0 +1,78 @@
+body .tm-react.tm-itinerary-choice-modal .tm-modal {width:min(760px,calc(100vw - 28px));max-height:92dvh}
+.tm-itinerary-chooser {padding:26px;font-size:16px;line-height:1.6;overflow:auto;min-height:0}
+.tm-itinerary-chooser>p {margin:0 0 18px;font-size:16px}
+.tm-itinerary-destination,.tm-plan-destination {display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:15px 20px;background:color-mix(in srgb,var(--primary) 12%,var(--card));color:var(--foreground);border:1px solid var(--border);border-radius:12px}
+.tm-itinerary-destination {margin-bottom:22px}
+.tm-plan-destination {margin:18px 20px 0;font-size:16px}
+.tm-plan-destination>span {color:var(--muted-foreground);font-size:14px}
+.tm-plan-destination svg,.tm-itinerary-destination svg {flex:none;color:var(--primary)}
+.tm-trip-destination-label {font-size:15px!important;font-weight:650;color:var(--primary)!important;margin:8px 0!important}
+.tm-itinerary-choice-grid {display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px}
+body .tm-react .tm-itinerary-choice-grid button {display:grid;grid-template-columns:1fr auto;gap:10px;text-align:left;white-space:normal;padding:22px;min-height:178px;height:auto;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--foreground);transition:background .18s,border-color .18s}
+.tm-itinerary-choice-grid button>svg:first-child {grid-column:1/-1;color:var(--primary)}
+.tm-itinerary-choice-grid strong {font-size:19px}
+.tm-itinerary-choice-grid span {font-size:15px;color:var(--muted-foreground);line-height:1.5;grid-row:3;grid-column:1/-1}
+body .tm-react .tm-itinerary-choice-grid button:hover,body .tm-react .tm-itinerary-choice-grid button[aria-expanded=true] {border-color:var(--primary);background:var(--muted)}
+.tm-itinerary-chooser h3 {font-size:19px;margin:0 0 16px}
+.tm-existing-trip-choices {display:grid;gap:12px}
+body .tm-react .tm-existing-trip-choices button {display:flex;align-items:center;gap:16px;padding:18px;text-align:left;height:auto;min-height:90px;width:100%;border:1px solid var(--border);background:var(--card);color:var(--foreground);border-radius:12px;white-space:normal}
+.tm-existing-trip-choices button>span {display:grid;gap:6px;flex:1;min-width:0}
+.tm-existing-trip-choices strong {font-size:17px}
+.tm-existing-trip-choices small {font-size:14px;color:var(--muted-foreground);display:flex;gap:5px;align-items:center}
+.tm-attachment-schedule {padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--muted);display:grid;gap:18px}
+body .tm-react .tm-attachment-schedule>label {flex-direction:row;align-items:center;gap:12px;line-height:1.5}
+body .tm-react .tm-attachment-schedule input[type=checkbox] {width:20px;height:20px;flex:none;padding:0;margin:0;accent-color:var(--primary)}
+.tm-attachment-schedule>p {font-size:14px;color:var(--muted-foreground);margin:0;line-height:1.6}
+@media(hover:none){
+ [data-place-preview] {-webkit-touch-callout:none;user-select:none}
+ .tm-place-hover-preview .tm-peek-photo,.tm-place-hover-preview .tm-peek-photo img,.tm-place-hover-preview[data-kind=transport] .tm-peek-photo,.tm-place-hover-preview[data-kind=transport] .tm-peek-photo img {height:115px}
+ .tm-place-hover-preview .tm-peek-copy {padding:14px 16px}
+ .tm-place-hover-preview .tm-peek-copy strong {font-size:18px}
+ .tm-place-hover-preview .tm-peek-description {font-size:14px}
+}
+@media(max-width:600px){
+ .tm-itinerary-chooser {padding:20px 16px}
+ .tm-itinerary-choice-grid {gap:12px}
+ body .tm-react .tm-itinerary-choice-grid button {padding:16px;min-height:190px}
+ .tm-itinerary-choice-grid strong {font-size:17px}
+ .tm-itinerary-choice-grid span {font-size:14px}
+ .tm-plan-destination {margin:14px 12px 0;padding:12px 14px}
+ .tm-attachment-schedule {padding:15px}
+}
+@media(prefers-reduced-motion:reduce){.tm-itinerary-choice-grid button{transition:none}}
+
+/* The legacy form styles add margins to every fieldset button and label. */
+body .tm-react .tm-attach-booking-body fieldset {margin:0;padding:0;gap:22px;min-inline-size:0}
+body .tm-react .tm-attach-booking-body fieldset button,body .tm-react .tm-attach-booking-body fieldset label {margin:0}
+body .tm-react.tm-attach-booking-modal .tm-modal-header {position:sticky;top:0;z-index:2;background:var(--card)}
+body .tm-react .tm-attach-booking-body .tm-booking-checkbox {display:grid;grid-template-columns:20px minmax(0,1fr);align-items:start;gap:12px;line-height:1.5;cursor:pointer}
+body .tm-react .tm-attach-booking-body .tm-booking-checkbox input[type=checkbox] {appearance:auto;width:20px;height:20px;min-height:20px;max-height:20px;padding:0;margin:3px 0 0;align-self:start;accent-color:var(--primary)}
+body .tm-react .tm-attachment-schedule .tm-shared-clock,body .tm-react .tm-attachment-schedule .tm-trip-time-fields {margin:0;padding:0}
+body .tm-react .tm-attachment-schedule .tm-booked-time-reset {justify-self:start;min-height:42px;font-size:14px;padding:8px 12px}
+.tm-booking-target {display:grid;gap:14px}
+.tm-reservation-preview-hint {margin:0;color:var(--muted-foreground);font-size:14px;line-height:1.5}
+.tm-reservation-preview-hint .tm-preview-touch-hint {display:none}
+body .tm-react .tm-paid-booking-choices>button[data-place-preview] {transition:border-color .18s,background .18s,box-shadow .18s}
+body .tm-react .tm-paid-booking-choices>button[data-place-preview]:focus-visible {outline:3px solid var(--ring);outline-offset:2px}
+@media(hover:hover){body .tm-react .tm-paid-booking-choices>button[data-place-preview]:hover {border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary),0 3px 10px color-mix(in srgb,var(--primary) 12%,transparent)}}
+@media(hover:none){.tm-reservation-preview-hint .tm-preview-hover-hint {display:none}.tm-reservation-preview-hint .tm-preview-touch-hint {display:inline}}
+.tm-booking-target h3,.tm-booking-fit h3,.tm-new-booking-trip h3 {font-size:18px;line-height:1.5;margin:0}
+.tm-booking-trip-summary {display:flex;align-items:center;gap:12px;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--muted)}
+.tm-booking-trip-summary>div {display:grid;gap:5px;min-width:0}
+.tm-booking-trip-summary strong {font-size:17px;overflow-wrap:anywhere}
+.tm-booking-trip-summary span {font-size:14px;color:var(--muted-foreground)}
+.tm-booking-trip-summary>svg {flex:none;color:var(--primary)}
+.tm-booking-fit {display:grid;gap:12px;padding:18px;border:1px solid var(--border);border-radius:12px}
+.tm-booking-fit p {display:flex;align-items:start;gap:10px;margin:0;font-size:14px;line-height:1.6}
+.tm-booking-fit svg {flex:none;margin-top:3px;color:var(--primary)}
+.tm-booking-fit .lucide-triangle-alert {color:#bd6427}
+.tm-new-booking-trip {padding:20px;border:1px solid var(--primary);border-radius:14px;background:color-mix(in srgb,var(--primary) 7%,var(--card));display:grid;gap:18px}
+.tm-new-booking-trip>div {display:flex;gap:10px;align-items:center}
+.tm-new-booking-trip>strong {font-size:19px;overflow-wrap:anywhere}
+.tm-new-booking-trip dl {display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:0}
+.tm-new-booking-trip dl>div:first-child {grid-column:1/-1}
+.tm-new-booking-trip dt {font-size:14px;color:var(--muted-foreground)}
+.tm-new-booking-trip dd {font-size:16px;font-weight:600;margin:4px 0 0}
+.tm-new-booking-trip>p {font-size:15px;line-height:1.6;margin:0}
+@media(max-width:480px){body .tm-react .tm-booking-target .tm-attachment-tabs button {flex-direction:column;gap:6px;font-size:15px}.tm-new-booking-trip {padding:16px}.tm-new-booking-trip dl {grid-template-columns:1fr}.tm-paid-booking-choices strong {font-size:17px}body .tm-react .tm-paid-booking-choices>button {padding:14px;gap:10px}.tm-paid-booking-choices .tm-attachment-type-icon {width:36px;height:36px}.tm-paid-booking-choices>button>svg {width:18px;height:18px;flex:none}}
+@media(prefers-reduced-motion:reduce){body .tm-react .tm-paid-booking-choices>button[data-place-preview] {transition:none}}

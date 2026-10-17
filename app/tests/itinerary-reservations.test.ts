@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {destinationDate,destinationTime,proposedReservationStop,reservationConflicts} from '../src/itinerary-reservation-logic.ts';
+import {bookingBudget,type TripBooking} from '../src/trip-booking-logic.ts';
+const stop={planned_date:'2026-11-02',planned_time:'09:00',planned_end_time:'10:00',activity:'Lunch',listing_id:'listing',notes:'Keep this note',recommendation_reason:'Selected'};
+assert.equal(destinationDate('2026-11-01T16:30:00Z'),'2026-11-02');
+assert.equal(destinationTime('2026-11-02T04:30:00Z'),'12:30');
+const reserved=proposedReservationStop(stop,{starts_at:'2026-11-02T04:30:00Z',ends_at:'2026-11-02T05:30:00Z'});
+assert.deepEqual([reserved.planned_time,reserved.planned_end_time,reserved.notes],['12:30','13:30','Keep this note']);
+assert.equal(proposedReservationStop(stop),stop);
+assert.deepEqual(reservationConflicts(reserved,[{...stop,activity:'Museum',planned_time:'13:00',planned_end_time:'14:00'}]),['Museum']);
+assert.deepEqual(reservationConflicts(reserved,[{...stop,planned_time:'13:30',planned_end_time:'14:30'}]),[]);
+const booking={id:'link',booking_id:'booking',source:'travelmate',status:'pending',payment_status:'unpaid',amount:250,currency:'PHP'} as TripBooking;
+assert.equal(bookingBudget([booking],'PHP').total,0);
+assert.equal(bookingBudget([{...booking,status:'confirmed',payment_status:'paid'}, {...booking,id:'second',status:'confirmed',payment_status:'paid'}],'PHP').total,250);
+assert.equal(bookingBudget([{...booking,status:'confirmed',payment_status:'paid',is_test:true}],'PHP').total,0);
+console.log('9 itinerary reservation checks passed');

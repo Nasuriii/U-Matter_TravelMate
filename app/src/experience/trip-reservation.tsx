@@ -1,0 +1,76 @@
+import {useEffect,useRef,useState} from 'react';
+import {ArrowLeft,ArrowRight,BedDouble,Utensils,Check,CheckCircle2,AlertTriangle,Clock3,RefreshCw} from 'lucide-react';
+import {Button} from '../components/ui/button';
+import {DateRangeFields} from '../trip-pickers';
+import {sampleRoomPhoto} from '../sample-photos';
+import {proposedReservationStop,reservationConflicts,destinationDate,destinationTime} from '../itinerary-reservation-logic';
+import type {Stop} from '../itinerary-engine';
+import {bookingDate,bookingTime,type BookingTrip} from '../trip-booking-logic';
+import {Modal} from './modal';
+import {listingDetail} from './catalog';
+import {RoomChoices,GuestCount} from './booking-controls';
+import {ReservationSlots} from './reservation-slots';
+import {BookingRestriction} from './account-appeals';
+import {client,useIdentity,currentIdentity,errorMessage,money,isSuspended} from './state';
+import {checkout,rememberTripCheckout} from './reservation-service';
+import {toast} from '../ui';
+
+type Plan={p_expected_updated_at:string;p_items:Stop[];p_days:{planned_date:string;title:string;notes:string}[]};
+type Props={trip:BookingTrip&{party_size?:number|null};stop:Stop;others:Stop[];close:()=>void;plan:(stop:Stop)=>Plan;saved:(stop:Stop,updatedAt:string)=>void;refresh:()=>void};
+type Availability={rooms:string[];slots:{id:string;remaining:number}[]};
+export function TripReservationDialog({trip,stop,others,close,plan,saved,refresh}:Props){
+ const identity=useIdentity(),[detail,setDetail]=useState<Awaited<ReturnType<typeof listingDetail>>|null>(null),[error,setError]=useState(''),[version,setVersion]=useState(0),[step,setStep]=useState(0),[busy,setBusy]=useState(false);
+ const [availability,setAvailability]=useState<Availability|null>(null),[checking,setChecking]=useState(true),[availabilityError,setAvailabilityError]=useState('');
+ const [form,setForm]=useState({room:'',slot:'',start:stop.planned_date,end:trip.end_date,guests:String(trip.party_size||1),name:identity.name,email:identity.email,phone:''});
+ const [result,setResult]=useState<{id:string;pending:boolean;test:boolean;status:string;amount:number}|null>(null),requestKey=useRef(crypto.randomUUID()),alive=useRef(true),submittedStop=useRef(stop);
+ const bodyRef=useRef<HTMLDivElement>(null);
+ const lastRequest=useRef<Record<string,unknown>|null>(null),[uncertain,setUncertain]=useState(false);
+ const hotel=detail?.listing.listing_type==='hotel',room=detail?.rooms.find(r=>r.id===form.room),slot=detail?.slots.find(s=>s.id===form.slot);
+ const nights=form.start&&form.end?Math.max(0,(Date.parse(form.end)-Date.parse(form.start))/86400000):0;
+ const amount=hotel?Number(room?.base_nightly_rate||0)*nights:Number(detail?.reservationFee||0),proposed=proposedReservationStop(stop,hotel?undefined:slot),conflicts=reservationConflicts(proposed,others);
+ const slots=(detail?.slots||[]).filter(s=>destinationDate(s.starts_at)===stop.planned_date).map(s=>({...s,capacity:availability?.slots.find(a=>a.id===s.id)?.remaining??0}));
+ const rooms=(detail?.rooms||[]).map(r=>({...r,operational_status:availability?.rooms.includes(r.id)?'available':'unavailable'}));
+ let scheduleError='';if(!result&&((hotel&&room)||(!hotel&&slot))){try{plan(proposed);}catch(e){scheduleError=errorMessage(e);}}
+ const invalid=!!scheduleError||(hotel?(!room||!availability?.rooms.includes(room.id)||nights<1||form.start<trip.start_date||form.end>trip.end_date||form.start<destinationDate(new Date().toISOString())||Number(form.guests)>room.max_guests):(!slot||!slots.some(s=>s.id===slot.id&&s.capacity>=Number(form.guests))||destinationDate(slot.starts_at)!==stop.planned_date||conflicts.length>0));
+ const update=(key:keyof typeof form,value:string)=>{setForm(f=>({...f,[key]:value}));requestKey.current=crypto.randomUUID();setError('');};
+ useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+ useEffect(()=>{bodyRef.current?.focus({preventScroll:true});bodyRef.current?.scrollTo({top:0});},[step,result]);
+ useEffect(()=>{let live=true;setDetail(null);void listingDetail(stop.listing_id!).then(d=>{if(live){if(d.listing.listing_type==='attraction')throw Error('Online tickets are not available for this attraction.');setDetail(d);}}).catch(e=>{if(live)setError(errorMessage(e));});return()=>{live=false;};},[stop.listing_id,identity.id,version]);
+ useEffect(()=>{if(!detail||isSuspended(identity)){setChecking(false);return;}let live=true;setChecking(true);setAvailabilityError('');
+  void Promise.resolve(client.rpc('my_trip_reservation_options',{p_listing:stop.listing_id,p_start:form.start||null,p_end:form.end||null})).then(r=>{if(!live)return;if(r.error){setAvailability(null);setAvailabilityError(errorMessage(r.error));}else setAvailability(r.data as Availability);setChecking(false);}).catch(e=>{if(live){setAvailabilityError(errorMessage(e));setChecking(false);}});
+  return()=>{live=false;};
+ },[detail,form.start,form.end,identity.accountStatus,version]);
+ function forward(e:React.FormEvent){e.preventDefault();setError('');if(step===0&&invalid){setError('Choose available dates and inventory that fit your trip.');return;}if(step<2)setStep(s=>s+1);else void reserve();}
+ async function reserve(retry=false){
+  if(!detail||busy||result||(!retry&&(invalid||checking))||(retry&&!lastRequest.current)||isSuspended())return;
+  const uid=identity.id;setBusy(true);setError('');
+  let sent=false;
+  try{
+   if(!retry){const snapshot=plan(proposed);submittedStop.current=proposed;lastRequest.current={...snapshot,p_trip:trip.id,p_day:stop.planned_date,p_listing:stop.listing_id,p_room:hotel?form.room:null,p_slot:hotel?null:form.slot,p_check_in:hotel?form.start:null,p_check_out:hotel?form.end:null,p_guests:Number(form.guests),p_name:form.name.trim(),p_email:form.email.trim(),p_phone:form.phone.trim()||null,p_key:requestKey.current};}
+   sent=true;const r=await client.rpc('reserve_my_trip_booking',lastRequest.current!);
+   if(r.error)throw r.error;
+   if(!alive.current||currentIdentity().id!==uid)return;
+   const id=String(r.data.booking_id),test=!!r.data.is_test,pending=r.data.status==='pending';
+   setUncertain(false);setResult({id,pending,test,status:r.data.status,amount:Number(r.data.amount)});saved(submittedStop.current,String(r.data.updated_at));toast(pending?'Plan saved. Reservation attached and awaiting payment.':r.data.status==='confirmed'?'Reservation confirmed and attached to your trip.':'Reservation attached. Current status: '+r.data.status+'.');
+  }catch(e){if(alive.current&&currentIdentity().id===uid){const code=e&&typeof e==='object'&&'code' in e?e.code:null;setUncertain(sent&&!code);setError(errorMessage(e));refresh();setVersion(v=>v+1);}}finally{if(alive.current)setBusy(false);}
+ }
+ async function pay(){if(!result||busy)return;setBusy(true);setError('');try{rememberTripCheckout(trip.id,stop.planned_date);await checkout(result.id);}catch(e){if(alive.current)setError(errorMessage(e));}finally{if(alive.current)setBusy(false);}}
+ return <Modal title={hotel?'Book a room':detail?'Reserve a table':'Your trip reservation'} close={()=>{if(!busy)close();}} className="tm-trip-reservation-modal"><div ref={bodyRef} tabIndex={-1} className="tm-trip-reservation-body">
+  {isSuspended(identity)?<BookingRestriction/>:!detail?<><p role={error?'alert':'status'}>{error||'Loading rooms and reservation times…'}</p>{error&&<Button onClick={()=>{setError('');setVersion(v=>v+1);}}>Try again</Button>}</>:result?<div className="tm-trip-reservation-result" role="status"><CheckCircle2 size={44}/><h2>{result.pending?'Awaiting payment':['confirmed','completed'].includes(result.status)?'Reservation confirmed':'Reservation '+result.status}</h2><p>{detail.listing.name} is attached to <strong>{trip.name}</strong>. Your stops and notes are saved.</p><p>Reference · {result.id.slice(0,8).toUpperCase()}</p><p><strong>{result.test?'Test total':'Reservation total'} · {money(result.amount)}</strong></p>{result.test?<p className="tm-preview-note">Test reservation · no charge. This amount is excluded from the paid budget.</p>:result.pending?<p><Clock3 size={18}/>Complete payment during the 35-minute hold to confirm this reservation.</p>:<p>No reservation payment is required.</p>}{scheduleError&&<p role="alert" className="tm-reservation-warning"><AlertTriangle/>{scheduleError}</p>}{error&&<p role="alert" className="tm-error">{error}</p>}<div className="tm-trip-reservation-footer">{result.pending&&<Button disabled={busy} onClick={()=>void pay()}>{busy?'Opening checkout…':'Continue to secure payment'}<ArrowRight/></Button>}<Button variant="outline" disabled={busy} onClick={close}>Back to itinerary</Button></div></div>:<>
+   <div className="tm-trip-reservation-context">{detail.listing.image&&<img src={detail.listing.image} alt=""/>}<div><span>{hotel?'Hotel stay':'Restaurant table'} · {trip.name}</span><h2>{detail.listing.name}</h2><p>{detail.listing.address}</p></div></div>
+   <ol className="tm-trip-reservation-steps" aria-label="Reservation steps">{[hotel?'Room & dates':'Table time','Guest details','Review'].map((label,i)=><li key={label} aria-current={step===i?'step':undefined} data-complete={step>i}><span>{step>i?<Check size={17}/>:i+1}</span>{label}</li>)}</ol>
+   <form onSubmit={forward}><fieldset disabled={busy||uncertain}>
+   {step===0&&<><p className="tm-trip-reservation-note">Prefilled from your trip. {hotel?'Choose your stay dates and a room.':'Choose a table time for this day; your stop will use the reserved time.'}</p>{hotel?<><DateRangeFields start={form.start} end={form.end} onChange={(start,end)=>{setForm(f=>({...f,start,end}));requestKey.current=crypto.randomUUID();setError('');}}/>{nights<1&&<p className="tm-reservation-warning"><AlertTriangle/>A hotel stay needs at least one night. Choose a check-out date after check-in within your trip.</p>}<RoomChoices rooms={rooms} value={form.room} change={value=>update('room',value)}/>{room&&detail.listing.preview&&<img className="tm-reservation-room-photo" src={sampleRoomPhoto(room.id)} alt={'Travel inspiration for '+room.room_type}/>}</>:<ReservationSlots slots={slots} value={form.slot} guests={Number(form.guests)} change={value=>update('slot',value)} initialDate={stop.planned_date}/>}<GuestCount value={form.guests} max={hotel?room?.max_guests??100:slot?slots.find(s=>s.id===slot.id)?.capacity||1:100} change={value=>update('guests',value)}/>{checking&&<p role="status">Checking current availability…</p>}{availabilityError&&<div role="alert"><p className="tm-error">{availabilityError}</p><Button variant="outline" type="button" onClick={()=>setVersion(v=>v+1)}><RefreshCw/>Refresh availability</Button></div>}{!hotel&&!slots.length&&!checking&&<p>No table times are offered on this day. Keep this stop as planned or choose another day in your itinerary.</p>}{conflicts.length>0&&!hotel&&<p className="tm-reservation-warning"><AlertTriangle/>This table time overlaps {conflicts.join(', ')}. Choose another time or adjust those stops first.</p>}{form.start<trip.start_date||form.end>trip.end_date?<p className="tm-reservation-warning">Keep reservation dates within {trip.start_date} – {trip.end_date}.</p>:null}</>}
+   {step===1&&<div className="tm-trip-reservation-guests"><h2>Who is this reservation for?</h2><label>Full name<input required minLength={2} maxLength={150} autoComplete="name" value={form.name} onChange={e=>update('name',e.target.value)}/></label><label>Email address<input type="email" required maxLength={150} autoComplete="email" value={form.email} onChange={e=>update('email',e.target.value)}/></label><label>Phone number <small>Optional</small><input type="tel" maxLength={30} autoComplete="tel" value={form.phone} onChange={e=>update('phone',e.target.value)}/></label></div>}
+   {step===2&&<div className="tm-trip-reservation-review"><h2>Review before reserving</h2><dl><div><dt>{hotel?'Room':'Table time'}</dt><dd>{hotel?room?.room_type+' · Room '+room?.room_number:slot?bookingDate(destinationDate(slot.starts_at))+' · '+bookingTime(destinationTime(slot.starts_at))+' – '+bookingTime(destinationTime(slot.ends_at)):'Choose a time'}</dd></div>{hotel&&<div><dt>Stay</dt><dd>{bookingDate(form.start)} – {bookingDate(form.end)} · {nights} {nights===1?'night':'nights'}</dd></div>}<div><dt>Guests</dt><dd>{form.guests} · {form.name}</dd></div><div><dt>Confirmation email</dt><dd>{form.email}</dd></div><div><dt>{hotel?'Estimated stay total':'Reservation fee'}</dt><dd>{money(amount)}</dd></div></dl>{!hotel&&<p>Food and drinks are separate from the reservation fee.</p>}<p className="tm-trip-reservation-note">Confirming saves your current stops and notes and attaches this reservation to <strong>{trip.name}</strong>. {detail.listing.preview?'This is test inventory. No payment is taken.':amount>0?'A 35-minute hold will be created. The booking is confirmed after payment is verified.':'No payment is required.'}</p></div>}
+   {error&&<p role="alert" className="tm-error">{error}</p>}<div className="tm-trip-reservation-footer"><Button variant="outline" type="button" onClick={()=>step?setStep(s=>s-1):close()}><ArrowLeft/>{step?'Back':'Keep editing stop'}</Button>{step===2&&<div className="tm-reservation-footer-total"><small>{detail.listing.preview?'Test total · no charge':hotel?'Stay total':'Reservation fee'}</small><strong>{money(amount)}</strong></div>}<Button type="submit" disabled={busy||checking||!!availabilityError||invalid}>{busy?'Saving reservation…':step<2?'Continue':detail.listing.preview||amount===0?'Confirm & attach':'Reserve & attach'}<ArrowRight/></Button></div>
+   </fieldset>{uncertain&&<div className="tm-trip-reservation-note" role="alert"><p>The connection ended before we could confirm the result. Check the same reservation request again to avoid creating another hold.</p><Button type="button" disabled={busy} onClick={()=>void reserve(true)}>{busy?'Checking reservation…':'Check reservation again'}</Button></div>}</form>
+  </>}
+ </div></Modal>;
+}
+
+export function VisitDetailsDialog({id,close}:{id:string;close:()=>void}){
+ const [detail,setDetail]=useState<Awaited<ReturnType<typeof listingDetail>>|null>(null),[error,setError]=useState(''),[version,setVersion]=useState(0);
+ useEffect(()=>{let live=true;void listingDetail(id).then(d=>{if(live)setDetail(d);}).catch(e=>{if(live)setError(errorMessage(e));});return()=>{live=false;};},[id,version]);
+ return <Modal title="Visiting details" close={close} className="tm-trip-reservation-modal"><div className="tm-trip-reservation-body">{detail?<><h2>{detail.listing.name}</h2>{detail.listing.image&&<img className="tm-reservation-room-photo" src={detail.listing.image} alt=""/>}<p>{detail.listing.address}</p><p>{detail.listing.description}</p><p><strong>Entrance fee:</strong> {money(detail.entranceFee??0)}</p>{detail.schedules.map(s=><p key={s.operating_day}><strong>{s.operating_day}</strong> · {s.schedule_text}</p>)}<p className="tm-trip-reservation-note">Online tickets are not available here. You can keep this visit in your plan and confirm visiting hours with the place.</p><Button onClick={close}>Back to stop</Button></>:<><p role={error?'alert':'status'}>{error||'Loading visiting details…'}</p>{error&&<Button onClick={()=>{setError('');setVersion(v=>v+1);}}>Try again</Button>}</>}</div></Modal>;
+}

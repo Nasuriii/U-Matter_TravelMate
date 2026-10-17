@@ -1,22 +1,26 @@
 import {toast} from './ui';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { confirmAction } from './action-confirm';
 import { destinationPhoto } from './experience/destination-photos';
 import { showInlinePhotoCredits } from './experience/destination-picture';
 import { destinationDescription } from './destination-copy';
 type Destination={id:string;name:string;province:string;description:string|null};
-const destinationIcon=(heart=false,filled=false)=>{const el=document.createElementNS('http://www.w3.org/2000/svg','svg');el.setAttribute('viewBox','0 0 24 24');el.setAttribute('width','18');el.setAttribute('height','18');el.setAttribute('fill',filled?'currentColor':'none');el.setAttribute('stroke','currentColor');el.setAttribute('stroke-width','1.8');el.setAttribute('aria-hidden','true');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',heart?'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z':'M7 17 17 7M7 7h10v10');el.append(path);return el;};
+const destinationIcon=(heart=false,filled=false,loading=false)=>{const el=document.createElementNS('http://www.w3.org/2000/svg','svg');el.setAttribute('viewBox','0 0 24 24');el.setAttribute('width','18');el.setAttribute('height','18');el.setAttribute('fill',filled&&!loading?'currentColor':'none');if(loading)el.classList.add('tm-heart-spinner');el.setAttribute('stroke','currentColor');el.setAttribute('stroke-width','1.8');el.setAttribute('aria-hidden','true');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',loading?'M21 12a9 9 0 1 1-6.219-8.56':heart?'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z':'M7 17 17 7M7 7h10v10');el.append(path);return el;};
 const node=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 export function createExplorer(client:SupabaseClient){
  const db=client.schema('public');
  let onlySaved=false, uid:string|null=null, generation=0, destinations:Destination[]=[],saved=new Set<string>(), savedReady=false;
- const pending=new Set<string>();
+ const pending=new Set<string>();const saveButtons=new Map<string,HTMLButtonElement>();
  const message=(s:string)=>{node('catalog-notice').textContent=s;};
  const errorText=(e:unknown)=>typeof e==='object' && e && 'message' in e?String(e.message):String(e);
+ function updateSaveButton(id:string,celebrate=false){
+  const button=saveButtons.get(id);if(!button)return;const selected=saved.has(id),busy=pending.has(id),name=destinations.find(d=>d.id===id)?.name||'destination';
+  button.replaceChildren(destinationIcon(true,selected,busy));button.setAttribute('aria-label',(selected?'Remove saved destination ':'Save destination ')+name);button.setAttribute('aria-pressed',String(selected));button.setAttribute('aria-busy',String(busy));button.title=busy?(selected?'Removing destination…':'Saving destination…'):selected?'Saved · remove from favorites':uid?'Save destination':'Sign in to save';button.disabled=busy||!!uid&&!savedReady;
+  if(celebrate){button.dataset.heartFeedback='saved';window.setTimeout(()=>{if(button.isConnected)delete button.dataset.heartFeedback;},500);}
+ }
  function render(){
   node('saved-toggle').replaceChildren(destinationIcon(true,onlySaved),document.createTextNode(onlySaved?'Show all destinations':'Show my saved'));node('saved-toggle').setAttribute('aria-pressed',String(onlySaved));
   node('catalog-title').textContent=onlySaved?'Your saved destinations':'Explore destinations';
-  const grid=node('destination-grid');grid.replaceChildren();
+  const grid=node('destination-grid');grid.replaceChildren();saveButtons.clear();
   if(onlySaved&&!uid){message('Sign in from Your account to see your saved destinations.');return;}
   if(onlySaved&&!savedReady){message('Your saved destinations have not loaded. Use Refresh to try again.');return;}
   const q=node<HTMLInputElement>('search').value.trim().toLocaleLowerCase();
@@ -32,14 +36,12 @@ export function createExplorer(client:SupabaseClient){
    const region=document.createElement('p');region.className='eyebrow';region.textContent=d.province;
    const title=document.createElement('h3');title.textContent=d.name;const arrow=document.createElement('span');arrow.className='destination-open-arrow';arrow.append(destinationIcon());arrow.setAttribute('aria-hidden','true');title.append(arrow);
    const desc=document.createElement('p');desc.className='destination-summary';desc.textContent=destinationDescription(d.description)||'Stays · Food · Attractions';
-   const button=document.createElement('button');button.type='button';button.className='destination-save';button.append(destinationIcon(true,saved.has(d.id)),document.createTextNode(saved.has(d.id)?'Saved':uid?'Save destination':'Sign in to save'));
-   button.setAttribute('aria-label',(saved.has(d.id)?'Remove saved destination ':'Save destination ')+d.name);
-   button.setAttribute('aria-pressed',String(saved.has(d.id)));button.disabled=pending.has(d.id)||!!uid&&!savedReady;
+   const button=document.createElement('button');button.type='button';button.className='destination-save tm-save-heart';button.setAttribute('data-noload','');saveButtons.set(d.id,button);updateSaveButton(d.id);
    button.onclick=()=>void toggle(d.id);
    body.append(region,title,desc);open.append(art,body);card.append(open,button);grid.append(card);
    if(showInlinePhotoCredits&&photo?.source){const credit=document.createElement('p');credit.className='tm-recommendation-credit';const source=document.createElement('a');source.href=photo.source;source.target='_blank';source.rel='noreferrer';source.textContent=photo.author??'Photo source';credit.append(source,' · ');if(photo.licenseUrl){const license=document.createElement('a');license.href=photo.licenseUrl;license.target='_blank';license.rel='noreferrer';license.textContent=photo.license??'License';credit.append(license);}else credit.append(photo.license??'');credit.append(' · cropped');const info=document.createElement('details'),summary=document.createElement('summary');summary.textContent='ⓘ';summary.setAttribute('aria-label','Photo information');info.className='tm-photo-credit-details';info.append(summary,credit);card.append(info);}
   }
-  if(!list.length){const empty=document.createElement('p');empty.className='empty';empty.textContent=onlySaved?'No saved destinations match. Explore places and select Save.':'No destinations match your search.';grid.append(empty);}
+  if(!list.length){const empty=document.createElement('p');empty.className='empty';empty.textContent=onlySaved?'No saved destinations match. Tap a heart to save a destination.':'No destinations match your search.';grid.append(empty);}
  }
  async function load(){
   const token=++generation,owner=uid;message('Loading destinations…');
@@ -70,9 +72,8 @@ export function createExplorer(client:SupabaseClient){
  async function toggle(id:string){
   if(!uid){location.hash='#/login';return;}
   if(pending.has(id)||!savedReady)return;
-  const owner=uid,token=generation,wasSaved=saved.has(id);pending.add(id);render();
+  const owner=uid,token=generation,wasSaved=saved.has(id);pending.add(id);updateSaveButton(id);
   try{
-   if(!await confirmAction(wasSaved?'Remove this saved destination?':'Save this destination?',destinations.find(d=>d.id===id)?.name||'This updates your saved destinations.',wasSaved?'Remove destination':'Save destination')||uid!==owner||token!==generation)return;
    if(wasSaved){
     const {data,error}=await db.from('saved_destinations').delete().eq('profile_id',owner).eq('destination_id',id).select('destination_id');
     if(error)throw error;if(!data?.length)throw new Error('Removal was not confirmed. Refresh and try again.');
@@ -82,9 +83,9 @@ export function createExplorer(client:SupabaseClient){
    }
    if(uid!==owner||token!==generation)return;
    if(wasSaved)saved.delete(id);else saved.add(id);
-   toast(wasSaved?'Destination removed from Saved.':'Destination saved.');render();message(wasSaved?'Destination removed from Saved.':'Destination saved.');
+   toast(wasSaved?'Destination removed from Saved.':'Destination saved.');if(onlySaved&&wasSaved){render();(node('destination-grid').querySelector<HTMLButtonElement>('button')||node('saved-toggle')).focus();}else updateSaveButton(id,!wasSaved);message(wasSaved?'Destination removed from Saved.':'Destination saved.');
   }catch(e){if(uid===owner&&token===generation)message('Change not confirmed: '+errorText(e)+' Refresh before retrying.');}
-  finally{pending.delete(id);render();}
+  finally{if(uid===owner&&token===generation){pending.delete(id);updateSaveButton(id);}}
  }
  node('search-form').addEventListener('submit',e=>{e.preventDefault();render();});
  node('province').addEventListener('change',render);
