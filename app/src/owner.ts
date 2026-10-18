@@ -1,6 +1,8 @@
 import {catalogLabel} from './catalog-label';
-import {mountOwnerListingPickers,mountOwnerDetailTimes} from './trip-pickers';
+import {mountOwnerListingPickers,mountOwnerDetailTimes,mountOwnerSlotTimes} from './trip-pickers';
+import {reservationSlotInput,reservationSlotLabel} from './owner-slot-logic';
 import {ownerWorkspaceDialog,markOwnerFormSaved} from './owner-workspace-dialog';
+import {saveOwnerChanges} from './owner-save-batch';
 import {installPlacePreviews,placePreviewAttributes,clearPlacePreviewCache} from './place-hover-preview';
 import {ownerListingDraft} from './owner-listing-draft';
 import {listingActionMenu,labelAction,type ActionIcon} from './listing-action-menu';
@@ -53,6 +55,7 @@ export function initOwner(client: SupabaseClient) {
   let ownerId: string | null = null, destsLoaded = false, wired = false;
   let createWorkspace:ReturnType<typeof ownerWorkspaceDialog>|null=null,manageWorkspace:ReturnType<typeof ownerWorkspaceDialog>|null=null;
   let draft:ReturnType<typeof ownerListingDraft>|null=null,createdListingId:string|null=null;
+  let slotTimesCleanup:(()=>void)|null=null;
   let after: (() => void) | null = null; // re-checks the hotel checklist after a save
   const say = (m: string, err = false) => { m = tidy(m); for (const id of ['o-notice', 'o-manage-notice']) { const n = document.getElementById(id); if (n) { n.textContent = m; n.classList.toggle('error', err); } } if (m && !/…$/.test(m)) toast(m, err); };
   const failBase = (e: any) => say(/owner_[a-z_]+|PGRST202|permission denied|row-level security/i.test(String(e?.message) + String(e?.code))
@@ -62,18 +65,40 @@ export function initOwner(client: SupabaseClient) {
     : /tm_menu_item_name_unique/.test(m) ? 'That dish or drink is already on this menu.' : /tm_schedule_unique/.test(m) ? 'That schedule row already exists.' : '';
   const fail = (e: any) => { const d = dupText(String(e?.message ?? '')); return d ? say(d, true) : failBase(e); };
 
-  function addForm(fields: [string, string, string?][], submit: (v: Record<string, string>, file: File | null) => Promise<void>, withPhoto = false) {
+  type FormSave={label:string;prepare:()=>()=>Promise<void>;confirm:()=>Promise<boolean>;success:string;afterSave?:()=>Promise<void>;changed?:()=>boolean};
+  const formSaves=new WeakMap<HTMLFormElement,FormSave>();
+  async function saveForms(forms:HTMLFormElement[],all=false){
+    const workspace=manageWorkspace;if(!workspace||workspace.busy)return;
+    if(!forms.length){say('All changes are already saved.');return;}
+    const user=activeUser,epoch=ownerEpoch,stillOwner=()=>user!==null&&user===activeUser&&epoch===ownerEpoch;
+    let current=forms[0],completed=0;workspace.setBusy(true);
+    try{
+      const jobs=forms.map(form=>{const action=formSaves.get(form)!;return {
+        prepare:()=>{current=form;if(!form.checkValidity())throw new Error('Check the highlighted fields before saving.');const save=action.prepare();return async()=>{current=form;await save();};},
+        saved:()=>{markOwnerFormSaved(form);completed++;},afterSave:action.afterSave
+      };});
+      const saved=await saveOwnerChanges(jobs,all?()=>confirmChange('Save all business changes?',forms.map(form=>'• '+formSaves.get(form)!.label).join('\n')+'\n\nChanges to a live listing may return it to administrator review.','Save all changes'):formSaves.get(forms[0])!.confirm,stillOwner);
+      if(saved&&stillOwner())say(all?'All changes saved.':formSaves.get(forms[0])!.success);
+    }catch(error){
+      if(stillOwner()){workspace.setBusy(false);workspace.reveal(current);current.reportValidity();fail(completed?new Error(`${completed===forms.length?'Your changes were saved, but the editor could not refresh.':`${completed} ${completed===1?'section was':'sections were'} saved. Remaining edits are still here.`} ${(error as Error).message??String(error)}`):error);}
+    }finally{workspace.setBusy(false);}
+  }
+  function bindSave(form:HTMLFormElement,action:FormSave){
+    formSaves.set(form,action);form.addEventListener('submit',event=>{event.preventDefault();void saveForms([form]);});
+  }
+  function saveAllChanges(){
+    const forms=Array.from($('o-manage').querySelectorAll('form')).filter(form=>{const action=formSaves.get(form);return action&&(manageWorkspace?.hasChanges(form)||action.changed?.());});
+    return saveForms(forms,true);
+  }
+
+  function addForm(fields: [string, string, string?][], prepare: (v: Record<string, string>, file: File | null) => ()=>Promise<void>, withPhoto = false,afterSave?:()=>Promise<void>) {
     const f = h('form', 'o-inline') as HTMLFormElement; f.noValidate = true;
     for (const [n, l, t] of fields) { const w = h('label', '', l); const i = document.createElement('input'); i.name = n; i.type = t || 'text'; if (t === 'number') { i.min = '0'; i.step = '0.01'; } w.append(i); f.append(w); }
     const pick = withPhoto ? filePicker() : null;
-    if (pick) { const w = h('div', 'o-wide'); w.append(h('span', 'lbl', 'Photo (optional)'), pick.el); f.append(w); }
+    if (pick) { const w = h('div', 'o-wide'); w.append(h('span', 'lbl', 'Dish photo (required)'), pick.el); f.append(w); }
     const b = h('button', 'primary', 'Add') as HTMLButtonElement; b.type = 'submit'; f.append(b);
-    let sending = false;
-    f.addEventListener('submit', async e => {
-      e.preventDefault(); if (sending) return; sending = true; b.disabled = true; const v: Record<string, string> = {};
-      for (const [n] of fields) v[n] = (f.elements.namedItem(n) as HTMLInputElement).value.trim();
-      try { if(!await confirmChange('Add this information?',fields.map(([n,l])=>`${l}: ${v[n]||'Not set'}`).join('\n')+(pick?.file()?`\nPhoto: ${pick.file()!.name}`:''),'Add information'))return; await submit(v, pick?.file() ?? null); f.reset(); pick?.clear(); } catch (x) { fail(x); } finally { sending = false; b.disabled = false; }
-    });
+    const values=()=>Object.fromEntries(fields.map(([name])=>[name,(f.elements.namedItem(name) as HTMLInputElement).value.trim()]));
+    bindSave(f,{label:withPhoto?'New menu item':'New room / schedule',prepare:()=>{const file=pick?.file()??null;if(withPhoto&&!file)throw new Error('Choose a photo for this dish before saving.');if(file){const bad=checkImage(file);if(bad)throw new Error(bad);}const save=prepare(values(),file);return async()=>{await save();f.reset();pick?.clear();};},confirm:()=>confirmChange('Add this information?',fields.map(([n,l])=>`${l}: ${values()[n]||'Not set'}`).join('\n')+(pick?.file()?`\nPhoto: ${pick.file()!.name}`:''),'Add information'),success:'Saved.',changed:()=>!!pick?.file(),afterSave});
     return f;
   }
   async function children(box: HTMLElement, title: string, table: string, fk: string, id: string, line: (r: Row) => string,
@@ -91,26 +116,20 @@ export function initOwner(client: SupabaseClient) {
       for (const [n, l, t] of fields) { const w = h('label', '', l), i = document.createElement('input'); i.name = n; i.type = t || 'text'; if (t === 'number') { i.min = '0'; i.step = '0.01'; } i.value = r[n] ?? ''; w.append(i); f.append(w); }
       let sel: HTMLSelectElement | null = null;
       if (extra) { const w = h('label', '', extra[1]); sel = document.createElement('select'); for (const [v, t] of extra[2]) sel.append(new Option(t, v)); sel.value = extra[3](r); w.append(sel); f.append(w); }
-      const cur = dish.get(r.id), pick = isMenu ? filePicker() : null;
+      const cur = dish.get(r.id), pick = isMenu ? filePicker() : null;let hasPhoto=!!cur;
       if (pick) { const w = h('div', 'o-wide'); w.append(h('span', 'lbl', 'Photo'), pick.el); f.append(w); if (cur) sign(cur.path, u => pick.setCurrent(u)); }
       const save = h('button', 'primary', 'Save') as HTMLButtonElement, cancel = h('button', 'quiet', 'Cancel') as HTMLButtonElement; save.type = 'submit'; cancel.type = 'button';
       cancel.addEventListener('click', () => void redo()); f.append(save, cancel);
-      let sending = false;
-      f.addEventListener('submit', async e => {
-        e.preventDefault(); if (sending) return; sending = true; const v: Record<string, string> = {};
-        for (const [n] of fields) v[n] = (f.elements.namedItem(n) as HTMLInputElement).value.trim();
-        try {
+      const values=()=>Object.fromEntries(fields.map(([name])=>[name,(f.elements.namedItem(name) as HTMLInputElement).value.trim()]));
+      bindSave(f,{label:title+': '+(r.name??r.room_number??r.operating_day),prepare:()=>{const v=values();
           const args = toRow(v); delete args[Object.keys(args)[0]]; args[delArg] = r.id;
           if (extra && sel) args[extra[0]] = extra[0] === 'p_available' ? Number(sel.value) : sel.value;
-          if(!await confirmChange('Save these changes?',fields.map(([n,l])=>`${l}: ${v[n]||'Not set'}`).join('\n')+(extra&&sel?`\n${extra[1]}: ${sel.selectedOptions[0].text}`:''),'Save changes'))return;
-          const x = await client.rpc(editFn, args); if (x.error) throw x.error;
-          if (pick) { const file = pick.file(); if (file) await saveDish(id, r.id, file); else if (pick.removed() && cur) await dropDish(r.id); }
-          say('Saved.'); await redo();
-        } catch (err) { fail(err); } finally { sending = false; }
-      });
+          const file=pick?.file(),removed=pick?.removed();if(isMenu&&!file&&(!hasPhoto||removed))throw new Error('Each menu item needs a dish photo. Choose a replacement before saving.');if(file){const bad=checkImage(file);if(bad)throw new Error(bad);}
+          return async()=>{const x=await client.rpc(editFn,args);if(x.error)throw x.error;if(file){const path=await saveDish(id,r.id,file);hasPhoto=true;pick?.clear();sign(path,url=>pick?.setCurrent(url));}};
+        },confirm:()=>confirmChange('Save these changes?',fields.map(([n,l])=>`${l}: ${values()[n]||'Not set'}`).join('\n')+(extra&&sel?`\n${extra[1]}: ${sel.selectedOptions[0].text}`:''),'Save changes'),success:'Saved.',changed:()=>!!pick?.file()||!!pick?.removed(),afterSave:redo});
       return f;
     };
-    const ul = h('ul', 'o-items');
+    const ul = h('ul', 'o-items tm-owner-inventory');
     for (const r of (data ?? []) as Row[]) {
       const li = h('li'), cur = dish.get(r.id);
       if (isMenu) { const th = h('span', 'o-thumb' + (cur ? '' : ' empty')); if (cur) { const img = document.createElement('img'); img.alt = ''; th.append(img); sign(cur.path, u => { if (u) img.src = u; }); } li.append(th); }
@@ -137,35 +156,36 @@ export function initOwner(client: SupabaseClient) {
       acts.append(ed, del); li.append(acts); ul.append(li);
     }
     if (!ul.children.length) ul.append(h('li', 'muted', 'Nothing added yet.'));
-    box.append(ul, addForm(fields, async (v, file) => {
-      const x = await client.rpc(addFn, toRow(v)); if (x.error) throw x.error;
-      if (isMenu && file && x.data) { try { await saveDish(id, String(x.data), file); } catch (err) { say('The dish was added, but its photo was not saved. ' + ((err as Error).message ?? String(err)), true); await redo(); return; } }
-      say('Saved.'); await redo();
-    }, isMenu));
+    let addedItemId:string|null=null;
+    const editor=h('section','tm-owner-item-editor');editor.append(h('h4','',isMenu?'Add a menu item':table==='rooms'?'Add a room':'Add a schedule'));
+    editor.append(addForm(fields, (v,file)=>{const args=toRow(v);return async()=>{
+      if(addedItemId){const update={...args};delete update[Object.keys(update)[0]];update[delArg]=addedItemId;if(extra)update[extra[0]]=extra[0]==='p_available'?Number(extra[2][0][0]):extra[2][0][0];const r=await client.rpc(editFn,update);if(r.error)throw r.error;}
+      else{const x=await client.rpc(addFn,args);if(x.error)throw x.error;addedItemId=x.data?String(x.data):null;}
+      if(isMenu&&file){if(!addedItemId)throw new Error('The dish was created without a reference. Reopen the menu to add its photo.');await saveDish(id,addedItemId,file);}
+      addedItemId=null;
+    };},isMenu,redo));box.append(ul,editor);
   }
   const money = (s: string, what: string) => { const n = Number(s); if (s === '' || !Number.isFinite(n) || n < 0) throw new Error(`${what} must be 0 or more.`); return n; };
 
   function manage(l: Row) {
+    slotTimesCleanup?.();slotTimesCleanup=null;
     const box = $('o-manage'); box.hidden = false; box.replaceChildren(h('h2', '', 'Manage: ' + catalogLabel(l.name)), Object.assign(h('p', 'o-notice'), { id: 'o-manage-notice' }));
     const f = h('form', 'o-inline') as HTMLFormElement; f.noValidate = true;
     const fld = (n: string, label: string, v: string) => { const w = h('label', '', label), i = document.createElement('input'); i.name = n; i.value = v ?? ''; w.append(i); f.append(w); };
     fld('name', 'Name', l.name); fld('address', 'Address', l.address); fld('description', 'Description', l.description);
     const save = h('button', 'primary', 'Save changes') as HTMLButtonElement; save.type = 'submit'; f.append(save);
-    f.addEventListener('submit', async e => {
-      e.preventDefault(); const g = (n: string) => (f.elements.namedItem(n) as HTMLInputElement).value.trim();
-      if (!g('name')) return say('Name is required.', true);
-      if(!await confirmChange('Save listing changes?',`${g('name')}\n${g('address')}\n${g('description')}\nAn edited live listing returns to administrator review.`,'Save changes'))return;
-      const x = await client.rpc('owner_update_listing', { p_listing: l.id, p_name: g('name'), p_address: g('address') || null, p_description: g('description') || null });
-      if (x.error) return fail(x.error); markOwnerFormSaved(f);manageWorkspace?.show('Manage '+catalogLabel(g('name')));say(l.status === 'rejected' ? 'Saved. This listing is still rejected. Press Resubmit when you are ready to send it for review.' : l.status === 'inactive' ? 'Saved. This listing is inactive.' : 'Saved. Edited listings go back to review before travelers see the changes.'); await refresh();
-    });
+    const g=(n:string)=>(f.elements.namedItem(n) as HTMLInputElement).value.trim();
+    bindSave(f,{label:'Basic information',prepare:()=>{if(!g('name'))throw new Error('Name is required.');const args={p_listing:l.id,p_name:g('name'),p_address:g('address')||null,p_description:g('description')||null};return async()=>{const x=await client.rpc('owner_update_listing',args);if(x.error)throw x.error;manageWorkspace?.show('Manage '+catalogLabel(args.p_name));};},confirm:()=>confirmChange('Save listing changes?',`${g('name')}\n${g('address')}\n${g('description')}\nAn edited live listing returns to administrator review.`,'Save changes'),success:l.status==='rejected'?'Saved. This listing is still rejected. Press Resubmit when you are ready to send it for review.':l.status==='inactive'?'Saved. This listing is inactive.':'Saved. Edited listings go back to review before travelers see the changes.',afterSave:refresh});
     const sub = h('div', 'o-sub'), dh = h('div', 'o-sub'), ph = h('div', 'o-sub'); after = null;
     const typeName = l.listing_type === 'hotel' ? 'Hotel' : l.listing_type === 'restaurant' ? 'Restaurant' : 'Attraction';
     const subTitle = l.listing_type === 'hotel' ? 'Rooms' : l.listing_type === 'restaurant' ? 'Menu' : 'Operating schedule';
     if (l.listing_type === 'hotel') { const ck = h('div', 'o-sub'); box.append(ck); after = () => void checklist(ck, l); void checklist(ck, l); }
-    const contact=h('form','o-inline') as HTMLFormElement;contact.append(h('p','muted','These contact details will be visible to travelers.'));for(const [key,label,type] of [['contact_phone','Business phone','tel'],['contact_email','Public email','email'],['contact_website','Website','url']]){const wrap=h('label','',label),input=document.createElement('input');input.name=key;input.type=type;input.value=l[key]??'';wrap.append(input);contact.append(wrap);}const contactSave=h('button','primary','Save contact details') as HTMLButtonElement;contactSave.type='submit';contact.append(contactSave);contact.addEventListener('submit',async e=>{e.preventDefault();const get=(key:string)=>(contact.elements.namedItem(key) as HTMLInputElement).value.trim();if(!await confirmChange('Save public contact details?',l.name+'\nThese details will be reviewed before publication.','Save contact details'))return;contactSave.disabled=true;try{const r=await client.rpc('owner_set_listing_contact',{p_listing:l.id,p_phone:get('contact_phone')||null,p_email:get('contact_email')||null,p_website:get('contact_website')||null});if(r.error)throw r.error;markOwnerFormSaved(contact);say('Contact details saved for review.');await refresh();}catch(e){fail(e);}finally{contactSave.disabled=false;}});box.append(accordion('Contact details',contact));
+    const contact=h('form','o-inline') as HTMLFormElement;contact.append(h('p','muted','These contact details will be visible to travelers.'));for(const [key,label,type] of [['contact_phone','Business phone','tel'],['contact_email','Public email','email'],['contact_website','Website','url']]){const wrap=h('label','',label),input=document.createElement('input');input.name=key;input.type=type;input.value=l[key]??'';wrap.append(input);contact.append(wrap);}const contactSave=h('button','primary','Save contact details') as HTMLButtonElement;contactSave.type='submit';contact.append(contactSave);
+    bindSave(contact,{label:'Contact details',prepare:()=>{const get=(key:string)=>(contact.elements.namedItem(key) as HTMLInputElement).value.trim();const args={p_listing:l.id,p_phone:get('contact_phone')||null,p_email:get('contact_email')||null,p_website:get('contact_website')||null};return async()=>{const r=await client.rpc('owner_set_listing_contact',args);if(r.error)throw r.error;};},confirm:()=>confirmChange('Save public contact details?',l.name+'\nThese details will be reviewed before publication.','Save contact details'),success:'Contact details saved for review.',afterSave:refresh});box.append(accordion('Contact details',contact));
     box.append(accordion('Basic information', f, { open: true }), accordion(typeName + ' details', dh), accordion(subTitle, sub, { count: '.o-items li:not(.muted)' }));
     if (l.listing_type === 'hotel') { const am = h('div', 'o-sub'); box.append(accordion('Amenities', am, { count: 'input:checked' })); void amenities(am, l); }
     if (l.listing_type === 'restaurant') { const cu = h('div', 'o-sub'); box.append(accordion('Cuisine type', cu, { count: 'input:checked' })); void cuisines(cu, l); }
+    if(l.listing_type==='restaurant'){const slots=h('div','o-sub');box.append(accordion('Reservation slots',slots));void reservationSlots(slots,l);}
     box.append(accordion('Photos', ph, { count: '.o-photo' }));
     void details(dh, l); void photos(ph, l);
     if (l.listing_type === 'restaurant') void children(sub, 'Menu', 'menu_items', 'restaurant_id', l.id, r => `${r.name}${r.category ? ' (' + r.category + ')' : ''} — ${peso(r.price)}${r.is_available ? '' : ' · sold out'}`,
@@ -177,7 +197,17 @@ export function initOwner(client: SupabaseClient) {
     else void children(sub, 'Operating schedule', 'attraction_schedules', 'attraction_id', l.id, r => `${r.operating_day}: ${r.schedule_text}`,
       [['operating_day', 'Day (e.g. Daily)'], ['schedule_text', 'Time slot']],
       v => { if (!v.operating_day || !v.schedule_text) throw new Error('Day and time slot are required.'); return { p_attraction: l.id, p_day: v.operating_day, p_text: v.schedule_text }; }, 'owner_add_schedule', 'owner_delete_schedule', 'p_schedule', 'owner_update_schedule');
-    manageWorkspace??=ownerWorkspaceDialog(box,'Manage listing');manageWorkspace.organize();manageWorkspace.show('Manage '+catalogLabel(l.name));
+    manageWorkspace??=ownerWorkspaceDialog(box,'Manage listing');manageWorkspace.organize();manageWorkspace.configureSaveAll(saveAllChanges);manageWorkspace.configureDraft(()=>Array.from(box.querySelectorAll('form')).some(form=>formSaves.get(form)?.changed?.()),()=>{});manageWorkspace.show('Manage '+catalogLabel(l.name));
+  }
+
+  async function reservationSlots(box:HTMLElement,l:Row){
+    slotTimesCleanup?.();slotTimesCleanup=null;box.replaceChildren(h('h3','','Reservation slots'),h('p','muted','Add table availability now, including while this listing awaits approval. All dates and times use Philippine time. Travelers can reserve after approval.'));
+    const list=h('div','tm-owner-slot-list'),form=h('form','o-inline') as HTMLFormElement;form.noValidate=true;
+    const start=document.createElement('input'),end=document.createElement('input'),capacity=document.createElement('input');start.type=end.type='hidden';start.name='start';end.name='end';capacity.name='capacity';capacity.type='number';capacity.min='1';capacity.max='500';capacity.step='1';capacity.defaultValue='20';const label=h('label','','Seat capacity');label.append(capacity);const button=h('button','primary','Add time slot') as HTMLButtonElement;button.type='submit';form.append(start,end,label,button);box.append(list,form);slotTimesCleanup=mountOwnerSlotTimes(form,start,end);
+    bindSave(form,{label:'Reservation slots',prepare:()=>{const args={p_listing:l.id,...reservationSlotInput(start.value,end.value,capacity.value)};return async()=>{const result=await client.rpc('owner_add_reservation_slot',args);if(result.error)throw result.error;form.reset();form.dispatchEvent(new Event('input',{bubbles:true}));};},confirm:()=>confirmChange('Add reservation availability?',l.name+'\n'+reservationSlotLabel(reservationSlotInput(start.value,end.value,capacity.value).p_start,reservationSlotInput(start.value,end.value,capacity.value).p_end)+'\n'+capacity.value+' seats','Add time slot'),success:'Reservation slot added.',afterSave:()=>reservationSlots(box,l)});
+    const result=await db.from('restaurant_slots').select('id,starts_at,ends_at,capacity,is_open').eq('restaurant_id',l.id).gt('starts_at',new Date().toISOString()).order('starts_at').limit(100);if(!box.isConnected)return;
+    if(result.error){list.append(h('p','error','Availability could not be loaded. Reopen this section to retry.'));return;}
+    for(const slot of (result.data??[]) as Row[]){const row=h('div','tm-owner-slot-row');row.append(h('strong','',reservationSlotLabel(slot.starts_at,slot.ends_at)),h('span','muted',slot.capacity+' seats · '+(slot.is_open?'Open':'Closed')));list.append(row);}if(!list.children.length)list.append(h('p','muted','No upcoming reservation slots. Add your first time below.'));
   }
 
  async function details(box: HTMLElement, l: Row) {
@@ -186,19 +216,16 @@ export function initOwner(client: SupabaseClient) {
     const d: Row = data ?? {}, f = h('form', 'o-inline') as HTMLFormElement; f.noValidate = true;
     const fld = (n: string, label: string, v: string, type = 'text') => { const w = h('label', '', label), i = document.createElement('input'); i.name = n; i.type = type; if (type === 'number') { i.min = '0'; i.step = '0.01'; } i.value = v; w.append(i); f.append(w); };
     if (t === 'hotel') { fld('ci', 'Check-in time', String(d.check_in_time ?? '').slice(0, 5), 'time'); fld('co', 'Check-out time', String(d.check_out_time ?? '').slice(0, 5), 'time'); }
-    else if (t === 'restaurant') { fld('hours', 'Operating hours', d.operating_hours ?? ''); fld('rf', 'Reservation fee (₱)', String(d.reservation_fee ?? 0), 'number'); }
+    else if (t === 'restaurant') { fld('hours', 'Operating hours (required)', d.operating_hours ?? ''); (f.elements.namedItem('hours') as HTMLInputElement).required=true;fld('rf', 'Reservation fee (₱)', String(d.reservation_fee ?? 0), 'number'); }
     else fld('fee', 'Entrance fee (₱)', String(d.entrance_fee ?? ''), 'number');
     const b = h('button', 'primary', 'Save details') as HTMLButtonElement; b.type = 'submit'; f.append(b);
-    f.addEventListener('submit', async e => {
-      e.preventDefault(); const g = (n: string) => (f.elements.namedItem(n) as HTMLInputElement | null)?.value.trim() ?? '';
-      try {
+    const g=(n:string)=>(f.elements.namedItem(n) as HTMLInputElement|null)?.value.trim()??'';
+    bindSave(f,{label:t==='hotel'?'Hotel details':t==='restaurant'?'Restaurant details':'Attraction details',prepare:()=>{
         if (t === 'hotel') timesOk(g('ci'), g('co'));
-        if(!await confirmChange('Save business details?',`${l.name}\n${t==='hotel'?`Check-in ${g('ci')} · Check-out ${g('co')}`:t==='restaurant'?`Hours: ${g('hours')}\nReservation fee: ₱${g('rf')||0}`:`Entrance fee: ₱${g('fee')||'Not set'}`}`,'Save details'))return;
-        const x = await client.rpc('owner_update_details', { p_listing: l.id, p_check_in: g('ci') || null, p_check_out: g('co') || null, p_hours: g('hours') || null,
-          p_resfee: t === 'restaurant' ? money(g('rf') || '0', 'Reservation fee') : null, p_fee: t === 'attraction' && g('fee') !== '' ? money(g('fee'), 'Entrance fee') : null });
-        if (x.error) throw x.error; markOwnerFormSaved(f);say('Details saved.');
-      } catch (err) { fail(err); }
-    });
+        if(t==='restaurant'&&!g('hours'))throw new Error('Enter the restaurant operating hours.');
+        const args={p_listing:l.id,p_check_in:g('ci')||null,p_check_out:g('co')||null,p_hours:g('hours')||null,p_resfee:t==='restaurant'?money(g('rf')||'0','Reservation fee'):null,p_fee:t==='attraction'&&g('fee')!==''?money(g('fee'),'Entrance fee'):null};
+        return async()=>{const x=await client.rpc('owner_update_details',args);if(x.error)throw x.error;};
+      },confirm:()=>confirmChange('Save business details?',`${l.name}\n${t==='hotel'?`Check-in ${g('ci')} · Check-out ${g('co')}`:t==='restaurant'?`Hours: ${g('hours')}\nReservation fee: ₱${g('rf')||0}`:`Entrance fee: ₱${g('fee')||'Not set'}`}`,'Save details'),success:'Details saved.'});
     box.replaceChildren(h('h3', '', t === 'hotel' ? 'Hotel details' : t === 'restaurant' ? 'Restaurant details' : 'Attraction details'), f);
     if (t === 'hotel') {
       const hint = h('p', 'time-hint'), upd = () => applyHint(hint, g0('ci'), g0('co')), g0 = (n: string) => (f.elements.namedItem(n) as HTMLInputElement).value;
@@ -225,13 +252,7 @@ export function initOwner(client: SupabaseClient) {
     box.replaceChildren(h('h3', '', 'Amenities'));
     for (const a of list) { const w = h('label'), c = document.createElement('input'); c.type = 'checkbox'; c.value = a.id; c.checked = !!a.selected; w.append(c, document.createTextNode(' ' + a.name)); f.append(w); }
     const b = h('button', 'primary', 'Save amenities') as HTMLButtonElement; b.type = 'submit'; f.append(b);
-    f.addEventListener('submit', async e => {
-      e.preventDefault();
-      const ids = [...f.querySelectorAll<HTMLInputElement>('input:checked')].map(i => i.value);
-      if(!await confirmChange('Update hotel amenities?',`${l.name}\n${ids.length} selected amenities`,'Save amenities'))return;
-      const r = await client.schema('public').rpc('owner_set_hotel_amenities', { p_hotel: l.id, p_amenities: ids });
-      if (r.error) return fail(r.error); markOwnerFormSaved(f);say('Saved. Amenities updated.');
-    });
+    bindSave(f,{label:'Amenities',prepare:()=>{const ids=[...f.querySelectorAll<HTMLInputElement>('input:checked')].map(i=>i.value);return async()=>{const r=await client.schema('public').rpc('owner_set_hotel_amenities',{p_hotel:l.id,p_amenities:ids});if(r.error)throw r.error;};},confirm:()=>confirmChange('Update hotel amenities?',`${l.name}\n${f.querySelectorAll('input:checked').length} selected amenities`,'Save amenities'),success:'Saved. Amenities updated.'});
     box.append(f);
   }
   async function cuisines(box: HTMLElement, l: Row) {
@@ -240,12 +261,7 @@ export function initOwner(client: SupabaseClient) {
     const f = h('form', 'o-amen') as HTMLFormElement; f.noValidate = true; box.replaceChildren(h('h3', '', 'Cuisine type'));
     for (const a of (x.data ?? []) as Row[]) { const w = h('label'), c = document.createElement('input'); c.type = 'checkbox'; c.value = a.id; c.checked = !!a.selected; w.append(c, document.createTextNode(' ' + a.name)); f.append(w); }
     const b = h('button', 'primary', 'Save cuisines') as HTMLButtonElement; b.type = 'submit'; f.append(b);
-    f.addEventListener('submit', async e => {
-      e.preventDefault();
-      if(!await confirmChange('Update restaurant cuisines?',`${l.name}\n${f.querySelectorAll('input:checked').length} selected cuisines`,'Save cuisines'))return;
-      const r = await client.schema('public').rpc('owner_set_restaurant_cuisines', { p_restaurant: l.id, p_cuisines: [...f.querySelectorAll<HTMLInputElement>('input:checked')].map(i => i.value) });
-      if (r.error) return fail(r.error); markOwnerFormSaved(f);say('Saved. Cuisines updated.');
-    });
+    bindSave(f,{label:'Cuisine type',prepare:()=>{const ids=[...f.querySelectorAll<HTMLInputElement>('input:checked')].map(i=>i.value);return async()=>{const r=await client.schema('public').rpc('owner_set_restaurant_cuisines',{p_restaurant:l.id,p_cuisines:ids});if(r.error)throw r.error;};},confirm:()=>confirmChange('Update restaurant cuisines?',`${l.name}\n${f.querySelectorAll('input:checked').length} selected cuisines`,'Save cuisines'),success:'Saved. Cuisines updated.'});
     box.append(f);
   }
   const BUCKET = 'travelmate-listings', MAX_PHOTOS = 6, EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
@@ -258,7 +274,7 @@ export function initOwner(client: SupabaseClient) {
     const r = await client.rpc('owner_set_dish_photo', { p_item: itemId, p_path: path });
     if (r.error) { await client.storage.from(BUCKET).remove([path]); throw r.error; }
     if (r.data) await client.storage.from(BUCKET).remove([String(r.data)]);
-    void refresh();
+    void refresh();return path;
   }
   async function dropDish(itemId: string) {
     const r = await client.rpc('owner_delete_dish_photo', { p_item: itemId }); if (r.error) throw r.error;
@@ -283,12 +299,12 @@ export function initOwner(client: SupabaseClient) {
     box.append(grid);
     if (rows.length >= MAX_PHOTOS) return;
     const f=h('form','o-inline') as HTMLFormElement,w=h('label','o-wide','Add gallery photos'),input=document.createElement('input'),previews=h('div','o-batch-photos');input.type='file';input.multiple=true;input.accept='image/jpeg,image/png,image/webp';w.append(input,previews);f.append(w);
-    const b=h('button','primary','Upload selected photos') as HTMLButtonElement;b.type='submit';f.append(b);let sending=false,urls:string[]=[];
+    const b=h('button','primary','Upload selected photos') as HTMLButtonElement;b.type='submit';f.append(b);let urls:string[]=[];const savedFiles=new Set<File>();
     const cleanup=()=>{urls.forEach(URL.revokeObjectURL);urls=[];};
     input.addEventListener('change',()=>{cleanup();previews.replaceChildren();for(const file of Array.from(input.files??[]).slice(0,MAX_PHOTOS-rows.length)){const img=document.createElement('img');const url=URL.createObjectURL(file);urls.push(url);img.src=url;img.alt=file.name;previews.append(img);}});
-    f.addEventListener('submit',async e=>{e.preventDefault();if(sending)return;const files=Array.from(input.files??[]);if(!files.length)return say('Choose photos first.',true);if(files.length+rows.length>MAX_PHOTOS)return say('You can add '+(MAX_PHOTOS-rows.length)+' more photos to this gallery.',true);for(const file of files){if(!EXT[file.type]||file.size>5*1024*1024)return say('Use JPEG, PNG or WebP files up to 5 MB each.',true);}sending=true;b.disabled=true;const epoch=ownerEpoch,user=activeUser;let uploaded=0;
-      try{if(!await confirmChange('Upload these gallery photos?',l.name+'\n'+files.map(f=>f.name).join('\n')+'\nPhotos require administrator approval.','Upload photos'))return;const uid=(await client.auth.getUser()).data.user?.id;if(!uid||uid!==user)throw new Error('Please log in again.');for(const file of files){if(activeUser!==user||ownerEpoch!==epoch)throw new Error('Your account changed. Reopen your listing.');const path=uid+'/'+l.id+'/'+crypto.randomUUID()+'.'+EXT[file.type];say('Uploading '+(uploaded+1)+' of '+files.length+'…');const up=await client.storage.from(BUCKET).upload(path,file,{contentType:file.type,upsert:false});if(up.error)throw up.error;const row=await client.rpc('owner_add_photo',{p_listing:l.id,p_path:path});if(row.error){await client.storage.from(BUCKET).remove([path]);throw row.error;}uploaded++;}cleanup();say(uploaded+' photos saved for approval.');await photos(box,l);await refresh();}catch(e){if(activeUser===user){say(uploaded+' photos saved. '+((e as Error).message??String(e)),true);if(uploaded){cleanup();await photos(box,l);await refresh();}}}finally{sending=false;b.disabled=false;}
-    });
+    bindSave(f,{label:'Gallery photos',prepare:()=>{const files=Array.from(input.files??[]).filter(file=>!savedFiles.has(file));if(!files.length)throw new Error('Choose photos first.');if(files.length+savedFiles.size+rows.length>MAX_PHOTOS)throw new Error('You can add '+(MAX_PHOTOS-rows.length-savedFiles.size)+' more photos to this gallery.');for(const file of files){const bad=checkImage(file);if(bad)throw new Error(bad);}const epoch=ownerEpoch,user=activeUser;
+      return async()=>{const uid=(await client.auth.getUser()).data.user?.id;if(!uid||uid!==user)throw new Error('Please log in again.');for(const file of files){if(activeUser!==user||ownerEpoch!==epoch)throw new Error('Your account changed. Reopen your listing.');const path=uid+'/'+l.id+'/'+crypto.randomUUID()+'.'+EXT[file.type];const up=await client.storage.from(BUCKET).upload(path,file,{contentType:file.type,upsert:false});if(up.error)throw up.error;const row=await client.rpc('owner_add_photo',{p_listing:l.id,p_path:path});if(row.error){await client.storage.from(BUCKET).remove([path]);throw row.error;}savedFiles.add(file);}cleanup();f.reset();previews.replaceChildren();};
+    },confirm:()=>confirmChange('Upload these gallery photos?',l.name+'\n'+Array.from(input.files??[]).filter(file=>!savedFiles.has(file)).map(file=>file.name).join('\n')+'\nPhotos require administrator approval.','Upload photos'),success:'Photos saved for approval.',afterSave:async()=>{await photos(box,l);await refresh();}});
     box.append(f);
   }
   let changingStatus = false;
@@ -306,7 +322,8 @@ export function initOwner(client: SupabaseClient) {
       manageWorkspace?.hide();$('o-manage').hidden = true; say(msg); await refresh();
     } catch (e) { fail(e); } finally { changingStatus = false; }
   }
-  let displayedRows: Row[] = [], currentPage = 1;
+  let displayedRows: Row[] = [], currentPage = 1, notificationOpen=false;
+  window.addEventListener('travelmate:notification-open',event=>{notificationOpen=(event as CustomEvent<{path:string}>).detail.path.startsWith('/owner');});
   let menuCleanups: (()=>void)[]=[];
   function render(rows: Row[]) {
     menuCleanups.forEach(cleanup=>cleanup());menuCleanups=[];
@@ -326,6 +343,7 @@ export function initOwner(client: SupabaseClient) {
     if (!filtered.length) box.append(h('p', 'o-listing-empty', rows.length ? 'No matching listings. Try another search or filter.' : 'Your first listing belongs here. Select Add a listing to get started.'));
     for (const l of page.items) {
       const row = h('article', 'o-row o-listing-row'), d = one(l.destinations), info = h('div', 'o-listing-info'), icon = h('span', 'o-listing-icon type-' + l.listing_type);
+      row.dataset.status=l.status;
       icon.setAttribute('aria-hidden', 'true'); icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${TYPE_PATHS[l.listing_type] ?? TYPE_PATHS.attraction}</svg>`;
       info.append(h('strong', '', catalogLabel(l.name)), h('span', 'o-listing-meta', `${TYPES[l.listing_type] ?? l.listing_type} · ${d?.name ?? 'Destination not set'}`));
       if (l.status === 'rejected' && l.rejection_reason) { const reason = document.createElement('details'); reason.className = 'o-listing-reason'; reason.append(h('summary', '', 'View requested changes'), h('p', '', l.rejection_reason)); info.append(reason); }
@@ -377,6 +395,11 @@ export function initOwner(client: SupabaseClient) {
     if (epoch !== ownerEpoch) return;
     if (l.error) return fail(l.error);
     clearPlacePreviewCache();render((l.data ?? []) as Row[]);
+    if(notificationOpen&&location.hash.split('?')[0]==='#/owner'){
+      notificationOpen=false;const query=new URLSearchParams(location.hash.split('?')[1]).get('search')?.toLowerCase();
+      const match=(l.data as Row[]).find(row=>query&&row.name.toLowerCase()===query);
+      if(match)manage(match);else $('o-list').scrollIntoView({block:'center',behavior:'smooth'});
+    }
     void loadNotifications(client, $('o-notes'));
   }
   document.querySelectorAll<HTMLButtonElement>('[data-listing-status]').forEach(b=>b.addEventListener('click',()=>{($('o-status') as HTMLSelectElement).value=b.dataset.listingStatus!;($('o-search') as HTMLInputElement).value='';($('o-type') as HTMLSelectElement).value='all';currentPage=1;render(displayedRows);$('o-list').scrollIntoView({behavior:'smooth',block:'start'});}));
@@ -391,12 +414,12 @@ export function initOwner(client: SupabaseClient) {
     const form=$('ol-form') as HTMLFormElement;
     const basics=document.createElement('section'),content=document.createElement('div');basics.append(form);content.id='owner-create-workspace';
     createWorkspace=ownerWorkspaceDialog(content,'Add a listing');draft=ownerListingDraft(form,()=>typeSel.value);
-    createWorkspace.sections([{label:'Basic information',content:basics},{label:'Rooms / menu / schedules',content:draft.inventory},{label:'Photos',content:draft.photos}]);
+    createWorkspace.sections([{label:'Basic information',content:basics},{label:'Rooms / menu / schedules',content:draft.inventory},{label:'Reservation slots',content:draft.slots},{label:'Photos',content:draft.photos}]);
     const submit=$('ol-submit') as HTMLButtonElement;submit.setAttribute('form','ol-form');createWorkspace.footer.append(submit);
     const unlock=()=>form.querySelectorAll<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>('input,textarea,select').forEach(field=>field.disabled=false);
     createWorkspace.configureDraft(()=>!!draft?.hasChanges(),()=>{unlock();form.reset();draft?.reset();createdListingId=null;submit.textContent='Create listing';sync();});
     $('o-create-listing').onclick=()=>createWorkspace?.show();
-    const sync = () => document.querySelectorAll<HTMLElement>('#ol-form [data-type]').forEach(n => { n.hidden = n.dataset.type !== typeSel.value; });
+    const sync = () => {document.querySelectorAll<HTMLElement>('#ol-form [data-type]').forEach(n=>{n.hidden=n.dataset.type!==typeSel.value;});($('ol-hours') as HTMLInputElement).required=typeSel.value==='restaurant';if(createWorkspace?.nav.children[1])createWorkspace.nav.children[1].textContent=typeSel.value==='restaurant'?'Menu & dish photos':typeSel.value==='hotel'?'Rooms':'Operating schedules';if(createWorkspace?.nav.children[2])(createWorkspace.nav.children[2] as HTMLElement).hidden=typeSel.value!=='restaurant';};
     typeSel.addEventListener('change', sync); sync();
     mountOwnerListingPickers(form);
     $('ol-guide-slot').append(timeGuide());
@@ -410,7 +433,8 @@ export function initOwner(client: SupabaseClient) {
         if (!val('ol-name')) throw new Error('Enter the business name.');
         if (!val('ol-dest')) throw new Error('Choose a destination.');
         if (type === 'hotel') timesOk(val('ol-checkin'), val('ol-checkout'));
-        draft?.validate();draft?.setBusy(true);form.querySelectorAll<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>('input,textarea,select').forEach(field=>field.disabled=true);
+        if(type==='restaurant'&&!val('ol-hours')){createWorkspace?.reveal($('ol-hours'));throw new Error('Enter the restaurant operating hours before submitting.');}
+        try{draft?.validate();}catch(error){if(draft)createWorkspace?.reveal(draft.validationPanel());throw error;}draft?.setBusy(true);form.querySelectorAll<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>('input,textarea,select').forEach(field=>field.disabled=true);
         const fee = val('ol-fee') === '' ? null : money(val('ol-fee'), 'Entrance fee');
         const resfee = type === 'restaurant' ? money(val('ol-resfee') || '0', 'Reservation fee') : 0;
         if(!await confirmChange(createdListingId?'Finish this listing?':'Create this business listing?',`${val('ol-name')} · ${type}\n${($('ol-dest') as HTMLSelectElement).selectedOptions[0]?.text}\n${val('ol-address')}\n${val('ol-desc')}\n${draft?.summary()}\nAn administrator will review it before travelers can see it.`,createdListingId?'Finish listing':'Create listing'))return;

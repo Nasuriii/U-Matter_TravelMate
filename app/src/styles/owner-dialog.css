@@ -5,6 +5,9 @@ body .tm-owner-dialog-backdrop {position:fixed;inset:0;z-index:500;display:flex;
 .tm-owner-dialog>header {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 26px;border-bottom:1px solid var(--border);flex-shrink:0}
 .tm-owner-dialog>header h2 {font-family:var(--font-serif,'Playfair Display',serif);font-size:26px;line-height:1.25;margin:0;overflow-wrap:anywhere}
 .tm-owner-dialog>header p {margin:6px 0 0;color:var(--muted-foreground);font-size:14px;line-height:1.5}
+.tm-owner-dialog>header>div:first-child {min-width:0}
+.tm-owner-dialog-actions {display:flex;align-items:center;gap:12px;flex-shrink:0}
+body .tm-owner-dialog-actions>.tm-owner-save-all {display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin:0;padding:10px 16px;border-radius:11px;font-size:15px;line-height:1.4;white-space:nowrap}
 body .tm-owner-dialog-close {display:grid;place-items:center;width:42px;height:42px;min-height:42px;flex:0 0 42px;padding:0;margin:0;background:var(--muted);color:var(--foreground);border:1px solid var(--border);border-radius:12px;font:24px/1 var(--font-sans,sans-serif);box-shadow:none}
 .tm-owner-dialog-layout {display:grid;grid-template-columns:190px minmax(0,1fr);flex:1;min-height:0}
 .tm-owner-dialog .tm-owner-dialog-tabs {display:flex;flex-direction:column;flex-wrap:nowrap;gap:7px;padding:20px 12px;border-right:1px solid var(--border);background:color-mix(in srgb,var(--background) 70%,var(--card));overflow:auto}
@@ -45,6 +48,14 @@ body .o-create-listing>#o-create-listing:hover {background:var(--muted);transfor
 .tm-owner-draft-fields label {display:block;font-size:15px;font-weight:600;min-width:0}
 .tm-owner-draft-item {display:flex;align-items:center;gap:16px;justify-content:space-between;border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--background)}
 .tm-owner-draft-item span {overflow-wrap:anywhere;min-width:0}
+.tm-owner-draft-item>img {width:72px;height:72px;object-fit:cover;flex-shrink:0;border-radius:10px}
+.tm-owner-draft-item>span {flex:1}
+.tm-owner-draft-dish-photo {grid-column:1/-1;min-width:0}
+.tm-owner-draft-dish-photo>.dz {margin-top:12px}
+.tm-owner-slot-list {display:grid;gap:12px;margin:20px 0 26px}
+.tm-owner-slot-row {display:flex;flex-direction:column;gap:8px;padding:16px 18px;border:1px solid var(--border);border-radius:12px;background:var(--background);font-size:16px;line-height:1.5}
+.tm-owner-dialog .tm-availability-date-times {margin-bottom:12px}
+.tm-owner-dialog .tm-availability-date-times>div {margin-bottom:18px}
 .tm-owner-draft-item button {flex-shrink:0;margin:0;font-size:14px;padding:8px 12px;min-height:36px}
 .tm-owner-draft-gallery {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}
 .tm-owner-draft-gallery figure {margin:0;min-width:0;padding:8px;border:1px solid var(--border);border-radius:14px;background:var(--background)}
@@ -53,6 +64,19 @@ body .o-create-listing>#o-create-listing:hover {background:var(--muted);transfor
 .tm-owner-draft-gallery button {margin:0;font-size:14px;width:100%}
 .tm-owner-dialog .tm-owner-draft-error {color:var(--destructive);font-size:14px;line-height:1.5}
 .tm-owner-draft-error:empty {display:none}
+.tm-owner-dialog .tm-owner-item-editor {margin-top:24px;padding:22px;border:1px solid var(--border);border-radius:16px;background:var(--background)}
+.tm-owner-dialog .tm-owner-item-editor h4 {font-size:18px;font-weight:600;margin:0 0 20px;color:var(--foreground)}
+.tm-owner-dialog .tm-owner-item-editor :is(.o-inline,.tm-owner-draft-fields) {gap:20px}
+.tm-owner-dialog .tm-owner-item-editor label {display:flex;flex-direction:column;gap:8px;font-size:15px;line-height:1.5;margin:0}
+.tm-owner-dialog .tm-owner-item-editor :is(input,select) {margin:0;min-height:46px}
+.tm-owner-dialog .tm-owner-item-editor>.quiet {margin:22px 0 0;min-height:44px}
+.tm-owner-dialog .tm-owner-item-selection:not(:empty) {margin:22px 0}
+.tm-owner-dialog .tm-owner-inventory {display:grid;gap:14px;padding:0;margin:20px 0;list-style:none}
+.tm-owner-dialog .tm-owner-inventory>li {display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:18px;border:1px solid var(--border);border-radius:14px;background:var(--card)}
+.tm-owner-dialog .tm-owner-inventory .o-line {flex:1 1 240px;line-height:1.65;font-size:16px}
+.tm-owner-dialog .tm-owner-inventory .o-acts {display:flex;flex-wrap:wrap;gap:10px;margin-left:auto}
+.tm-owner-dialog .tm-owner-inventory>li>.o-inline {width:100%}
+@media(max-width:680px) {.tm-owner-dialog .tm-owner-item-editor {padding:16px}.tm-owner-dialog .tm-owner-inventory>li {padding:14px}.tm-owner-dialog .tm-owner-inventory .o-acts {margin-left:0;width:100%}}
 .tm-owner-dialog [type=file] {padding:14px;border-style:dashed;background:var(--background);font-size:14px}
 .tm-owner-dialog [type=file]::file-selector-button {border:1px solid var(--border);border-radius:8px;background:var(--muted);color:var(--foreground);font:inherit;font-weight:600;padding:8px 12px;margin-right:12px;cursor:pointer}
 .tm-owner-dialog .time-guide {font-size:14px}
@@ -83,6 +107,9 @@ body .tm-owner-dialog :is(#ol-form,#owner-details-form) .tm-trip-time-fields>div
  body .tm-owner-dialog-backdrop {padding:10px!important}
  .tm-owner-dialog {height:calc(100dvh - 20px);border-radius:18px}
  .tm-owner-dialog>header {padding:16px;gap:12px}
+ .tm-owner-dialog>header:has(.tm-owner-save-all:not([hidden])) {flex-wrap:wrap}
+ .tm-owner-dialog>header:has(.tm-owner-save-all:not([hidden]))>div:first-child {flex:1 1 100%}
+ .tm-owner-dialog-actions {margin-left:auto;gap:10px}
  .tm-owner-dialog>header h2 {font-size:22px}
  .tm-owner-dialog-layout {display:flex;flex-direction:column}
  .tm-owner-dialog .tm-owner-dialog-tabs {flex-direction:row;flex-shrink:0;border-right:0;border-bottom:1px solid var(--border);padding:10px;gap:6px}

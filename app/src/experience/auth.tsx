@@ -28,7 +28,7 @@ function AuthNotebook({ business = false }: { business?: boolean }) {
 export function AuthExperience() {
   return <div className="pub-auth-layout">
     <aside className="auth-photo pub-auth-story">
-      <a href="#/" className="pub-auth-brand"><Compass aria-hidden="true" /><span>Travel<strong>Mate</strong></span></a>
+      <a href="#/" className="pub-auth-brand"><span className="tm-logo-mark"><img src="/branding/travelmate-logo-transparent.png" alt="" width="1200" height="805"/></span><img className="tm-brand-wordmark" src="/branding/travelmate-wordmark-transparent.png" alt="TravelMate" width="1600" height="170"/></a>
       <div className="auth-copy">
         <p className="pub-kicker">YOUR NEXT CHAPTER</p>
         <h2 data-for="login">A good trip deserves a comeback.</h2>

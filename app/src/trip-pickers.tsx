@@ -248,3 +248,8 @@ export function DateTimeRangeFields({start,end,onChange,disabled=false}:{start:s
   const today=dateKey(new Date());
   return <div className="tm-availability-date-times"><DateRangeFields mode="availability" start={startDate} end={endDate} disabled={disabled} onChange={(a,b)=>onChange(a+'T'+startTime,b+'T'+endTime)}/><TimeRangeFields start={startTime} end={endTime} title="Choose availability times" sameDay={!startDate||!endDate||startDate===endDate} disabled={disabled} onChange={(a,b)=>onChange((startDate||today)+'T'+a,(endDate||startDate||today)+'T'+b)}/></div>;
 }
+export function mountOwnerSlotTimes(form:HTMLFormElement,start:HTMLInputElement,end:HTMLInputElement){
+  const host=document.createElement('div');host.className='o-wide';form.prepend(host);const root=createRoot(host);
+  function Fields(){const [value,setValue]=useState({start:start.value,end:end.value});useEffect(()=>{const sync=()=>setValue({start:start.value,end:end.value});form.addEventListener('input',sync);return()=>form.removeEventListener('input',sync);},[]);return <DateTimeRangeFields start={value.start} end={value.end} onChange={(a,b)=>{start.value=a;end.value=b;form.dispatchEvent(new Event('input',{bubbles:true}));}}/>;}
+  root.render(<Fields/>);return()=>root.unmount();
+}

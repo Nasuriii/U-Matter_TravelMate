@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import {notificationTarget} from './notification-target';
+import {notificationTarget,followNotification} from './notification-target';
 import {currentIdentity} from './experience/state';
 const paths = {
  bell: ['M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9','M10 21h4'],
@@ -50,11 +50,17 @@ export async function loadNotifications(client: SupabaseClient, box: HTMLElement
   const content=h('a','tm-notification-content tm-notification-open') as HTMLAnchorElement,meta=h('div','tm-notification-meta');content.href='#'+target.path;
   if(!isRead(n))meta.append(h('span','tm-notification-state','Unread'));const date=new Date(n.created_at);if(!Number.isNaN(date.getTime())){const time=h('time','',timestamp.format(date));time.setAttribute('datetime',date.toISOString());meta.append(time);}
   content.append(h('p','tm-notification-message',tidy(n.message)),meta,h('span','tm-notification-destination',target.label+' →'));li.append(content);
-  content.onclick=event=>{if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();void(async()=>{
-   if(!isRead(n)&&state.filter!=='trash'){try{const r=await client.schema('public').rpc('notification_action',{p_id:n.id,p_action:'read'});if(r.error)throw r.error;}catch{toast('Notification opened, but its read status could not be saved.',true);}}
-   if(currentIdentity().id!==identity.id||loads.get(box)!==version)return;
-   location.hash='#'+target.path;void loadNotifications(client,box);
-  })();};
+  content.onclick=event=>{if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();if(currentIdentity().id!==identity.id)return;
+   void followNotification(()=>{
+    window.dispatchEvent(new CustomEvent('travelmate:notification-open',{detail:{path:target.path}}));
+    const hash='#'+target.path;if(location.hash===hash)window.dispatchEvent(new HashChangeEvent('hashchange'));else location.hash=hash;
+   },async()=>{
+    if(isRead(n)||state.filter==='trash')return {error:null};
+    const result=await client.schema('public').rpc('notification_action',{p_id:n.id,p_action:'read'});
+    if(!result.error&&currentIdentity().id===identity.id&&loads.get(box)===version)void loadNotifications(client,box);
+    return result;
+   },()=>{if(currentIdentity().id===identity.id)toast('Notification opened, but its read status could not be saved.',true);});
+  };
   const actions=h('div','tm-notification-row-actions');
   if(state.filter==='trash'){const restore=button('Restore notification',RotateCcw,true);restore.onclick=()=>void perform(restore,()=>client.schema('public').rpc('notification_action',{p_id:n.id,p_action:'restore'}));actions.append(restore);}
   else{
