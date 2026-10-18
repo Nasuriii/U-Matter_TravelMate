@@ -5,6 +5,7 @@ import {CalendarDays,Check,ChevronDown,ChevronLeft,ChevronRight,MapPin,Search,X,
 import {calendarDate,dateKey,monthCells,tripDays} from './trip-calendar';
 import {placePreviewAttributes} from './place-hover-preview';
 import {clockLabel,clockMinutes,clockParts,clockValue,tripTimesValid} from './trip-clock';
+import {reservationSlotRange} from './owner-slot-logic';
 
 const dateLabel=(value:string)=>calendarDate(value)?.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})??'Choose date';
 function PickerDialog({title,children,onClose,className=''}:{title:string;children:ReactNode;onClose:()=>void;className?:string}) {
@@ -19,21 +20,22 @@ function PickerDialog({title,children,onClose,className=''}:{title:string;childr
     {children}
   </dialog>;
 }
-type DateMode='trip'|'stay'|'availability'|'reservation'|'confirmation'|'confirmationStay';
+type DateMode='trip'|'stay'|'availability'|'reservation'|'slot'|'confirmation'|'confirmationStay';
 function DateCalendar({start,end,phase:initialPhase,onApply,onClose,mode='trip',availableDates=[]}:{start:string;end:string;phase:'start'|'end';onApply:(start:string,end:string)=>void;onClose:()=>void;mode?:DateMode;availableDates?:string[]}) {
   const [range,setRange]=useState({start,end}),[phase,setPhase]=useState<'start'|'end'>(initialPhase==='end'&&start?'end':'start');
-  const initial=calendarDate(initialPhase==='end'?end:start)||calendarDate(start)||new Date();
+  const philippineToday=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const initial=calendarDate(initialPhase==='end'?end:start)||calendarDate(start)||(mode==='slot'?calendarDate(philippineToday)!:new Date());
   const [month,setMonth]=useState(()=>new Date(initial.getFullYear(),initial.getMonth(),1,12));
   const [focusDate,setFocusDate]=useState(dateKey(initial)),[message,setMessage]=useState('');
   const recorded=mode==='confirmation'||mode==='confirmationStay';
   const grid=useRef<HTMLDivElement>(null),days=tripDays(range.start,range.end),stay=mode==='stay'||mode==='confirmationStay',maxDays=mode==='trip'?14:mode==='stay'?91:Infinity;
-  const single=mode==='reservation'||mode==='confirmation',labels=stay?['Check-in','Check-out']:single?['Reservation','']:mode==='availability'?['Start','End']:['Arrival','Departure'];
-  const today=dateKey(new Date());
-  const valid=single?recorded?!!calendarDate(range.start):range.start>=today&&availableDates.includes(range.start):days>=(stay?2:1)&&days<=maxDays&&(mode==='trip'||recorded||range.start>=today);
+  const single=mode==='reservation'||mode==='slot'||mode==='confirmation',labels=stay?['Check-in','Check-out']:single?['Reservation','']:mode==='availability'?['Start','End']:['Arrival','Departure'];
+  const today=mode==='slot'?philippineToday:dateKey(new Date());
+  const valid=single?recorded?!!calendarDate(range.start):!!calendarDate(range.start)&&range.start>=today&&(mode==='slot'||availableDates.includes(range.start)):days>=(stay?2:1)&&days<=maxDays&&(mode==='trip'||recorded||range.start>=today);
   function choose(value:string) {
     setMessage('');setFocusDate(value);
     if(mode!=='trip'&&!recorded&&value<today){setMessage('Choose today or a future date.');return;}
-    if(single){if(!recorded&&!availableDates.includes(value)){setMessage('Choose a date with available reservation times.');return;}setRange({start:value,end:''});return;}
+    if(single){if(!recorded&&mode!=='slot'&&!availableDates.includes(value)){setMessage('Choose a date with available reservation times.');return;}setRange({start:value,end:''});return;}
     if(phase==='start'){setRange({start:value,end:''});setPhase('end');return;}
     if(value<range.start||(stay&&value===range.start)){setMessage(stay?'Check-out must be after check-in.':'Choose an end date on or after the start date.');return;}
     if(tripDays(range.start,value)>maxDays){setMessage(stay?'Choose a stay of up to 90 nights.':'Your day planner supports trips up to 14 days.');return;}
@@ -65,14 +67,14 @@ function DateCalendar({start,end,phase:initialPhase,onApply,onClose,mode='trip',
       <button type="button" aria-pressed={phase==='start'} onClick={()=>setPhase('start')}><small>{labels[0]}</small><strong>{dateLabel(range.start)}</strong></button>
       {!single&&<><ArrowRight size={19}/><button type="button" aria-pressed={phase==='end'} onClick={()=>{if(range.start)setPhase('end');}} disabled={!range.start}><small>{labels[1]}</small><strong>{dateLabel(range.end)}</strong></button></>}
     </div>
-    <p className="tm-calendar-instruction" role="status">Pick your {labels[phase==='start'?0:1].toLowerCase()} date. <span>{recorded?'Dates on your confirmation':stay?'1–90 nights':single?'Available dates only':mode==='trip'?'Up to 14 days':'Local dates'}</span></p>
+    <p className="tm-calendar-instruction" role="status">Pick your {labels[phase==='start'?0:1].toLowerCase()} date. <span>{recorded?'Dates on your confirmation':stay?'1–90 nights':mode==='slot'?'Philippine date':single?'Available dates only':mode==='trip'?'Up to 14 days':'Local dates'}</span></p>
     <div className="tm-calendar-month-heading"><button type="button" className="tm-picker-icon-button" aria-label="Previous month" onClick={()=>moveMonth(-1)}><ChevronLeft/></button><h3 id="tm-calendar-month">{month.toLocaleDateString('en-PH',{month:'long',year:'numeric'})}</h3><button type="button" className="tm-picker-icon-button" aria-label="Next month" onClick={()=>moveMonth(1)}><ChevronRight/></button></div>
     <div className="tm-calendar-weekdays" aria-hidden="true">{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(day=><span key={day}>{day}</span>)}</div>
     <div className="tm-calendar-grid" ref={grid} role="grid" aria-labelledby="tm-calendar-month">
       {Array.from({length:weeks},(_,week)=><div role="row" key={week}>{cells.slice(week*7,week*7+7).map((value,index)=>{
         if(!value)return <span role="gridcell" key={'blank'+index}/>;
         const selected=value===range.start||value===range.end,inRange=!!range.start&&!!range.end&&value>range.start&&value<range.end;
-        const unavailable=(mode!=='trip'&&!recorded&&value<today)||(single&&!recorded&&!availableDates.includes(value))||(phase==='end'&&(value<range.start||(stay&&value===range.start)||tripDays(range.start,value)>maxDays));
+        const unavailable=(mode!=='trip'&&!recorded&&value<today)||(single&&!recorded&&mode!=='slot'&&!availableDates.includes(value))||(!single&&phase==='end'&&(value<range.start||(stay&&value===range.start)||tripDays(range.start,value)>maxDays));
         return <div role="gridcell" key={value} aria-selected={selected||inRange} className={(inRange?'is-range ':'')+(value===range.start?'range-start ':'')+(value===range.end?'range-end':'')}>
           <button type="button" data-date={value} tabIndex={value===focusDate?0:-1} aria-label={calendarDate(value)!.toLocaleDateString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+(value===range.start?' · '+labels[0]:'')+(value===range.end?' · '+labels[1]:'')}
             aria-current={value===today?'date':undefined} aria-disabled={unavailable} className={(selected?'is-selected ':'')+(unavailable?'is-unavailable':'')}
@@ -248,8 +250,39 @@ export function DateTimeRangeFields({start,end,onChange,disabled=false}:{start:s
   const today=dateKey(new Date());
   return <div className="tm-availability-date-times"><DateRangeFields mode="availability" start={startDate} end={endDate} disabled={disabled} onChange={(a,b)=>onChange(a+'T'+startTime,b+'T'+endTime)}/><TimeRangeFields start={startTime} end={endTime} title="Choose availability times" sameDay={!startDate||!endDate||startDate===endDate} disabled={disabled} onChange={(a,b)=>onChange((startDate||today)+'T'+a,(endDate||startDate||today)+'T'+b)}/></div>;
 }
+/** Restaurant slots use one date and a duration; overnight end dates are calculated for the owner. */
+export function ReservationSlotFields({start,end,onChange,disabled=false}:{start:string;end:string;onChange:(start:string,end:string)=>void;disabled?:boolean}){
+  const date=start.split('T')[0],dateTrigger=useRef<HTMLButtonElement>(null);
+  const [time,setTime]=useState(start.split('T')[1]?.slice(0,5)||'09:00'),[duration,setDuration]=useState('60'),[open,setOpen]=useState(false);
+  useEffect(()=>{
+    setTime(start.includes('T')?start.split('T')[1]?.slice(0,5)??'':'09:00');
+    if(!start&&!end)setDuration('60');
+    else if(start&&end){const minutes=(Date.parse(end+':00Z')-Date.parse(start+':00Z'))/60000;if(Number.isInteger(minutes)&&minutes>=1&&minutes<=720)setDuration(String(minutes));}
+  },[start,end]);
+  useEffect(()=>{const close=()=>setOpen(false);window.addEventListener('hashchange',close);window.addEventListener('travelmate:identity',close);window.addEventListener('travelmate:owner-workspace-close',close);return()=>{window.removeEventListener('hashchange',close);window.removeEventListener('travelmate:identity',close);window.removeEventListener('travelmate:owner-workspace-close',close);};},[]);
+  useEffect(()=>{if(disabled)setOpen(false);},[disabled]);
+  const minutes=Number(duration),validDuration=duration!==''&&Number.isInteger(minutes)&&minutes>=1&&minutes<=720;
+  const durationLabel=validDuration?(minutes>=60?`${Math.floor(minutes/60)} ${Math.floor(minutes/60)===1?'hour':'hours'}${minutes%60?' '+minutes%60+' min':''}`:`${minutes} min`):'';
+  let calculated:{start:string;end:string}|null=null;try{calculated=reservationSlotRange(date,time,minutes);}catch{/* The form validates incomplete selections before saving. */}
+  function change(nextDate:string,nextTime:string,nextDuration:string){
+    setTime(nextTime);setDuration(nextDuration);
+    if(!nextDate)return;
+    try{const range=reservationSlotRange(nextDate,nextTime,Number(nextDuration));onChange(range.start,range.end);}catch{onChange(nextDate+'T'+nextTime,'');}
+  }
+  const close=()=>{setOpen(false);requestAnimationFrame(()=>dateTrigger.current?.isConnected&&dateTrigger.current.focus());};
+  return <div className="tm-slot-timing">
+    <div className="tm-slot-timing-fields"><div><span>Reservation date</span><button ref={dateTrigger} type="button" className="tm-trip-date-trigger" disabled={disabled} aria-label={'Reservation date: '+dateLabel(date)} aria-haspopup="dialog" onClick={()=>setOpen(true)}><CalendarDays size={20}/><strong>{dateLabel(date)}</strong><ChevronDown size={16}/></button></div>
+      <label><span>Start time</span><span className="tm-slot-time-input"><Clock3 size={20} aria-hidden="true"/><input type="time" step="60" aria-label="Start time" value={time} disabled={disabled} onChange={event=>change(date,event.target.value,duration)}/></span></label></div>
+    <div className="tm-slot-duration"><span>How long is each reservation?</span><div className="tm-slot-duration-options" role="group" aria-label="Reservation duration">{[[30,'30 min'],[60,'1 hour'],[90,'90 min'],[120,'2 hours']].map(([value,label])=><button key={value} type="button" aria-pressed={Number(duration)===value} disabled={disabled} onClick={()=>change(date,time,String(value))}>{label}</button>)}</div>
+      <details><summary>Other duration</summary><label>Duration in minutes<input type="number" min="1" max="720" step="1" value={duration} disabled={disabled} onChange={event=>change(date,time,event.target.value)}/></label><p>1–720 minutes · up to 12 hours</p></details>
+    </div>
+    {!validDuration&&<p role="alert" className="tm-slot-timing-error">Enter a duration from 1 to 720 minutes (12 hours).</p>}
+    <div className="tm-slot-end-summary" role="status" aria-live="polite"><Clock3 size={22}/><div><span>Ends automatically</span><strong>{calculated?clockLabel(calculated.end.slice(11)):'Choose a date and start time'}</strong><p>{calculated?`${durationLabel} · ${calculated.end.slice(0,10)===date?'Same day':dateLabel(calculated.end.slice(0,10))+' · next day'} · Philippine time`:'The end time is calculated from your duration.'}</p></div></div>
+    {open&&<DateCalendar start={date} end="" phase="start" mode="slot" onClose={close} onApply={nextDate=>{change(nextDate,time,duration);close();}}/>}
+  </div>;
+}
 export function mountOwnerSlotTimes(form:HTMLFormElement,start:HTMLInputElement,end:HTMLInputElement){
   const host=document.createElement('div');host.className='o-wide';form.prepend(host);const root=createRoot(host);
-  function Fields(){const [value,setValue]=useState({start:start.value,end:end.value});useEffect(()=>{const sync=()=>setValue({start:start.value,end:end.value});form.addEventListener('input',sync);return()=>form.removeEventListener('input',sync);},[]);return <DateTimeRangeFields start={value.start} end={value.end} onChange={(a,b)=>{start.value=a;end.value=b;form.dispatchEvent(new Event('input',{bubbles:true}));}}/>;}
+  function Fields(){const [value,setValue]=useState({start:start.value,end:end.value}),[resetKey,setResetKey]=useState(0);useEffect(()=>{const sync=()=>setValue({start:start.value,end:end.value}),reset=()=>setResetKey(key=>key+1);form.addEventListener('input',sync);form.addEventListener('reset',reset);return()=>{form.removeEventListener('input',sync);form.removeEventListener('reset',reset);};},[]);return <ReservationSlotFields key={resetKey} start={value.start} end={value.end} onChange={(a,b)=>{start.value=a;end.value=b;form.dispatchEvent(new Event('input',{bubbles:true}));}}/>;}
   root.render(<Fields/>);return()=>root.unmount();
 }
