@@ -10,7 +10,7 @@ Open the website in Chrome on Android, then choose **⋮ → Add to Home screen 
 
 - Provider: Sites, public website with TravelMate's existing Supabase authentication.
 - Site project ID: `appgprj_6ad47480bd14819196300bd4d6211528`.
-- Published version: 4, source commit `83b0d5fde73d4612c81190de7e783f1d3d20ca49` in the dedicated Sites repository.
+- Published version: 5, source commit `89d10555b7874a072eb1b0a36a3138b48c1c9ad1` in the dedicated Sites repository.
 - Local Sites checkout: `.tmp/hosted-travelmate-android` (separate repository; ignored by the application repository).
 - That checkout's `.openai/hosting.json` retains the Site ID and static SPA fallback configuration. Reuse this Site for future updates instead of creating another one.
 - Only the production static build is uploaded. No environment files, login sessions or private booking confirmations are packaged. The public Supabase project configuration is included in the browser bundle, as intended.

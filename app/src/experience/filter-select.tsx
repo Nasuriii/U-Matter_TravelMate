@@ -19,8 +19,9 @@ export function FilterSelect({label,value,options,onChange,disabled=false,search
  function show(index=selected){
   if(disabled||!trigger.current||!panel.current)return;
   const rect=trigger.current.getBoundingClientRect(),width=Math.min(Math.max(rect.width,240),window.innerWidth-24);
-  const below=window.innerHeight-rect.bottom-20,above=rect.top-20,up=below<Math.min(options.length*46+18,300)&&above>below;
-  const height=Math.min(options.length*46+18,330,Math.max(100,up?above:below));
+  const contentHeight=options.length*46+(searchable?82:18);
+  const below=window.innerHeight-rect.bottom-20,above=rect.top-20,up=below<Math.min(contentHeight,300)&&above>below;
+  const height=Math.min(contentHeight,380,Math.max(100,up?above:below));
   Object.assign(panel.current.style,{width:width+'px',maxHeight:height+'px',left:Math.max(12,Math.min(rect.left,window.innerWidth-width-12))+'px',top:Math.max(12,up?rect.top-height-8:rect.bottom+8)+'px'});
   panel.current.showPopover();setOpen(true);if(searchable)panel.current.querySelector('input')?.focus();else items.current[Math.max(0,index)]?.focus();
  }

@@ -141,6 +141,7 @@ body .tm-user-management .tm-account-row td button{background:transparent;box-sh
 .tm-availability-editor fieldset {border:0;min-width:0;padding:0;margin:0}
 .tm-availability-editor .tm-availability-date-times {display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .tm-availability-editor .tm-availability-date-times>div {margin:0}
+.tm-availability-editor .tm-trip-time-fields {padding-top:0}
 .tm-availability-submit {display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,1fr);align-items:end;gap:24px;margin-top:26px}
 .tm-availability-submit label {font-size:16px;font-weight:500}
 .tm-availability-submit input {display:block;width:100%;margin:10px 0 0;min-height:48px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--foreground)}
@@ -148,6 +149,7 @@ body .tm-user-management .tm-account-row td button{background:transparent;box-sh
 .tm-availability-results-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;margin:28px 0 16px}
 .tm-availability-results-heading h3 {margin:0}
 .tm-availability-results {display:grid;gap:12px}
+.tm-availability-content .tm-availability-note {margin:16px 0}
 .tm-availability-result {display:flex;align-items:center;gap:16px;padding:20px;border:1px solid var(--border);border-radius:14px;background:var(--card);transition:border-color .18s,background .18s}
 .tm-availability-result:hover {border-color:var(--primary);background:var(--muted)}
 .tm-availability-result>svg {flex-shrink:0;color:var(--primary)}
@@ -166,8 +168,11 @@ body .tm-user-management .tm-account-row td button{background:transparent;box-sh
  .tm-availability-heading h2 {font-size:24px}
  .tm-availability-editor {padding:16px}
  .tm-availability-editor .tm-availability-date-times,.tm-availability-submit {grid-template-columns:1fr;gap:22px}
- .tm-availability-place,.tm-availability-result {flex-wrap:wrap;padding:16px;gap:12px}
- .tm-availability-result>.tm-availability-badge {margin-left:36px}
+ .tm-availability-place {flex-wrap:wrap;padding:16px;gap:12px}
+ .tm-availability-result {display:grid;grid-template-columns:24px minmax(0,1fr);align-items:start;padding:16px;gap:12px}
+ .tm-availability-result>svg {margin-top:4px}
+ .tm-availability-result p {flex-wrap:wrap}
+ .tm-availability-result>.tm-availability-badge {grid-column:2;justify-self:start;margin:0}
  .tm-availability-manage {align-items:stretch;flex-direction:column}
 }
 @media(max-width:600px) {

@@ -141,7 +141,7 @@ export function initAdmin(client: SupabaseClient) {
     if (!rows.length) { box.replaceChildren(h('p', 'muted', 'No decisions yet.')); return; }
     const ul = h('ul', 'a-history');
     for (const r of rows) {
-      const li = h('li', ''), when = r.reviewed_at ? new Date(r.reviewed_at) : null;
+      const li = h('li', ''), when = r.reviewed_at ? new Date(r.reviewed_at) : null;li.dataset.listingName=r.name;
       li.append(h('strong', '', r.name), h('span', r.status === 'approved' ? 'a-ok' : 'a-no', r.status === 'approved' ? 'Approved' : 'Rejected'),
         h('small', 'muted', `${LABEL[r.type] ?? r.type} · ${r.reviewer ?? 'an administrator'}${when && !Number.isNaN(when.getTime()) ? ' · ' + when.toLocaleString() : ''}`));
       if (r.status === 'rejected' && r.reason) li.append(h('small', 'o-reason', tidy('Reason: ' + r.reason)));
@@ -160,7 +160,9 @@ export function initAdmin(client: SupabaseClient) {
       if (y.error) $('a-history').replaceChildren(h('p', 'muted', 'Recent decisions could not be loaded. Please refresh to try again.')); else renderHistory((y.data ?? []) as Row[]);
       if(notificationOpen&&location.hash.split('?')[0]==='#/admin'){
         notificationOpen=false;const match=Array.from($('a-list').querySelectorAll<HTMLElement>('[data-listing-name]')).find(node=>node.dataset.listingName?.toLowerCase()===search);
-        const target=match??$('a-list');const review=match?.querySelector<HTMLDetailsElement>('.a-review-expanded');if(review)review.open=true;
+        const history=Array.from($('a-history').querySelectorAll<HTMLElement>('[data-listing-name]')).find(node=>node.dataset.listingName?.toLowerCase()===search);
+        const target=match??history??$('a-list');const review=match?.querySelector<HTMLDetailsElement>('.a-review-expanded');if(review)review.open=true;
+        if(!match&&history){const section=history.closest('details');if(section)section.open=true;}
         target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'start',behavior:'smooth'});
       }
       void loadNotifications(client, $('a-notes'));

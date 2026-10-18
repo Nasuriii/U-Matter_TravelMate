@@ -397,7 +397,7 @@ export function initOwner(client: SupabaseClient) {
     clearPlacePreviewCache();render((l.data ?? []) as Row[]);
     if(notificationOpen&&location.hash.split('?')[0]==='#/owner'){
       notificationOpen=false;const query=new URLSearchParams(location.hash.split('?')[1]).get('search')?.toLowerCase();
-      const match=(l.data as Row[]).find(row=>query&&row.name.toLowerCase()===query);
+      const match=(l.data as Row[]).find(row=>query&&[row.name,catalogLabel(row.name)].some(name=>name.toLowerCase()===query));
       if(match)manage(match);else $('o-list').scrollIntoView({block:'center',behavior:'smooth'});
     }
     void loadNotifications(client, $('o-notes'));
