@@ -50,4 +50,31 @@ body .tm-react .tm-attachment-footer [data-slot=button]{min-height:48px;font-siz
 .tm-trip-confirmation-summary h3{font-size:26px;margin:12px 0}.tm-trip-confirmation-summary p{font-size:17px;margin:12px 0}.tm-trip-confirmation-summary dl{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:24px 0}.tm-trip-confirmation-summary dt{font-size:14px;color:var(--muted-foreground)}.tm-trip-confirmation-summary dd{margin:6px 0 0;font-size:17px;font-weight:600;overflow-wrap:anywhere}
 .tm-confirmation-document{width:100%;height:60dvh;border:1px solid var(--border);border-radius:12px;margin:12px 0}.tm-confirmation-image{display:block;width:100%;max-height:60dvh;object-fit:contain;background:var(--muted);border:1px solid var(--border);border-radius:12px;margin:12px 0}
 @media(max-width:640px){.tm-attach-booking-body,.tm-trip-confirmation-body{padding:20px}.tm-attachment-form-grid{grid-template-columns:1fr}.tm-attachment-tabs{gap:8px}body .tm-react .tm-attachment-tabs button{font-size:14px;padding:10px 8px;gap:7px}.tm-planner-bookings-toolbar{flex-wrap:wrap;margin:0 16px 20px;padding:18px}.tm-planner-bookings-toolbar>div{flex-basis:100%}.tm-planner-bookings-toolbar>button:last-child{flex:1}.tm-trip-booking-budget{margin:0 16px 24px;padding:20px}.tm-trip-budget-values{grid-template-columns:1fr;gap:18px}.tm-trip-budget-values>div{flex-direction:row;justify-content:space-between;align-items:center;gap:18px}.tm-trip-budget-values strong{font-size:21px;text-align:right}.tm-trip-budget-values span{max-width:45%}.tm-trip-attachment{padding:18px}.tm-trip-attachment-title{flex-wrap:wrap}.tm-trip-attachment-title .tm-status{margin-left:62px}.tm-day-bookings-heading{flex-wrap:wrap}.tm-trip-confirmation-summary dl{grid-template-columns:1fr}.tm-paid-booking-choices>button{gap:12px}.tm-attachment-reference{flex-wrap:wrap}.tm-attachment-footer>button{flex:1}}
+/* Reserve a full text column for booking names on narrow screens. */
+@media(max-width:640px){
+ .tm-day-bookings-heading{align-items:flex-start;gap:8px}
+ .tm-day-bookings-heading h3{align-items:flex-start;font-size:18px;line-height:1.4;min-width:0}
+ .tm-day-bookings-heading h3 svg{flex-shrink:0;margin-top:2px}
+ .tm-day-bookings-heading>span{flex-basis:100%;padding-left:30px}
+ .tm-trip-attachment{padding:16px;min-width:0}
+ .tm-trip-attachment-title{display:grid;grid-template-columns:40px minmax(0,1fr);gap:8px 12px;align-items:start}
+ .tm-trip-attachment-title .tm-attachment-type-icon{width:40px;height:40px;border-radius:10px}
+ .tm-trip-attachment-title small{display:block;line-height:1.5}
+ .tm-trip-attachment-title h4{font-size:20px;margin:4px 0 0;word-break:normal}
+ .tm-trip-attachment-title .tm-status{grid-column:2;justify-self:start;margin-left:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+ .tm-trip-attachment>p{font-size:15px;overflow-wrap:anywhere}
+ .tm-attachment-reference{flex-direction:column;gap:6px;padding:14px 0}
+ .tm-attachment-reference strong{font-size:21px;overflow-wrap:anywhere}
+ .tm-trip-attachment>p.tm-attachment-warning{padding:12px;font-size:14px;line-height:1.5}
+ .tm-attachment-card-actions{flex-direction:column;gap:8px;margin-top:14px}
+ body .tm-react .tm-attachment-card-actions [data-slot=button]{width:100%;min-height:44px;white-space:normal;height:auto;padding:10px 12px}
+ .tm-simple-planner .tm-modal-header h2{min-width:0;overflow-wrap:anywhere}
+ .tm-simple-planner .tm-modal-header>button{flex-shrink:0}
+ .tm-simple-planner .tm-day-banner{position:relative;padding:16px;gap:12px}
+ .tm-simple-planner .tm-day-banner h2{font-size:clamp(24px,6vw,29px);line-height:1.2}
+ .tm-simple-planner .tm-day-banner>img{width:64px;height:88px;flex-shrink:0}
+ .tm-simple-planner .tm-day-details-button{min-height:44px;max-width:100%;white-space:normal;line-height:1.4}
+ .tm-simple-planner .tm-day-details-button svg{flex-shrink:0}
+}
+@media(max-width:380px){.tm-simple-planner .tm-day-banner>img{display:none}}
 @media(prefers-reduced-motion:no-preference){.tm-trip-attachment{animation:tm-attachment-in .25s ease both}@keyframes tm-attachment-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}}

@@ -106,12 +106,12 @@ export function ReservationDateField({value,dates,onChange}:{value:string;dates:
  return <div className="tm-shared-dates"><span className="tm-field-label">Choose a date</span><button ref={trigger} type="button" className="tm-trip-date-trigger" disabled={!dates.length} aria-label={'Reservation date: '+dateLabel(value)} aria-haspopup="dialog" onClick={()=>setOpen(true)}><CalendarDays size={20}/><strong>{dates.length?dateLabel(value):'No dates available'}</strong><ChevronDown size={16}/></button>{open&&<DateCalendar start={value} end="" phase="start" mode="reservation" availableDates={dates} onClose={close} onApply={date=>{onChange(date);close();}}/>}</div>;
 }
 
-function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClose,hotel=false,labels,title}:{arrival:string;departure:string;phase:'arrivalTime'|'departureTime';sameDay:boolean;onApply:(arrival:string,departure:string)=>void;onClose:()=>void;hotel?:boolean;labels?:[string,string];title?:string}) {
+function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClose,hotel=false,labels,title,single=false}:{arrival:string;departure:string;phase:'arrivalTime'|'departureTime';sameDay:boolean;onApply:(arrival:string,departure:string)=>void;onClose:()=>void;hotel?:boolean;labels?:[string,string];title?:string;single?:boolean}) {
   const [draft,setDraft]=useState({arrivalTime:arrival,departureTime:departure});
   const [phase,setPhase]=useState(initialPhase),[part,setPart]=useState<'hour'|'minute'>('hour');
   const parts=clockParts(draft[phase])??{hour:9,minute:0,period:'AM' as const};
   const [focusIndex,setFocusIndex]=useState(parts.hour-1),options=useRef<HTMLDivElement>(null);
-  const valid=tripTimesValid('start',sameDay?'start':'end',draft.arrivalTime,draft.departureTime) && (!hotel || clockMinutes(draft.departureTime)! < clockMinutes(draft.arrivalTime)!);
+  const valid=single?clockMinutes(draft.arrivalTime)!==null:tripTimesValid('start',sameDay?'start':'end',draft.arrivalTime,draft.departureTime) && (!hotel || clockMinutes(draft.departureTime)! < clockMinutes(draft.arrivalTime)!);
   function update(key:'hour'|'minute'|'period',value:number|'AM'|'PM') {
     const next={...parts,[key]:value};
     setDraft(previous=>({...previous,[phase]:clockValue(next.hour,next.minute,next.period)}));
@@ -128,8 +128,8 @@ function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClos
     requestAnimationFrame(()=>options.current?.querySelector<HTMLButtonElement>(`[data-time-option="${next}"]`)?.focus());
   }
   return <PickerDialog title={title??(hotel?'Choose check-in & check-out times':'Choose your trip times')} onClose={onClose} className="tm-time-dialog">
-    <div className="tm-calendar-range" role="group" aria-label="Time to choose">{(['arrivalTime','departureTime'] as const).map(key=><button key={key} type="button" aria-pressed={phase===key} onClick={()=>setPhase(key)}><small>{labels?labels[key==='arrivalTime'?0:1]:hotel?(key==='arrivalTime'?'Check-in':'Check-out'):(key==='arrivalTime'?'Arrival':'Departure')}</small><strong>{clockLabel(draft[key])}</strong></button>)}</div>
-    <p className="tm-time-instruction"><Clock3 size={17}/>Local time at your destination</p>
+    <div className={'tm-calendar-range'+(single?' is-single':'')} role="group" aria-label="Time to choose">{(single?['arrivalTime'] as const:['arrivalTime','departureTime'] as const).map(key=><button key={key} type="button" aria-pressed={phase===key} onClick={()=>setPhase(key)}><small>{labels?labels[key==='arrivalTime'?0:1]:hotel?(key==='arrivalTime'?'Check-in':'Check-out'):(key==='arrivalTime'?'Arrival':'Departure')}</small><strong>{clockLabel(draft[key])}</strong></button>)}</div>
+    <p className="tm-time-instruction"><Clock3 size={17}/>{single?'Philippine time · 12-hour clock':'Local time at your destination'}</p>
     <div className="tm-clock-face" role="group" aria-label={labels?labels[phase==='arrivalTime'?0:1]+' time controls':hotel?(phase==='arrivalTime'?'Check-in time controls':'Check-out time controls'):(phase==='arrivalTime'?'Arrival time controls':'Departure time controls')}>
       <button type="button" className="tm-clock-digit" aria-label="Choose hour" aria-pressed={part==='hour'} onClick={()=>setPart('hour')}><strong>{String(parts.hour).padStart(2,'0')}</strong><small>Hour</small></button><span aria-hidden="true">:</span>
       <button type="button" className="tm-clock-digit" aria-label="Choose minutes" aria-pressed={part==='minute'} onClick={()=>setPart('minute')}><strong>{String(parts.minute).padStart(2,'0')}</strong><small>Minute</small></button>
@@ -142,8 +142,8 @@ function TimePicker({arrival,departure,phase:initialPhase,sameDay,onApply,onClos
         return <button type="button" key={part+index} data-time-option={index} tabIndex={focusIndex===index?0:-1} aria-label={part==='hour'?`${value} ${value===1?'hour':'hours'}`:`${value} ${value===1?'minute':'minutes'}`} aria-pressed={selected} onKeyDown={event=>keyboard(event,index)} onFocus={()=>setFocusIndex(index)} onClick={()=>{setFocusIndex(index);update(part,value);}}>{String(value).padStart(2,'0')}{selected&&<Check size={13}/>}</button>;
       })}
     </div>
-    {!valid&&<p className="tm-calendar-error" role="alert">{hotel?'Choose both times. Check-out must be earlier on the clock than check-in, for the next morning.':labels?labels[1]+' must be after '+labels[0]+' on the same day.':'Departure must be after arrival on the same day.'}</p>}
-    <div className="tm-calendar-footer"><span><Clock3 size={17}/>{clockLabel(draft[phase])}</span><button type="button" className="tm-picker-apply" disabled={!valid} onClick={()=>onApply(draft.arrivalTime,draft.departureTime)}><Check size={18}/>Apply times</button></div>
+    {!valid&&<p className="tm-calendar-error" role="alert">{single?'Choose a start time.':hotel?'Choose both times. Check-out must be earlier on the clock than check-in, for the next morning.':labels?labels[1]+' must be after '+labels[0]+' on the same day.':'Departure must be after arrival on the same day.'}</p>}
+    <div className="tm-calendar-footer"><span><Clock3 size={17}/>{clockLabel(draft[phase])}</span><button type="button" className="tm-picker-apply" disabled={!valid} onClick={()=>onApply(draft.arrivalTime,draft.departureTime)}><Check size={18}/>{single?'Apply time':'Apply times'}</button></div>
   </PickerDialog>;
 }
 
@@ -252,15 +252,15 @@ export function DateTimeRangeFields({start,end,onChange,disabled=false}:{start:s
 }
 /** Restaurant slots use one date and a duration; overnight end dates are calculated for the owner. */
 export function ReservationSlotFields({start,end,onChange,disabled=false}:{start:string;end:string;onChange:(start:string,end:string)=>void;disabled?:boolean}){
-  const date=start.split('T')[0],dateTrigger=useRef<HTMLButtonElement>(null);
-  const [time,setTime]=useState(start.split('T')[1]?.slice(0,5)||'09:00'),[duration,setDuration]=useState('60'),[open,setOpen]=useState(false);
+  const date=start.split('T')[0],trigger=useRef<HTMLButtonElement|null>(null);
+  const [time,setTime]=useState(start.split('T')[1]?.slice(0,5)||'09:00'),[duration,setDuration]=useState('60'),[open,setOpen]=useState<'date'|'time'|null>(null);
   useEffect(()=>{
     setTime(start.includes('T')?start.split('T')[1]?.slice(0,5)??'':'09:00');
     if(!start&&!end)setDuration('60');
     else if(start&&end){const minutes=(Date.parse(end+':00Z')-Date.parse(start+':00Z'))/60000;if(Number.isInteger(minutes)&&minutes>=1&&minutes<=720)setDuration(String(minutes));}
   },[start,end]);
-  useEffect(()=>{const close=()=>setOpen(false);window.addEventListener('hashchange',close);window.addEventListener('travelmate:identity',close);window.addEventListener('travelmate:owner-workspace-close',close);return()=>{window.removeEventListener('hashchange',close);window.removeEventListener('travelmate:identity',close);window.removeEventListener('travelmate:owner-workspace-close',close);};},[]);
-  useEffect(()=>{if(disabled)setOpen(false);},[disabled]);
+  useEffect(()=>{const close=()=>setOpen(null);window.addEventListener('hashchange',close);window.addEventListener('travelmate:identity',close);window.addEventListener('travelmate:owner-workspace-close',close);return()=>{window.removeEventListener('hashchange',close);window.removeEventListener('travelmate:identity',close);window.removeEventListener('travelmate:owner-workspace-close',close);};},[]);
+  useEffect(()=>{if(disabled)setOpen(null);},[disabled]);
   const minutes=Number(duration),validDuration=duration!==''&&Number.isInteger(minutes)&&minutes>=1&&minutes<=720;
   const durationLabel=validDuration?(minutes>=60?`${Math.floor(minutes/60)} ${Math.floor(minutes/60)===1?'hour':'hours'}${minutes%60?' '+minutes%60+' min':''}`:`${minutes} min`):'';
   let calculated:{start:string;end:string}|null=null;try{calculated=reservationSlotRange(date,time,minutes);}catch{/* The form validates incomplete selections before saving. */}
@@ -269,16 +269,17 @@ export function ReservationSlotFields({start,end,onChange,disabled=false}:{start
     if(!nextDate)return;
     try{const range=reservationSlotRange(nextDate,nextTime,Number(nextDuration));onChange(range.start,range.end);}catch{onChange(nextDate+'T'+nextTime,'');}
   }
-  const close=()=>{setOpen(false);requestAnimationFrame(()=>dateTrigger.current?.isConnected&&dateTrigger.current.focus());};
-  return <div className="tm-slot-timing">
-    <div className="tm-slot-timing-fields"><div><span>Reservation date</span><button ref={dateTrigger} type="button" className="tm-trip-date-trigger" disabled={disabled} aria-label={'Reservation date: '+dateLabel(date)} aria-haspopup="dialog" onClick={()=>setOpen(true)}><CalendarDays size={20}/><strong>{dateLabel(date)}</strong><ChevronDown size={16}/></button></div>
-      <label><span>Start time</span><span className="tm-slot-time-input"><Clock3 size={20} aria-hidden="true"/><input type="time" step="60" aria-label="Start time" value={time} disabled={disabled} onChange={event=>change(date,event.target.value,duration)}/></span></label></div>
+  const close=()=>{setOpen(null);requestAnimationFrame(()=>trigger.current?.isConnected&&trigger.current.focus());};
+  return <div className="tm-slot-timing tm-shared-dates tm-shared-clock">
+    <div className="tm-slot-timing-fields"><div><span>Reservation date</span><button type="button" className="tm-trip-date-trigger" disabled={disabled} aria-label={'Reservation date: '+dateLabel(date)} aria-haspopup="dialog" aria-expanded={open==='date'} onClick={event=>{trigger.current=event.currentTarget;setOpen('date');}}><span className="tm-trip-field-icon"><CalendarDays size={20}/></span><strong>{dateLabel(date)}</strong><ChevronDown size={16}/></button></div>
+      <div><span>Start time</span><button type="button" className="tm-trip-date-trigger tm-trip-time-trigger" disabled={disabled} aria-label={'Start time: '+clockLabel(time)} aria-haspopup="dialog" aria-expanded={open==='time'} onClick={event=>{trigger.current=event.currentTarget;setOpen('time');}}><span className="tm-trip-field-icon"><Clock3 size={20}/></span><strong>{clockLabel(time)}</strong><ChevronDown size={16}/></button></div></div>
     <div className="tm-slot-duration"><span>How long is each reservation?</span><div className="tm-slot-duration-options" role="group" aria-label="Reservation duration">{[[30,'30 min'],[60,'1 hour'],[90,'90 min'],[120,'2 hours']].map(([value,label])=><button key={value} type="button" aria-pressed={Number(duration)===value} disabled={disabled} onClick={()=>change(date,time,String(value))}>{label}</button>)}</div>
       <details><summary>Other duration</summary><label>Duration in minutes<input type="number" min="1" max="720" step="1" value={duration} disabled={disabled} onChange={event=>change(date,time,event.target.value)}/></label><p>1–720 minutes · up to 12 hours</p></details>
     </div>
     {!validDuration&&<p role="alert" className="tm-slot-timing-error">Enter a duration from 1 to 720 minutes (12 hours).</p>}
     <div className="tm-slot-end-summary" role="status" aria-live="polite"><Clock3 size={22}/><div><span>Ends automatically</span><strong>{calculated?clockLabel(calculated.end.slice(11)):'Choose a date and start time'}</strong><p>{calculated?`${durationLabel} · ${calculated.end.slice(0,10)===date?'Same day':dateLabel(calculated.end.slice(0,10))+' · next day'} · Philippine time`:'The end time is calculated from your duration.'}</p></div></div>
-    {open&&<DateCalendar start={date} end="" phase="start" mode="slot" onClose={close} onApply={nextDate=>{change(nextDate,time,duration);close();}}/>}
+    {open==='date'&&<DateCalendar start={date} end="" phase="start" mode="slot" onClose={close} onApply={nextDate=>{change(nextDate,time,duration);close();}}/>}
+    {open==='time'&&<TimePicker single title="Choose reservation start time" labels={['Start time','']} arrival={time} departure="" phase="arrivalTime" sameDay={false} onClose={close} onApply={nextTime=>{change(date,nextTime,duration);close();}}/>}
   </div>;
 }
 export function mountOwnerSlotTimes(form:HTMLFormElement,start:HTMLInputElement,end:HTMLInputElement){

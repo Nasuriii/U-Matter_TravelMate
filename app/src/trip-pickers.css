@@ -78,15 +78,14 @@ body[data-theme=dark] .travel-trip-page .tm-calendar-range>button[aria-pressed=t
 /* A restaurant slot needs one date and a duration, rather than a second date picker. */
 body .tm-slot-timing {min-width:0;margin:0 0 18px;color:var(--foreground);font-family:var(--font-sans,'DM Sans',sans-serif)}
 .tm-slot-timing-fields {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
-body .tm-slot-timing-fields>label {display:block;margin:0;min-width:0}
-.tm-slot-timing-fields>div>span,.tm-slot-timing-fields>label>span:first-child,.tm-slot-duration>span {display:block;font-size:15px;font-weight:600;line-height:1.5;margin:0 0 10px}
-body .tm-slot-timing .tm-trip-date-trigger {display:flex;align-items:center;gap:12px;width:100%;height:54px;min-height:54px;margin:0;padding:12px 14px;text-align:left;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:11px;font:inherit;font-size:16px}
-body .tm-slot-timing .tm-trip-date-trigger:hover {border-color:var(--primary);background:var(--muted)}
-body .tm-slot-timing .tm-slot-time-input {display:flex;align-items:center;gap:10px;min-height:54px;padding:4px 14px;background:var(--card);border:1px solid var(--border);border-radius:11px;color:var(--primary)}
-body .tm-slot-timing .tm-slot-time-input:focus-within {outline:2px solid var(--primary);outline-offset:2px}
-body .tm-slot-timing .tm-slot-time-input>svg {flex-shrink:0}
-body .tm-slot-timing .tm-slot-time-input input {width:100%;min-width:0;min-height:44px;height:44px;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--foreground);font:inherit;font-size:16px;outline:0}
-body .tm-slot-timing .tm-slot-time-input input:focus-visible {outline:0}
+.tm-slot-timing-fields>div {min-width:0}
+.tm-slot-timing-fields>div>span,.tm-slot-duration>span {display:block;font-size:15px;font-weight:600;line-height:1.5;margin:0 0 10px}
+:is(#ol-form,#owner-details-form,.tm-slot-timing) .tm-slot-timing-fields .tm-trip-date-trigger {display:flex;align-items:center;gap:12px;width:100%;height:auto;min-height:62px;margin:0;padding:10px 14px;text-align:left;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:12px;font:inherit;font-size:16px;box-shadow:0 2px 6px #173e3005}
+:is(#ol-form,#owner-details-form,.tm-slot-timing) .tm-slot-timing-fields .tm-trip-date-trigger:is(:hover,[aria-expanded=true]):not(:disabled) {border-color:var(--primary);background:color-mix(in srgb,var(--primary) 4%,var(--card));box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 9%,transparent);transform:none}
+:is(#ol-form,#owner-details-form,.tm-slot-timing) .tm-slot-timing-fields .tm-trip-date-trigger:focus-visible {outline:2px solid var(--primary);outline-offset:3px}
+.tm-slot-timing-fields .tm-trip-date-trigger strong {min-width:0;overflow-wrap:anywhere;font-weight:600;font-variant-numeric:tabular-nums}
+.tm-slot-timing-fields .tm-trip-date-trigger:disabled {opacity:.55;cursor:not-allowed}
+.tm-slot-timing-fields .tm-trip-field-icon {width:36px;height:36px;background:color-mix(in srgb,var(--primary) 9%,var(--card))}
 .tm-slot-duration {margin-top:24px}
 .tm-slot-duration-options {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 body .tm-slot-duration-options>button {display:flex;align-items:center;justify-content:center;min-height:46px;padding:10px 12px;margin:0;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--foreground);font:inherit;font-size:15px;font-weight:500;box-shadow:none;transition:border-color .15s,background .15s}
@@ -107,6 +106,7 @@ body .tm-slot-timing-error {font-size:14px;line-height:1.6;color:var(--destructi
 @media(max-width:600px) {.tm-slot-timing-fields {grid-template-columns:1fr;gap:20px}.tm-slot-duration-options {grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce) {body .tm-slot-duration-options>button {transition:none}}
 .tm-time-dialog .tm-calendar-range {grid-template-columns:1fr 1fr;gap:12px}
+.tm-time-dialog .tm-calendar-range.is-single {grid-template-columns:1fr}
 .tm-time-instruction {display:flex;align-items:center;gap:7px;margin:16px 0!important;font-size:14px!important;color:var(--muted-foreground)}
 .tm-time-instruction svg {color:var(--primary);flex-shrink:0}
 .tm-clock-face {display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) 82px;align-items:center;gap:10px;padding:16px 0;border-top:1px solid var(--border)}
