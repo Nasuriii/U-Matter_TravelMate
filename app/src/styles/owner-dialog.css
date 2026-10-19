@@ -88,6 +88,8 @@ body .tm-owner-dialog :is(#ol-form,#owner-details-form) .tm-trip-time-fields {ga
 body .tm-owner-dialog :is(#ol-form,#owner-details-form) .tm-trip-time-fields>div>:is(span,label) {display:block;font-size:16px;line-height:1.5;margin:0 0 12px}
 .tm-owner-dialog :is(button,input,textarea,select):focus-visible {outline:2px solid var(--primary);outline-offset:3px}
 /* Non-interactive photo peeks remain above native chooser dialogs. */
+[data-place-preview]:focus-visible {outline:2px solid var(--ring,var(--primary));outline-offset:4px;border-radius:6px}
+.tm-place-card h3>a,.tm-recommended-content h3>a {color:inherit;text-decoration:none}
 .tm-place-hover-preview {position:fixed;inset:auto;margin:0;padding:0;border:1px solid var(--border);border-radius:18px;background:var(--card);color:var(--foreground);box-shadow:0 14px 44px #122c2440;overflow:auto;pointer-events:none;font-family:var(--font-sans,'DM Sans',sans-serif);line-height:1.4;scrollbar-width:none}
 .tm-place-hover-preview:popover-open {display:block;animation:tm-owner-popup-in .18s ease-out}
 .tm-peek-photo {display:grid;place-items:center;height:155px;overflow:hidden;background:var(--muted);color:var(--muted-foreground);font-size:13px}

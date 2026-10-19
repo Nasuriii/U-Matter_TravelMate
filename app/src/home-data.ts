@@ -141,12 +141,13 @@ export function loadBrowse(client: SupabaseClient) {
       location.append(mk('span','',dest?`${dest.name} · ${dest.province}`:l.address||label));
       const details = mk('a', 'l-more', type==='hotel'?'View rooms ':type==='restaurant'?'Explore menu ':'Explore place ') as HTMLAnchorElement;
       details.href = '#/listing/' + l.id;
-      placePreviewAttributes(details,type==='hotel'?'rooms':type==='restaurant'?'menu':'attraction',l.id,catalogLabel(l.name),dest?dest.name+', '+dest.province:l.address??'');
+      placePreviewAttributes(details,type==='hotel'?'rooms':type==='restaurant'?'menu':'attraction',l.id,catalogLabel(l.name),dest?dest.name+', '+dest.province:l.address??'');if(url)details.dataset.placeImage=url;
       details.setAttribute('aria-label', 'View details for ' + catalogLabel(l.name));
       const arrow = mk('span', 'l-more-arrow', '↗'); arrow.setAttribute('aria-hidden', 'true'); details.append(arrow);
       const description=String(l.description||l.address||'Explore photos and details.').trim();
       const brief=description.split(/(?<=[.!?])\s+/)[0];
-      b.append(location,mk('h3','',catalogLabel(l.name)),mk('p','l-desc',brief));
+      const title=mk('h3',''),titleLink=document.createElement('a');titleLink.href='#/listing/'+l.id;titleLink.textContent=catalogLabel(l.name);placePreviewAttributes(titleLink,'listing',l.id,catalogLabel(l.name),dest?dest.name+', '+dest.province:l.address??'');if(url)titleLink.dataset.placeImage=url;title.append(titleLink);
+      b.append(location,title,mk('p','l-desc',brief));
       const footer=mk('div','l-card-footer');footer.append(details);b.append(footer);
       if(preview)art.append(mk('span','l-preview-badge','Preview listing'));
       const heart=mk('div','tm-react');art.append(heart);disposers.push(mountSavedHeart(heart,l.id,catalogLabel(l.name)));card.append(art,b);card.addEventListener('click',e=>{if(!(e.target as HTMLElement).closest('.tm-save-position,a'))navigate('/listing/'+l.id);});card.dataset.listing=l.id;card.dataset.destination=dest?.name??''; cards.push({node:card,name:l.name,search:[l.name,l.address,dest?.name,dest?.province].join(' ').toLowerCase()});

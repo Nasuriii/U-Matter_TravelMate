@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { destinationPhoto } from './experience/destination-photos';
 import { showInlinePhotoCredits } from './experience/destination-picture';
 import { destinationDescription } from './destination-copy';
+import {placePreviewAttributes} from './place-hover-preview';
 type Destination={id:string;name:string;province:string;description:string|null};
 const destinationIcon=(heart=false,filled=false,loading=false)=>{const el=document.createElementNS('http://www.w3.org/2000/svg','svg');el.setAttribute('viewBox','0 0 24 24');el.setAttribute('width','18');el.setAttribute('height','18');el.setAttribute('fill',filled&&!loading?'currentColor':'none');if(loading)el.classList.add('tm-heart-spinner');el.setAttribute('stroke','currentColor');el.setAttribute('stroke-width','1.8');el.setAttribute('aria-hidden','true');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',loading?'M21 12a9 9 0 1 1-6.219-8.56':heart?'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z':'M7 17 17 7M7 7h10v10');el.append(path);return el;};
 const node=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
@@ -31,6 +32,7 @@ export function createExplorer(client:SupabaseClient){
    const open=document.createElement('a');open.className='destination-open';open.href='#/destination/'+d.id;open.setAttribute('aria-label','Explore '+d.name);
    const art=document.createElement('div');art.className='place-art';art.setAttribute('aria-hidden','true');art.textContent=d.province;
    const photo=destinationPhoto(d.name,d.province);
+   placePreviewAttributes(open,'destination',d.id,d.name,d.province);if(photo)open.dataset.placeImage=photo.src;
    if(photo){art.removeAttribute('aria-hidden');art.textContent='';art.classList.add('destination-photo-art');const image=document.createElement('img');image.src=photo.src;image.alt=photo.alt;image.loading='lazy';image.onerror=()=>{image.remove();art.textContent=d.name;};art.append(image);}
    const body=document.createElement('div');body.className='card-body';
    const region=document.createElement('p');region.className='eyebrow';region.textContent=d.province;

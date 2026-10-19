@@ -1,4 +1,4 @@
-export type GuestReservation={id:string;status:string;booking_type:string;starts_at:string|null;ends_at:string|null;guest_name:string;guest_count:number;listing_name:string;room_type:string|null;room_number:string|null};
+export type GuestReservation={id:string;listing_id?:string;status:string;booking_type:string;starts_at:string|null;ends_at:string|null;guest_name:string;guest_count:number;listing_name:string;room_type:string|null;room_number:string|null};
 export function localBookingDay(value:string|null){
  if(!value)return '';if(/^\d{4}-\d{2}-\d{2}$/.test(value))return value;
  const time=new Date(value);if(Number.isNaN(time.getTime()))return '';

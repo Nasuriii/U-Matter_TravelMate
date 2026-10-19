@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState,type Dispatch,type SetStateAction,type FocusEvent} from 'react';
 
 /** Rotate destination photos while they are visible and idle. */
-export function usePhotoRotation(count:number,setIndex:Dispatch<SetStateAction<number>>,intervalMs=1000){
+export function usePhotoRotation(count:number,setIndex:Dispatch<SetStateAction<number>>,intervalMs=3000){
  const root=useRef<HTMLElement>(null);
  const [paused,setPaused]=useState(()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches);
  const [hovered,setHovered]=useState(false),[focused,setFocused]=useState(false),[visible,setVisible]=useState(false);

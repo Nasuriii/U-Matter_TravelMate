@@ -6,6 +6,7 @@ import { tidy, toast } from './ui';
 import { listingPage, listingRange } from './listing-pagination';
 import { renderListingPagination } from './listing-pagination-ui';
 import {reservationSlotLabel} from './owner-slot-logic';
+import {placePreviewAttributes} from './place-hover-preview';
 type Row = Record<string, any>;
 const $ = (id: string) => document.getElementById(id)!;
 const peso = (n: any) => (n == null ? '—' : '₱' + Number(n).toLocaleString());
@@ -87,9 +88,11 @@ export function initAdmin(client: SupabaseClient) {
     const c = h('article', 'a-card'), problems = (l.problems ?? []) as string[];c.dataset.listingName=l.name;
     const top = h('div', 'a-card-top');
     const readinessBadge=h('span',problems.length?'a-readiness a-needs':'a-readiness a-ready');labelAction(readinessBadge,problems.length?'alert':'check',problems.length?'Needs attention':'Ready for approval');top.append(h('span','a-type',LABEL[l.type]??String(l.type)),readinessBadge);
-    c.append(top, h('h3', '', l.name), h('p', 'a-location', l.destination || 'Destination not provided'));
+    const title=h('h3','',l.name);title.tabIndex=0;placePreviewAttributes(title,'listing',l.id,l.name,l.destination||l.address||'');
+    c.append(top, title, h('p', 'a-location', l.destination || 'Destination not provided'));
     const review = document.createElement('details'); review.className = 'a-review-expanded';
     const reviewSummary = h('summary', '', 'Review listing'); reviewSummary.setAttribute('aria-label', 'Review ' + l.name); review.append(reviewSummary);
+    placePreviewAttributes(reviewSummary,'listing',l.id,l.name,l.destination||l.address||'');
     labelAction(reviewSummary,'eye','Review listing');reviewSummary.append(actionIcon('more'));
     const reviewBody = h('div', 'a-review-body'); review.append(reviewBody);
     reviewBody.append(h('p', '', l.address || 'No address'), h('p', 'a-owner', `Submitted by ${l.owner ?? '—'}${l.owner_email ? ' · ' + l.owner_email : ''}`));
@@ -142,7 +145,8 @@ export function initAdmin(client: SupabaseClient) {
     const ul = h('ul', 'a-history');
     for (const r of rows) {
       const li = h('li', ''), when = r.reviewed_at ? new Date(r.reviewed_at) : null;li.dataset.listingName=r.name;
-      li.append(h('strong', '', r.name), h('span', r.status === 'approved' ? 'a-ok' : 'a-no', r.status === 'approved' ? 'Approved' : 'Rejected'),
+      const title=h('strong','',r.name);title.tabIndex=0;placePreviewAttributes(title,'listing',r.id,r.name,r.destination||'');
+      li.append(title, h('span', r.status === 'approved' ? 'a-ok' : 'a-no', r.status === 'approved' ? 'Approved' : 'Rejected'),
         h('small', 'muted', `${LABEL[r.type] ?? r.type} · ${r.reviewer ?? 'an administrator'}${when && !Number.isNaN(when.getTime()) ? ' · ' + when.toLocaleString() : ''}`));
       if (r.status === 'rejected' && r.reason) li.append(h('small', 'o-reason', tidy('Reason: ' + r.reason)));
       ul.append(li);

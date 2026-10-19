@@ -1,7 +1,8 @@
 import {useEffect,useState,type ReactNode,type ComponentType} from 'react';
 import {ChevronRight} from 'lucide-react';
 import {Modal} from './modal';
-type Section={key:string;label:string;icon:ComponentType<{size?:number}>;content:ReactNode};
+import type {PreviewKind} from '../preview-content';
+type Section={key:string;label:string;icon:ComponentType<{size?:number}>;content:ReactNode;preview?:{kind:PreviewKind;id:string;name:string;area?:string;image?:string}};
 export function DetailSections({items,requested}:{items:Section[];requested?:{key:string;revision:number}}){
  const [selected,setSelected]=useState<string|null>(location.hash.includes('review=1')?'reviews':new URLSearchParams(location.hash.split('?')[1]||'').get('section'));const item=items.find(i=>i.key===selected);
  const [exiting,setExiting]=useState(false);
@@ -11,5 +12,5 @@ export function DetailSections({items,requested}:{items:Section[];requested?:{ke
  // Keep focus and the backdrop until the animation finishes; the timeout also
  // covers interrupted animations and changes to the reduced-motion setting.
  useEffect(()=>{if(!exiting)return;const timer=window.setTimeout(finishClose,320);return()=>window.clearTimeout(timer);},[exiting]);
- return <><nav className="tm-detail-section-nav" aria-label="Place details">{items.map(({key,label,icon:Icon})=><button key={key} onClick={()=>{setExiting(false);setSelected(key);}} aria-haspopup="dialog"><Icon size={18}/>{label}<ChevronRight size={14}/></button>)}</nav>{item&&<Modal title={item.label} close={requestClose} closeOnOutside exiting={exiting} onExitComplete={finishClose} className="tm-detail-drawer"><div className="tm-drawer-body">{item.content}</div></Modal>}</>;
+ return <><nav className="tm-detail-section-nav" aria-label="Place details">{items.map(({key,label,icon:Icon,preview})=><button key={key} data-place-preview={preview?.kind} data-place-id={preview?.id} data-place-name={preview?.name} data-place-area={preview?.area} data-place-image={preview?.image} onClick={()=>{setExiting(false);setSelected(key);}} aria-haspopup="dialog"><Icon size={18}/>{label}<ChevronRight size={14}/></button>)}</nav>{item&&<Modal title={item.label} close={requestClose} closeOnOutside exiting={exiting} onExitComplete={finishClose} className="tm-detail-drawer"><div className="tm-drawer-body">{item.content}</div></Modal>}</>;
 }

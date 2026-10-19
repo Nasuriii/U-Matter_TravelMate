@@ -11,9 +11,9 @@ export function placePreviewAttributes(node:HTMLElement,kind:PreviewKind,id:stri
 }
 async function load(node:HTMLElement):Promise<Preview>{
   const contextual=contextPreview(node);if(contextual)return contextual;
-  const id=node.dataset.placeId!,name=node.dataset.placeName??'',area=node.dataset.placeArea??'';
+  const id=node.dataset.placeId!,name=node.dataset.placeName??'',area=node.dataset.placeArea??'',suppliedImage=node.dataset.placeImage;
   if(node.dataset.placePreview==='destination'){
-    const cover=destinationPhoto(name,area);const base:Preview={name,area,kind:'Destination',image:cover?.src,places:[]};
+    const cover=destinationPhoto(name,area);const base:Preview={name,area,kind:'Destination',image:suppliedImage||cover?.src,places:[]};
     try{
       const responses=await Promise.all(['hotel','restaurant','attraction'].map(kind=>client.from('business_listings').select('id,name,is_sample,listing_type,description,address,destination_id').eq('destination_id',id).eq('status','approved').eq('listing_type',kind).order('name').limit(1)));
       const rows=responses.flatMap(response=>response.error?[]:response.data??[]) as Listing[];
@@ -22,9 +22,9 @@ async function load(node:HTMLElement):Promise<Preview>{
     return base;
   }
   const result=await client.from('business_listings').select('id,name,is_sample,listing_type,description,address,destination_id,destinations(name,province)').eq('id',id).maybeSingle();
-  if(result.error||!result.data)return {name,area,kind:'Listing'};
+  if(result.error||!result.data)return {name,area,kind:'Listing',image:suppliedImage};
   const row=result.data as unknown as Listing;const image=(await photosFor([row]))[0];
-  const preview:Preview={name:image.name,area,kind:label(row.listing_type),image:image.image};
+  const preview:Preview={name:image.name,area,kind:label(row.listing_type),image:image.image||suppliedImage};
   const role=currentIdentity().role;
   if(!preview.image&&(role==='owner'||role==='admin')){
     const response=await client.rpc(role==='admin'?'admin_listing_photos':'owner_list_photos',{p_listing:id});const first=response.data?.[0];
@@ -51,14 +51,14 @@ export function installPlacePreviews(){
   }
   function show(node:HTMLElement,delay=180){
     if(anchor===node)return;clear();anchor=node;const token=revision;timer=window.setTimeout(()=>{
-      if(anchor!==node||!node.isConnected)return;const name=node.dataset.placeName??'',area=node.dataset.placeArea??'',isDestination=node.dataset.placePreview==='destination';render({name,area,kind:isDestination?'Destination':node.dataset.placePreview==='pace'?'Travel pace':node.dataset.placePreview==='transport'?'Vehicle preview':'Loading details…',image:isDestination?destinationPhoto(name,area)?.src:node.dataset.placeImage});card.showPopover();position();node.setAttribute('aria-describedby',((node.getAttribute('aria-describedby')??'')+' '+card.id).trim());
-      const identity=currentIdentity(),key=[identity.id??'guest',node.dataset.placePreview,node.dataset.placeId,name].join(':');let entry=cache.get(key);
-      if(!entry||entry.expires<Date.now()){if(cache.size>=48)cache.delete(cache.keys().next().value!);entry={expires:Date.now()+240000,promise:load(node).catch(()=>({name,area,kind:isDestination?'Destination':'Listing'}))};cache.set(key,entry);}
-      void entry.promise.then(preview=>{if(token===revision&&anchor===node&&node.isConnected)render(preview);});
+      if(anchor!==node||!node.isConnected)return;const name=node.dataset.placeName??'',area=node.dataset.placeArea??'',isDestination=node.dataset.placePreview==='destination',image=node.dataset.placeImage||(isDestination?destinationPhoto(name,area)?.src:undefined);render({name,area,kind:isDestination?'Destination':node.dataset.placePreview==='pace'?'Travel pace':node.dataset.placePreview==='transport'?'Vehicle preview':'Loading details…',image});card.showPopover();position();node.setAttribute('aria-describedby',((node.getAttribute('aria-describedby')??'')+' '+card.id).trim());
+      const identity=currentIdentity(),key=[identity.id??'guest',node.dataset.placePreview,node.dataset.placeId,name,area,node.dataset.placeImage??''].join(':');let entry=cache.get(key);
+      if(!entry||entry.expires<Date.now()){if(cache.size>=48)cache.delete(cache.keys().next().value!);entry={expires:Date.now()+240000,promise:load(node).catch(()=>({name,area,kind:isDestination?'Destination':'Listing',image}))};cache.set(key,entry);}
+      void entry.promise.then(preview=>{if(token===revision&&anchor===node&&node.isConnected)render({...preview,image:preview.image||image});});
     },delay);
   }
 
-  let gesture:{node:HTMLElement;id:number;x:number;y:number;timer:number;held:boolean}|null=null,lastTouch=0;
+  let gesture:{node:HTMLElement;id:number;x:number;y:number;timer:number;held:boolean}|null=null,lastTouch=Number.NEGATIVE_INFINITY;
   let suppressClick:{node:HTMLElement;until:number}|null=null;
   const releaseTouch=()=>{if(gesture){window.clearTimeout(gesture.timer);if(gesture.held)suppressClick={node:gesture.node,until:performance.now()+900};gesture=null;}clear();};
   document.addEventListener('pointerover',event=>{const node=(event.target as Element)?.closest<HTMLElement>('[data-place-preview]');if(node&&event.pointerType!=='touch'&&matchMedia('(hover:hover)').matches)show(node);});
