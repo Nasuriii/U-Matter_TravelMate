@@ -12,14 +12,14 @@ export function destinationGallery(name:string,province:string):DestinationPhoto
  const extra=/la union|benguet/i.test(province)?(galleries as Record<string,DestinationPhoto[]>)[key]??[]:[];
  return [cover,...extra].filter((p):p is DestinationPhoto=>!!p).filter((p,i,all)=>all.findIndex(x=>x.source===p.source)===i);
 }
-export function DestinationCarousel({mosaic=false,...props}:{name:string;province:string;mosaic?:boolean;showThumbnails?:boolean}){
+export function DestinationCarousel({mosaic=false,...props}:{name:string;province:string;mosaic?:boolean;showThumbnails?:boolean;intervalMs?:number}){
  if(mosaic){const photos=destinationGallery(props.name,props.province);return <><PhotoMosaic photos={photos} name={props.name}/>{showInlinePhotoCredits&&<details className="travel-photo-credit"><summary aria-label="Photo information">ⓘ</summary>{photos.map(photo=><p key={photo.src}><a href={photo.source} target="_blank" rel="noreferrer">{photo.author||'Wikimedia Commons'}</a> · {photo.license}</p>)}</details>}</>;}
  return <DestinationSlides {...props}/>;
 }
-function DestinationSlides({name,province,showThumbnails=true}:{name:string;province:string;showThumbnails?:boolean}){
+function DestinationSlides({name,province,showThumbnails=true,intervalMs}:{name:string;province:string;showThumbnails?:boolean;intervalMs?:number}){
  const photos=destinationGallery(name,province),[index,setIndex]=useState(0),[failed,setFailed]=useState<string[]>([]),pointer=useRef<number|null>(null);
  const available=photos.filter(p=>!failed.includes(p.src)),active=Math.min(index,Math.max(available.length-1,0));
- const rotation=usePhotoRotation(available.length,setIndex);
+ const rotation=usePhotoRotation(available.length,setIndex,intervalMs);
  const go=(delta:number)=>setIndex(i=>(Math.min(i,available.length-1)+delta+available.length)%available.length);
 
  return <section {...rotation.rootProps} className="travel-carousel" aria-label={name+' destination photos'} aria-roledescription="carousel"><div className="travel-carousel-stage" tabIndex={available.length>1?0:undefined} onKeyDown={e=>{if(available.length>1&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();go(e.key==='ArrowRight'?1:-1);}}} onPointerDown={e=>{if((e.target as Element).closest('button'))return;pointer.current=e.clientX;e.currentTarget.setPointerCapture(e.pointerId);}} onPointerUp={e=>{if(pointer.current!==null&&available.length>1&&Math.abs(e.clientX-pointer.current)>45)go(e.clientX<pointer.current?1:-1);pointer.current=null;}} onPointerCancel={()=>{pointer.current=null;}}>
